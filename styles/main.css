@@ -633,3 +633,108 @@ header p {
         width: 95%;
     }
 }
+
+/* Authorized Users Section */
+.authorized-users-section {
+    background: rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 30px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.authorized-users-header {
+    color: white;
+    margin-bottom: 20px;
+}
+
+.authorized-users-header h3 {
+    font-size: 1.3em;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.authorized-users-header p {
+    font-size: 0.9em;
+    opacity: 0.85;
+    margin: 0;
+}
+
+.authorized-users-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.auth-user-card {
+    background: rgba(255,255,255,0.95);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.auth-user-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+
+.user-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 1.2em;
+    flex-shrink: 0;
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95em;
+    margin-bottom: 4px;
+}
+
+.user-role {
+    font-size: 0.8em;
+    color: #666;
+}
+
+@media (max-width: 768px) {
+    .authorized-users-section {
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+
+    .authorized-users-list {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 10px;
+    }
+
+    .auth-user-card {
+        padding: 12px;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+    }
+}

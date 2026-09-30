@@ -1,7 +1,17 @@
 // PDR Fleet Tracker - Main Application
 
 const app = {
-    vehicles: [
+
+    authorizedReps: [
+        { name: 'Paulo Ribeiro', role: 'Lead Technician' },
+        { name: 'Mike Johnson', role: 'Field Operations' },
+        { name: 'Sarah Chen', role: 'Site Manager' },
+        { name: 'David Martinez', role: 'Technician' },
+        { name: 'Jessica Williams', role: 'Field Operations' },
+        { name: 'Tom Anderson', role: 'Technician' }
+    ],
+
+        vehicles: [
         {
             id: 'truck-1',
             name: 'F-150',
@@ -105,11 +115,41 @@ const app = {
 
         // Render initial view
         this.renderVehicles();
+        this.renderAuthorizedUsers();
 
         // Set up real-time updates
         this.setupAutoUpdates();
-    },
 
+    // Render authorized users
+    renderAuthorizedUsers() {
+        const container = document.getElementById('authorizedUsersList');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        this.authorizedReps.forEach(rep => {
+            const card = document.createElement('div');
+            card.className = 'auth-user-card';
+            
+            // Get initials for avatar
+            const initials = rep.name
+                .split(' ')
+                .map(n => n[0])
+                .join('')
+                .toUpperCase();
+            
+            card.innerHTML = `
+                <div class="user-avatar">${initials}</div>
+                <div class="user-info">
+                    <div class="user-name">${rep.name}</div>
+                    <div class="user-role">${rep.role}</div>
+                </div>
+            `;
+            
+            container.appendChild(card);
+        });
+    },
+    
     // Load tracking data from Appletag
     async loadTrackingData() {
         for (const vehicle of this.vehicles) {
