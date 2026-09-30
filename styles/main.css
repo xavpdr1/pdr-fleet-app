@@ -50,6 +50,9 @@ header {
 }
 
 .pdr-logo {
+    display: block;
+    object-fit: contain;
+    object-position: center;
     width: 200px;
     height: 75px;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
@@ -725,16 +728,3 @@ header p {
     .authorized-users-list {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 10px;
-    }
-
-    .auth-user-card {
-        padding: 12px;
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .user-avatar {
-        width: 40px;
-        height: 40px;
-    }
-}
