@@ -16,6 +16,8 @@ const app = {
             id: 'person-1',
             name: 'Xavier Fernandez',
             email: 'xavier.fernandez@pdr-team.com',
+            phone: '214-555-0101',
+            address: 'Lewisville, TX',
             role: 'Admin',
             permissions: {
                 viewVehicles: true,
@@ -32,6 +34,8 @@ const app = {
             id: 'person-2',
             name: 'Curtis Wall',
             email: 'curtis.wall@pdr-team.com',
+            phone: '214-555-0102',
+            address: 'Dallas, TX',
             role: 'Technician',
             permissions: {
                 viewVehicles: true,
@@ -48,6 +52,8 @@ const app = {
             id: 'person-3',
             name: 'Anton Potgieter',
             email: 'anton.potgieter@pdr-team.com',
+            phone: '214-555-0103',
+            address: 'Arlington, TX',
             role: 'Technician',
             permissions: {
                 viewVehicles: true,
@@ -64,6 +70,8 @@ const app = {
             id: 'person-4',
             name: 'Dial Mayfield',
             email: 'dial.mayfield@pdr-team.com',
+            phone: '214-555-0104',
+            address: 'Frisco, TX',
             role: 'Technician',
             permissions: {
                 viewVehicles: true,
