@@ -316,19 +316,22 @@ const app = {
             const card = document.createElement('div');
             card.className = 'asset-card';
 
-            const icon = this.currentTab === 'vehicles' ? '🚗' : '🚛';
+            const fallbackEmoji = this.currentTab === 'vehicles' ? '🚗' : '🚛';
+            const iconDisplay = item.photo ?
+                `<img src="${item.photo}" alt="${item.name}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px;">`
+                : `<div style="font-size: 28px; display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: #e5e7eb; border-radius: 8px;">${fallbackEmoji}</div>`;
             const secondaryInfo = item.type === 'trailer'
                 ? `${item.licensePlate} • ${item.capacity} lbs`
                 : `${item.licensePlate} • ${item.mileage.toLocaleString()} mi`;
 
             const statusColor = this.getStatusColor(item.status);
             const isInUse = this.currentUsage[item.id];
-            const usageInfo = isInUse ? `<div style="font-size: 12px; color: #f59e0b; font-weight: 600; margin-top: 4px;">⚠️ In use by ${isInUse.userName}</div>` : '';
+            const usageInfo = isInUse ? `<div style="font-size: 12px; color: #f59e0b; font-weight: 600; margin-top: 4px;">⚠️ In use by ${isInUse.userName}${isInUse.location ? ` at ${isInUse.location}` : ''}</div>` : '';
 
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
                     <div style="flex: 1;" onclick="app.showAssetDetail('${item.id}')">
-                        <div class="asset-icon">${icon}</div>
+                        <div class="asset-icon">${iconDisplay}</div>
                         <div class="asset-info">
                             <div class="asset-name">${item.name}</div>
                             <div class="asset-details">
@@ -353,8 +356,13 @@ const app = {
                             <button id="useBtn-${item.id}" onclick="app.toggleUsageDropdown('${item.id}')" style="padding: 8px 12px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap;">
                                 USE
                             </button>
-                            <div id="dropdown-${item.id}" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 6px; min-width: 180px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; margin-top: 4px;">
+                            <div id="dropdown-${item.id}" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 6px; min-width: 200px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; margin-top: 4px;">
                                 <div style="padding: 8px 0;">
+                                    ${item.type === 'trailer' ? `
+                                        <div style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6;">
+                                            <input type="text" id="trailerLocation-${item.id}" placeholder="Location" style="width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px;">
+                                        </div>
+                                    ` : ''}
                                     ${this.people.map(person => `
                                         <div onclick="app.logUsageWithPerson('${item.id}', '${person.name}'); app.toggleUsageDropdown('${item.id}')" style="padding: 10px 12px; cursor: pointer; font-size: 13px; color: #1f2937; border-bottom: 1px solid #f3f4f6; transition: background 0.2s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
                                             ${person.name}
@@ -461,6 +469,9 @@ const app = {
                 <button onclick="app.openAssetQR()" style="padding: 14px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
                     <i class="fas fa-qrcode"></i> View QR
                 </button>
+                <button onclick="app.openPhotoUpload('${assetId}')" style="padding: 14px; background: #8b5cf6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                    <i class="fas fa-camera"></i> Photo
+                </button>
                 ${this.currentUser.isAdmin ? `
                     <button onclick="app.showEditAssetModal()" style="padding: 14px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
                         <i class="fas fa-edit"></i> Edit
@@ -491,6 +502,33 @@ const app = {
 
         this.showPage('qrPage');
         this.setActiveNav('qr');
+    },
+
+    // Open photo upload
+    openPhotoUpload(assetId) {
+        const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
+        if (!asset) return;
+
+        // Create a hidden file input
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                // Store the base64 image in the asset
+                asset.photo = event.target.result;
+                this.saveToLocalStorage();
+                this.renderFleetList();
+                this.showAssetDetail(assetId);
+                alert('✓ Photo uploaded successfully');
+            };
+            reader.readAsDataURL(file);
+        };
+        input.click();
     },
 
     // Show QR form modal
@@ -683,10 +721,19 @@ const app = {
         const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
         if (!asset) return;
 
+        // Get location if it's a trailer (from input field if available)
+        let location = '';
+        if (asset.type === 'trailer') {
+            const locationInput = document.getElementById(`trailerLocation-${assetId}`);
+            location = locationInput ? locationInput.value.trim() : '';
+            // Don't require location, just use what's entered
+        }
+
         // Mark asset as in use
         this.currentUsage[assetId] = {
             userName: personName,
-            startTime: new Date()
+            startTime: new Date(),
+            location: location || null
         };
 
         // Log to usage logs
@@ -697,6 +744,7 @@ const app = {
         this.usageLogs[assetId].push({
             userName: personName,
             startTime: new Date().toISOString(),
+            location: location || null,
             type: 'usage'
         });
 
@@ -706,7 +754,7 @@ const app = {
         // Refresh fleet list to show updated status
         this.renderFleetList();
 
-        alert(`✓ ${asset.name} is now in use by ${personName}`);
+        alert(`✓ ${asset.name} is now in use by ${personName}${location ? ' at ' + location : ''}`);
     },
 
     showLogUsageModal(assetId) {
@@ -716,10 +764,17 @@ const app = {
         const userName = prompt('Enter your name to log usage:');
         if (!userName || userName.trim() === '') return;
 
+        // For trailers, allow optional location input
+        let location = '';
+        if (asset.type === 'trailer') {
+            location = prompt('Where is the trailer located? (optional)', '');
+        }
+
         // Mark asset as in use
         this.currentUsage[assetId] = {
             userName: userName.trim(),
-            startTime: new Date()
+            startTime: new Date(),
+            location: location && location.trim() ? location.trim() : null
         };
 
         // Log to usage logs
@@ -730,6 +785,7 @@ const app = {
         this.usageLogs[assetId].push({
             userName: userName.trim(),
             startTime: new Date().toISOString(),
+            location: location && location.trim() ? location.trim() : null,
             type: 'usage'
         });
 
@@ -739,7 +795,7 @@ const app = {
         // Refresh fleet list to show updated status
         this.renderFleetList();
 
-        alert(`✓ ${asset.name} is now marked as in use by ${userName}`);
+        alert(`✓ ${asset.name} is now marked as in use by ${userName}${location && location.trim() ? ' at ' + location : ''}`);
     },
 
     // End usage for an asset
