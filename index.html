@@ -8,6 +8,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
         #splash-screen {
             position: fixed;
             top: 0;
@@ -49,6 +62,374 @@
                 transform: scale(1);
             }
         }
+
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #1f2937;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .vehicles-section {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .vehicle-selector {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+        }
+
+        .vehicle-selector h2 {
+            font-size: 16px;
+            color: #374151;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .vehicle-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .vehicle-btn {
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .vehicle-btn:hover {
+            border-color: #667eea;
+            background: #f3f4f6;
+            transform: translateX(4px);
+        }
+
+        .vehicle-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .vehicle-btn-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .vehicle-btn-details {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .vehicle-detail {
+            background: white;
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+
+        .detail-title h2 {
+            font-size: 24px;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .detail-title p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-available {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-in-use {
+            background: #fef08a;
+            color: #854d0e;
+        }
+
+        .status-maintenance {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .info-section {
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .section-title {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .info-value {
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        .alert-section {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 24px;
+        }
+
+        .alert-title {
+            color: #d97706;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .alert-message {
+            color: #92400e;
+            font-size: 13px;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 2px solid #f3f4f6;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #1f2937;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        form {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #374151;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .qr-display {
+            text-align: center;
+            padding: 24px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-top: 24px;
+        }
+
+        .qr-display h3 {
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        #qrcode {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .qr-label {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            .vehicles-section {
+                grid-template-columns: 1fr;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .vehicle-detail {
+                padding: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -57,106 +438,77 @@
         <img id="splash-logo" src="./logo.png" alt="PDR-Team Fleet Management">
     </div>
 
-    <div class="container">
+    <div class="app-container">
         <header>
-            <div class="header-content">
-                <div class="title-section">
-                    <h1>PDR-Team Fleet Tracker</h1>
-                    <p>Driver logs, maintenance tracking, and recall notifications</p>
-                </div>
-            </div>
+            <h1><i class="fas fa-truck"></i> PDR Fleet Tracker</h1>
+            <p class="subtitle">Vehicle management, tracking, and maintenance logs</p>
         </header>
 
-        <div class="controls">
-            <div class="control-group">
-                <button class="active" onclick="app.switchView('all')"><i class="fas fa-th"></i> All Vehicles</button>
-                <button onclick="app.switchView('active')"><i class="fas fa-map-marker-alt"></i> Active</button>
-                <button onclick="app.switchView('tracked')"><i class="fas fa-signal"></i> Tracked</button>
-                <button onclick="app.switchView('qronly')"><i class="fas fa-qrcode"></i> QR Codes</button>
+        <div class="vehicles-section">
+            <!-- Vehicle Selector -->
+            <div class="vehicle-selector">
+                <h2>Vehicles</h2>
+                <div class="vehicle-buttons" id="vehicleButtons"></div>
             </div>
-            <div class="filter-group">
-                <select onchange="app.filterByStatus(this.value)" id="statusFilter">
-                    <option value="">All Status</option>
-                    <option value="available">Available</option>
-                    <option value="in-use">In Use</option>
-                    <option value="maintenance">Maintenance</option>
-                </select>
-            </div>
-        </div>
 
-        <!-- Authorized Users Section -->
-        <div class="authorized-users-section" id="authorizedUsersSection">
-            <div class="authorized-users-header">
-                <h3><i class="fas fa-users"></i> Authorized Representatives</h3>
-                <p>Users with access to fleet units</p>
-            </div>
-            <div class="authorized-users-list" id="authorizedUsersList"></div>
+            <!-- Vehicle Details -->
+            <div class="vehicle-detail" id="vehicleDetail"></div>
         </div>
-        <div class="vehicles-grid" id="vehiclesGrid"></div>
     </div>
 
     <!-- Vehicle Details Modal -->
     <div class="modal" id="vehicleModal">
         <div class="modal-content">
             <div class="modal-header">
-                <span id="modalTitle"></span>
+                <h3 id="modalTitle"></h3>
                 <button class="close-btn" onclick="app.closeModal()">×</button>
             </div>
             <div id="modalBody"></div>
-            <div class="tracking-details" id="trackingDetails"></div>
             <div class="qr-display">
-                <h3 style="margin-bottom: 16px; color: #333;">Scan QR Code</h3>
+                <h3>Scan QR Code</h3>
                 <div id="qrcode"></div>
-                <p style="margin-top: 12px; font-size: 0.9em; color: #999;">Linked to Appletag: <strong id="appletag"></strong></p>
+                <p class="qr-label">Linked to Appletag: <strong id="appletag"></strong></p>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
-                <button class="btn btn-primary" onclick="app.openDriverLogForm()">Add Driver Log</button>
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="app.openBookingForm()">Request Usage</button>
                 <button class="btn btn-secondary" onclick="app.openMaintenanceForm()">Log Maintenance</button>
             </div>
         </div>
     </div>
 
-    <!-- Driver Log Modal -->
-    <div class="modal" id="driverLogModal">
+    <!-- Booking Modal -->
+    <div class="modal" id="bookingModal">
         <div class="modal-content">
             <div class="modal-header">
-                Add Driver Log
-                <button class="close-btn" onclick="app.closeDriverLogModal()">×</button>
+                <h3>Request Vehicle Usage</h3>
+                <button class="close-btn" onclick="app.closeBookingModal()">×</button>
             </div>
-            <form onsubmit="app.submitDriverLog(event)">
+            <form onsubmit="app.submitBooking(event)">
                 <div class="form-group">
                     <label>Vehicle</label>
-                    <input type="text" id="driverLogVehicle" readonly>
+                    <input type="text" id="bookingVehicle" readonly>
                 </div>
                 <div class="form-group">
                     <label>Date</label>
-                    <input type="date" id="driverLogDate" required>
+                    <input type="date" id="bookingDate" required>
                 </div>
                 <div class="form-group">
-                    <label>Driver Name</label>
-                    <input type="text" id="driverLogDriver" required>
+                    <label>Time (Start)</label>
+                    <input type="time" id="bookingTime" required>
                 </div>
                 <div class="form-group">
-                    <label>Starting Mileage</label>
-                    <input type="number" id="driverLogStartMiles" required>
+                    <label>Duration (hours)</label>
+                    <input type="number" id="bookingDuration" min="1" max="8" value="2" required>
                 </div>
                 <div class="form-group">
-                    <label>Ending Mileage</label>
-                    <input type="number" id="driverLogEndMiles" required>
+                    <label>Destination</label>
+                    <input type="text" id="bookingDestination" required>
                 </div>
                 <div class="form-group">
-                    <label>Route/Destination</label>
-                    <input type="text" id="driverLogRoute" required>
+                    <label>Business Purpose</label>
+                    <textarea id="bookingPurpose" required></textarea>
                 </div>
-                <div class="form-group">
-                    <label>Fuel Used (gallons)</label>
-                    <input type="number" id="driverLogFuel" step="0.1" required>
-                </div>
-                <div class="form-group">
-                    <label>Notes</label>
-                    <textarea id="driverLogNotes" placeholder="Any issues or notes about the trip"></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Driver Log</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Request</button>
             </form>
         </div>
     </div>
@@ -165,7 +517,7 @@
     <div class="modal" id="maintenanceModal">
         <div class="modal-content">
             <div class="modal-header">
-                Log Maintenance
+                <h3>Log Maintenance</h3>
                 <button class="close-btn" onclick="app.closeMaintenanceModal()">×</button>
             </div>
             <form onsubmit="app.submitMaintenance(event)">
