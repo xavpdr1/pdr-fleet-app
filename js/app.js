@@ -7,6 +7,77 @@ const app = {
         { name: 'Curtis Wall', role: 'Authorized User' }
     ],
 
+    // Current logged-in user (in production, this would come from authentication)
+    currentUser: { name: 'Xavier Fernandez', isAdmin: true },
+
+    // People/Users management
+    people: [
+        {
+            id: 'person-1',
+            name: 'Xavier Fernandez',
+            email: 'xavier.fernandez@pdr-team.com',
+            role: 'Admin',
+            permissions: {
+                viewVehicles: true,
+                editVehicles: true,
+                viewTrailers: true,
+                editTrailers: true,
+                logUsage: true,
+                logMaintenance: true,
+                managePeople: true,
+                manageAlerts: true
+            }
+        },
+        {
+            id: 'person-2',
+            name: 'Curtis Wall',
+            email: 'curtis.wall@pdr-team.com',
+            role: 'Technician',
+            permissions: {
+                viewVehicles: true,
+                editVehicles: false,
+                viewTrailers: true,
+                editTrailers: false,
+                logUsage: true,
+                logMaintenance: true,
+                managePeople: false,
+                manageAlerts: false
+            }
+        },
+        {
+            id: 'person-3',
+            name: 'Anton Potgieter',
+            email: 'anton.potgieter@pdr-team.com',
+            role: 'Technician',
+            permissions: {
+                viewVehicles: true,
+                editVehicles: false,
+                viewTrailers: true,
+                editTrailers: false,
+                logUsage: true,
+                logMaintenance: true,
+                managePeople: false,
+                manageAlerts: false
+            }
+        },
+        {
+            id: 'person-4',
+            name: 'Dial Mayfield',
+            email: 'dial.mayfield@pdr-team.com',
+            role: 'Technician',
+            permissions: {
+                viewVehicles: true,
+                editVehicles: false,
+                viewTrailers: true,
+                editTrailers: false,
+                logUsage: true,
+                logMaintenance: true,
+                managePeople: false,
+                manageAlerts: false
+            }
+        }
+    ],
+
         vehicles: [
         {
             id: 'truck-1',
@@ -87,9 +158,10 @@ const app = {
 
     currentVehicle: null,
     currentVehicleId: null,
-    currentTab: 'vehicles', // 'vehicles' or 'trailers'
+    currentTab: 'vehicles', // 'vehicles', 'trailers', or 'people'
     tracking: {},
     usageLogs: {}, // Track usage history by vehicle ID
+    selectedPerson: null, // Currently selected person
 
     // Alerts/Recalls system mapped by VIN
     alerts: {
@@ -108,23 +180,317 @@ const app = {
         // Load tracking data for all vehicles and trailers
         await this.loadTrackingData();
 
-        // Render vehicle/trailer buttons
-        this.renderVehicleButtons();
-
-        // Select the first vehicle by default
-        if (this.vehicles.length > 0) {
-            this.selectVehicle(this.vehicles[0].id);
-        } else if (this.trailers.length > 0) {
-            this.currentTab = 'trailers';
-            this.selectVehicle(this.trailers[0].id);
-        }
+        // Render fleet list
+        this.renderFleetList();
 
         // Set up real-time updates
         this.setupAutoUpdates();
     },
 
+    // Page Navigation
+    showPage(pageId) {
+        document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+        const page = document.getElementById(pageId);
+        if (page) {
+            page.classList.add('active');
+        }
+    },
+
+    setActiveNav(navId) {
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        const navItems = document.querySelectorAll('.nav-item');
+        const navMap = { 'fleet': 0, 'qr': 1, 'settings': 2 };
+        if (navMap[navId] !== undefined) {
+            navItems[navMap[navId]].classList.add('active');
+        }
+    },
+
+    // Render fleet list (vehicles and trailers)
+    renderFleetList() {
+        const assetList = document.getElementById('assetList');
+        const items = this.currentTab === 'vehicles' ? this.vehicles : this.trailers;
+
+        assetList.innerHTML = '';
+        items.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'asset-card';
+            card.onclick = () => this.showAssetDetail(item.id);
+
+            const icon = this.currentTab === 'vehicles' ? '🚗' : '🚛';
+            const secondaryInfo = item.type === 'trailer'
+                ? `${item.licensePlate} • ${item.capacity} lbs`
+                : `${item.licensePlate} • ${item.mileage.toLocaleString()} mi`;
+
+            const statusColor = this.getStatusColor(item.status);
+
+            card.innerHTML = `
+                <div class="asset-icon">${icon}</div>
+                <div class="asset-info">
+                    <div class="asset-name">${item.name}</div>
+                    <div class="asset-details">
+                        <span class="status-dot" style="background: ${statusColor};"></span>
+                        ${secondaryInfo}
+                    </div>
+                </div>
+            `;
+
+            assetList.appendChild(card);
+        });
+    },
+
+    // Switch between vehicles and trailers tabs
+    switchFleetTab(tab) {
+        this.currentTab = tab;
+        document.querySelectorAll('.fleet-tab').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+        this.renderFleetList();
+    },
+
+    // Show asset detail page
+    showAssetDetail(assetId) {
+        const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
+        if (!asset) return;
+
+        this.currentVehicle = asset;
+        this.currentVehicleId = assetId;
+
+        const detailContent = document.getElementById('assetDetailContent');
+        const tracking = this.tracking[asset.id] || {};
+        const statusText = asset.status.replace('-', ' ').toUpperCase();
+
+        let specs = '';
+        if (asset.type === 'trailer') {
+            specs = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div style="background: #D9E1F2; padding: 12px; border-radius: 8px;">
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Empty Weight</div>
+                        <div style="font-size: 16px; font-weight: 600; color: #1F4E79;">${asset.emptyWeight.toLocaleString()} lbs</div>
+                    </div>
+                    <div style="background: #D9E1F2; padding: 12px; border-radius: 8px;">
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Capacity</div>
+                        <div style="font-size: 16px; font-weight: 600; color: #1F4E79;">${asset.capacity.toLocaleString()} lbs</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            specs = `
+                <div style="background: #D9E1F2; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Current Mileage</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #1F4E79;">${asset.mileage.toLocaleString()} mi</div>
+                </div>
+            `;
+        }
+
+        detailContent.innerHTML = `
+            <h2 style="color: #1F4E79; font-size: 24px; margin-bottom: 8px;">${asset.name}</h2>
+            <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">${asset.model}</p>
+
+            <div style="background: #f3f4f6; padding: 8px 12px; border-radius: 6px; margin-bottom: 16px; display: inline-block;">
+                <span style="font-size: 12px; font-weight: 600; color: #1F4E79;">${statusText}</span>
+            </div>
+
+            ${specs}
+
+            <div style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-weight: 600; color: #1F4E79; margin-bottom: 12px; font-size: 14px;">Information</div>
+                <div style="display: grid; gap: 8px; font-size: 14px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #6b7280;">License Plate</span>
+                        <span style="font-weight: 600; color: #1f2937;">${asset.licensePlate}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #6b7280;">VIN</span>
+                        <span style="font-weight: 600; color: #1f2937; font-family: monospace; font-size: 12px;">${asset.vin}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #6b7280;">Assigned To</span>
+                        <span style="font-weight: 600; color: #1f2937;">${asset.assignedTo}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-weight: 600; color: #1F4E79; margin-bottom: 12px; font-size: 14px;">Maintenance</div>
+                <div style="display: grid; gap: 8px; font-size: 14px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #6b7280;">Last Service</span>
+                        <span style="font-weight: 600; color: #1f2937;">${asset.lastMaintenance}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #6b7280;">Next Service</span>
+                        <span style="font-weight: 600; color: #1f2937;">${asset.nextMaintenance}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+                <button onclick="app.openAssetQR()" style="padding: 14px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                    <i class="fas fa-qrcode"></i> View QR
+                </button>
+                ${this.currentUser.isAdmin ? `
+                    <button onclick="app.showEditAssetModal()" style="padding: 14px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                ` : ''}
+            </div>
+        `;
+
+        this.showPage('assetDetailPage');
+    },
+
+    // Open QR code for current asset
+    openAssetQR() {
+        if (!this.currentVehicle) return;
+
+        const qrContainer = document.getElementById('qrCodeDisplay');
+        qrContainer.innerHTML = '';
+
+        document.getElementById('qrAppletagId').textContent = this.currentVehicle.appletag;
+
+        const qrUrl = `${window.location.href}?asset=${this.currentVehicle.id}&appletag=${this.currentVehicle.appletag}`;
+        new QRCode(qrContainer, {
+            text: qrUrl,
+            width: 250,
+            height: 250,
+            correctLevel: QRCode.CorrectLevel.H,
+            colorDark: '#1F4E79',
+            colorLight: '#ffffff'
+        });
+
+        this.showPage('qrPage');
+        this.setActiveNav('qr');
+    },
+
+    // Show QR form modal
+    showQRFormModal(actionType) {
+        const formTitle = document.getElementById('qrFormTitle');
+        const formFields = document.getElementById('qrFormFields');
+
+        let title = '', fields = '';
+
+        if (actionType === 'checkout') {
+            title = '📋 Checkout Asset';
+            fields = `
+                <div class="form-group">
+                    <label class="form-label">Driver Name</label>
+                    <input type="text" name="driverName" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Purpose</label>
+                    <input type="text" name="purpose" class="form-input" placeholder="e.g., Site visit, Equipment transport" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Expected Return Time</label>
+                    <input type="time" name="returnTime" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <input type="text" name="notes" class="form-input" placeholder="Optional">
+                </div>
+            `;
+        } else if (actionType === 'usage') {
+            const isVehicle = this.currentVehicle.type === 'vehicle';
+            title = '⚡ Log Usage';
+            fields = `
+                <div class="form-group">
+                    <label class="form-label">Driver Name</label>
+                    <input type="text" name="driverName" class="form-input" required>
+                </div>
+                ${isVehicle ? `
+                <div class="form-group">
+                    <label class="form-label">Starting Mileage</label>
+                    <input type="number" name="startMileage" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ending Mileage</label>
+                    <input type="number" name="endMileage" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Fuel Added (gal)</label>
+                    <input type="number" name="fuelAdded" class="form-input" step="0.1" value="0">
+                </div>
+                ` : ''}
+                <div class="form-group">
+                    <label class="form-label">Trip Notes</label>
+                    <input type="text" name="tripNotes" class="form-input" placeholder="Where, what for, etc.">
+                </div>
+            `;
+        } else if (actionType === 'maintenance') {
+            title = '🔧 Log Maintenance';
+            fields = `
+                <div class="form-group">
+                    <label class="form-label">Maintenance Type</label>
+                    <select name="maintenanceType" class="form-input" required>
+                        <option value="">Select...</option>
+                        <option value="oil-change">Oil Change</option>
+                        <option value="tire-rotation">Tire Rotation</option>
+                        <option value="inspection">Inspection</option>
+                        <option value="repair">Repair</option>
+                        <option value="cleaning">Cleaning</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <input type="text" name="description" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cost ($)</label>
+                    <input type="number" name="cost" class="form-input" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <input type="text" name="notes" class="form-input" placeholder="Optional">
+                </div>
+            `;
+        }
+
+        formTitle.textContent = title;
+        formFields.innerHTML = fields;
+        document.getElementById('qrForm').dataset.actionType = actionType;
+        document.getElementById('qrFormModal').classList.add('active');
+    },
+
+    // Close QR form modal
+    closeQRFormModal() {
+        document.getElementById('qrFormModal').classList.remove('active');
+    },
+
+    // Submit QR form
+    submitQRForm(event) {
+        event.preventDefault();
+
+        const formData = new FormData(document.getElementById('qrForm'));
+        const actionType = document.getElementById('qrForm').dataset.actionType;
+
+        let message = '';
+        if (actionType === 'checkout') {
+            message = `✓ Asset checked out to ${formData.get('driverName')}`;
+        } else if (actionType === 'usage') {
+            message = `✓ Usage logged for ${formData.get('driverName')}`;
+        } else if (actionType === 'maintenance') {
+            message = `✓ Maintenance logged: ${formData.get('maintenanceType')}`;
+        }
+
+        alert(message);
+        this.closeQRFormModal();
+    },
+
+    // Download QR code
+    downloadQRCode() {
+        if (!this.currentVehicle) return;
+
+        const canvas = document.querySelector('#qrCodeDisplay canvas');
+        if (canvas) {
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = `${this.currentVehicle.name.replace(/\s+/g, '_')}_QRCode.png`;
+            link.click();
+        }
+    },
+
+    // [DEPRECATED - moved to renderFleetList]
     // Render vehicle/trailer selector buttons with tabs
-    renderVehicleButtons() {
+    renderVehicleButtons_old() {
         const container = document.getElementById('vehicleButtons');
         container.innerHTML = '';
 
@@ -207,8 +573,9 @@ const app = {
         });
     },
 
+    // [DEPRECATED - moved to showAssetDetail]
     // Select a vehicle or trailer and display its details
-    selectVehicle(vehicleId) {
+    selectVehicle_old(vehicleId) {
         this.currentVehicleId = vehicleId;
         // First try to find in vehicles, then in trailers
         this.currentVehicle = this.vehicles.find(v => v.id === vehicleId) || this.trailers.find(t => t.id === vehicleId);
@@ -222,8 +589,9 @@ const app = {
         this.renderVehicleDetail();
     },
 
+    // [DEPRECATED - moved to showAssetDetail]
     // Render vehicle or trailer detail view
-    renderVehicleDetail() {
+    renderVehicleDetail_old() {
         const container = document.getElementById('vehicleDetail');
         const vehicle = this.currentVehicle;
 
@@ -480,8 +848,10 @@ const app = {
     setupAutoUpdates() {
         setInterval(() => {
             this.loadTrackingData().then(() => {
-                if (this.currentView !== 'qronly') {
-                    this.renderVehicles();
+                // Refresh fleet list if on fleet page
+                const fleetPage = document.getElementById('fleetPage');
+                if (fleetPage && fleetPage.classList.contains('active')) {
+                    this.renderFleetList();
                 }
             });
         }, 30000); // Update every 30 seconds
@@ -1117,6 +1487,372 @@ const app = {
         }
 
         return html;
+    },
+
+    // ============ EDIT ASSET METHODS ============
+    showEditAssetModal() {
+        if (!this.currentVehicle) return;
+
+        const asset = this.currentVehicle;
+        const isVehicle = asset.type === 'vehicle';
+
+        let fields = `
+            <div class="form-group">
+                <label class="form-label">Asset Name</label>
+                <input type="text" name="name" class="form-input" value="${asset.name}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Model</label>
+                <input type="text" name="model" class="form-input" value="${asset.model}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">License Plate</label>
+                <input type="text" name="licensePlate" class="form-input" value="${asset.licensePlate}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">VIN</label>
+                <input type="text" name="vin" class="form-input" value="${asset.vin}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Assigned To</label>
+                <input type="text" name="assignedTo" class="form-input" value="${asset.assignedTo}" required>
+            </div>
+        `;
+
+        if (isVehicle) {
+            fields += `
+                <div class="form-group">
+                    <label class="form-label">Mileage</label>
+                    <input type="number" name="mileage" class="form-input" value="${asset.mileage}" required>
+                </div>
+            `;
+        } else {
+            fields += `
+                <div class="form-group">
+                    <label class="form-label">Empty Weight (lbs)</label>
+                    <input type="number" name="emptyWeight" class="form-input" value="${asset.emptyWeight}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Capacity (lbs)</label>
+                    <input type="number" name="capacity" class="form-input" value="${asset.capacity}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Gross Weight (lbs)</label>
+                    <input type="number" name="grossWeight" class="form-input" value="${asset.grossWeight}" required>
+                </div>
+            `;
+        }
+
+        fields += `
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-input" required>
+                    <option value="available" ${asset.status === 'available' ? 'selected' : ''}>Available</option>
+                    <option value="in-use" ${asset.status === 'in-use' ? 'selected' : ''}>In Use</option>
+                    <option value="maintenance" ${asset.status === 'maintenance' ? 'selected' : ''}>Maintenance</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Last Maintenance</label>
+                <input type="date" name="lastMaintenance" class="form-input" value="${asset.lastMaintenance}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Next Maintenance</label>
+                <input type="date" name="nextMaintenance" class="form-input" value="${asset.nextMaintenance}" required>
+            </div>
+        `;
+
+        document.getElementById('editAssetFields').innerHTML = fields;
+        document.getElementById('editAssetForm').dataset.assetId = asset.id;
+        document.getElementById('editAssetModal').classList.add('active');
+    },
+
+    closeEditAssetModal() {
+        document.getElementById('editAssetModal').classList.remove('active');
+    },
+
+    submitAssetEdit(event) {
+        event.preventDefault();
+
+        const formData = new FormData(document.getElementById('editAssetForm'));
+        const assetId = document.getElementById('editAssetForm').dataset.assetId;
+
+        // Find and update the asset
+        let asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
+        if (!asset) return;
+
+        // Update asset properties
+        asset.name = formData.get('name');
+        asset.model = formData.get('model');
+        asset.licensePlate = formData.get('licensePlate');
+        asset.vin = formData.get('vin');
+        asset.assignedTo = formData.get('assignedTo');
+        asset.status = formData.get('status');
+        asset.lastMaintenance = formData.get('lastMaintenance');
+        asset.nextMaintenance = formData.get('nextMaintenance');
+
+        if (asset.type === 'vehicle') {
+            asset.mileage = parseInt(formData.get('mileage'));
+        } else {
+            asset.emptyWeight = parseInt(formData.get('emptyWeight'));
+            asset.capacity = parseInt(formData.get('capacity'));
+            asset.grossWeight = parseInt(formData.get('grossWeight'));
+        }
+
+        // Update UI
+        this.showAssetDetail(assetId);
+        this.renderFleetList();
+        this.closeEditAssetModal();
+        alert('✓ Asset updated successfully');
+    },
+
+    // ============ PEOPLE MANAGEMENT METHODS ============
+    renderPeopleList() {
+        const settingsContent = document.getElementById('settingsContent');
+
+        let html = `
+            <div class="settings-section">
+                <div class="settings-section-title">Team Members</div>
+        `;
+
+        this.people.forEach(person => {
+            const permissions = person.permissions;
+            const permCount = Object.values(permissions).filter(p => p).length;
+
+            html += `
+                <div class="person-card">
+                    <div class="person-header">
+                        <div>
+                            <div class="person-name">${person.name}</div>
+                            <div class="person-role">${person.role}</div>
+                        </div>
+                        <div class="person-actions">
+                            ${this.currentUser.isAdmin ? `
+                                <button class="person-action-btn edit" onclick="app.openEditPersonModal('${person.id}')">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button class="person-action-btn delete" onclick="app.deletePerson('${person.id}')">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="permissions-grid">
+                        <div class="permission-item">
+                            ${permissions.viewVehicles ? '<span class="permission-check">✓</span>' : '<span class="permission-cross">✗</span>'}
+                            View Vehicles
+                        </div>
+                        <div class="permission-item">
+                            ${permissions.editVehicles ? '<span class="permission-check">✓</span>' : '<span class="permission-cross">✗</span>'}
+                            Edit Vehicles
+                        </div>
+                        <div class="permission-item">
+                            ${permissions.viewTrailers ? '<span class="permission-check">✓</span>' : '<span class="permission-cross">✗</span>'}
+                            View Trailers
+                        </div>
+                        <div class="permission-item">
+                            ${permissions.editTrailers ? '<span class="permission-check">✓</span>' : '<span class="permission-cross">✗</span>'}
+                            Edit Trailers
+                        </div>
+                        <div class="permission-item">
+                            ${permissions.logUsage ? '<span class="permission-check">✓</span>' : '<span class="permission-cross">✗</span>'}
+                            Log Usage
+                        </div>
+                        <div class="permission-item">
+                            ${permissions.logMaintenance ? '<span class="permission-check">✓</span>' : '<span class="permission-cross">✗</span>'}
+                            Log Maintenance
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+
+        if (this.currentUser.isAdmin) {
+            html += `<button class="add-person-btn" onclick="app.openEditPersonModal('new')">
+                <i class="fas fa-plus"></i> Add Team Member
+            </button>`;
+        }
+
+        settingsContent.innerHTML = html;
+    },
+
+    openEditPersonModal(personId) {
+        const title = document.getElementById('editPersonTitle');
+        let person = personId === 'new' ? null : this.people.find(p => p.id === personId);
+
+        if (personId === 'new') {
+            title.textContent = 'Add Team Member';
+            document.getElementById('personName').value = '';
+            document.getElementById('personEmail').value = '';
+            document.getElementById('personRole').value = 'Technician';
+        } else {
+            title.textContent = 'Edit Team Member';
+            document.getElementById('personName').value = person.name;
+            document.getElementById('personEmail').value = person.email;
+            document.getElementById('personRole').value = person.role;
+        }
+
+        // Generate permission checkboxes
+        const permissionsCheckboxes = document.getElementById('permissionsCheckboxes');
+        const permissionKeys = ['viewVehicles', 'editVehicles', 'viewTrailers', 'editTrailers', 'logUsage', 'logMaintenance', 'managePeople', 'manageAlerts'];
+        const permissionLabels = {
+            'viewVehicles': 'View Vehicles',
+            'editVehicles': 'Edit Vehicles',
+            'viewTrailers': 'View Trailers',
+            'editTrailers': 'Edit Trailers',
+            'logUsage': 'Log Usage',
+            'logMaintenance': 'Log Maintenance',
+            'managePeople': 'Manage People',
+            'manageAlerts': 'Manage Alerts'
+        };
+
+        let checkboxHTML = '<div class="form-checkbox-group">';
+        permissionKeys.forEach(key => {
+            const isChecked = person && person.permissions[key] ? 'checked' : '';
+            checkboxHTML += `
+                <div class="form-checkbox-item">
+                    <input type="checkbox" id="perm-${key}" name="permissions" value="${key}" ${isChecked}>
+                    <label for="perm-${key}">${permissionLabels[key]}</label>
+                </div>
+            `;
+        });
+        checkboxHTML += '</div>';
+
+        permissionsCheckboxes.innerHTML = checkboxHTML;
+
+        document.getElementById('editPersonForm').dataset.personId = personId;
+        document.getElementById('editPersonModal').classList.add('active');
+    },
+
+    closeEditPersonModal() {
+        document.getElementById('editPersonModal').classList.remove('active');
+    },
+
+    submitPersonEdit(event) {
+        event.preventDefault();
+
+        const formData = new FormData(document.getElementById('editPersonForm'));
+        const personId = document.getElementById('editPersonForm').dataset.personId;
+        const name = formData.get('name');
+        const email = formData.get('email');
+        const role = formData.get('role');
+
+        // Get selected permissions
+        const permissionsList = document.querySelectorAll('input[name="permissions"]:checked');
+        const permissions = {
+            viewVehicles: false,
+            editVehicles: false,
+            viewTrailers: false,
+            editTrailers: false,
+            logUsage: false,
+            logMaintenance: false,
+            managePeople: false,
+            manageAlerts: false
+        };
+
+        permissionsList.forEach(checkbox => {
+            permissions[checkbox.value] = true;
+        });
+
+        if (personId === 'new') {
+            // Add new person
+            const newId = `person-${this.people.length + 1}`;
+            this.people.push({
+                id: newId,
+                name: name,
+                email: email,
+                role: role,
+                permissions: permissions
+            });
+            alert('✓ Team member added successfully');
+        } else {
+            // Update existing person
+            const person = this.people.find(p => p.id === personId);
+            if (person) {
+                person.name = name;
+                person.email = email;
+                person.role = role;
+                person.permissions = permissions;
+                alert('✓ Team member updated successfully');
+            }
+        }
+
+        this.closeEditPersonModal();
+        this.renderSettingsPage();
+    },
+
+    deletePerson(personId) {
+        if (confirm(`Are you sure you want to delete this team member?`)) {
+            this.people = this.people.filter(p => p.id !== personId);
+            alert('✓ Team member deleted');
+            this.renderSettingsPage();
+        }
+    },
+
+    // ============ SETTINGS PAGE METHODS ============
+    switchSettingsTab(tab) {
+        document.querySelectorAll('.settings-tab').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+
+        if (tab === 'people') {
+            this.renderPeopleList();
+        } else if (tab === 'app') {
+            this.renderAppSettings();
+        }
+    },
+
+    renderAppSettings() {
+        const settingsContent = document.getElementById('settingsContent');
+
+        const html = `
+            <div class="settings-section">
+                <div class="settings-section-title">About</div>
+                <div style="font-size: 14px; color: #6b7280; line-height: 1.6;">
+                    <div style="margin-bottom: 16px;">
+                        <strong style="color: #1f2937;">PDR Fleet Tracker</strong><br>
+                        Version 1.0.0<br>
+                        Vehicle & Trailer Management System
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <strong style="color: #1f2937;">Current User</strong><br>
+                        ${this.currentUser.name}<br>
+                        ${this.currentUser.isAdmin ? 'Administrator' : 'Technician'}
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">Quick Stats</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div style="background: #D9E1F2; padding: 12px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #1F4E79;">${this.vehicles.length}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Vehicles</div>
+                    </div>
+                    <div style="background: #D9E1F2; padding: 12px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #1F4E79;">${this.trailers.length}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Trailers</div>
+                    </div>
+                    <div style="background: #D9E1F2; padding: 12px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #1F4E79;">${this.people.length}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Team Members</div>
+                    </div>
+                    <div style="background: #D9E1F2; padding: 12px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #1F4E79;">${this.vehicles.filter(v => v.status === 'available').length}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Available</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        settingsContent.innerHTML = html;
+    },
+
+    renderSettingsPage() {
+        this.showPage('settingsPage');
+        this.setActiveNav('settings');
+        this.renderPeopleList();
     }
 };
 
