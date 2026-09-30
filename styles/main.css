@@ -510,4 +510,22 @@ header p {
         max-width: 100%;
         padding: 0;
     }
+
+    button {
+        font-size: 0.9em;
+        padding: 10px 12px;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 0.95em;
+        margin: 8px 0;
+    }
+
+    .modal-content button {
+        width: 100%;
+        min-width: auto;
+    }
+
 }
