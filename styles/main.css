@@ -9,6 +9,7 @@ body {
     background: linear-gradient(135deg, #1F4E79 0%, #2D3847 100%);
     min-height: 100vh;
     padding: 20px;
+    overflow-x: hidden;
 }
 
 .container {
@@ -499,5 +500,14 @@ header p {
 
     .control-group button {
         flex: 1;
+    }
+
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        max-width: 100%;
+        padding: 0;
     }
 }
