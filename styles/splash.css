@@ -5,14 +5,15 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: #FFFFFF;
-    display: flex;
+    background-color: #FF0000 !important;
+    display: flex !important;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    z-index: 10000;
-    opacity: 1;
+    z-index: 10000 !important;
+    opacity: 1 !important;
     transition: opacity 1s ease-out;
+    visibility: visible !important;
 }
 
 #splash-screen.fade-out {
@@ -48,9 +49,9 @@
 
 #splash-text {
     font-family: Calibri, 'Arial', sans-serif;
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 600;
-    color: #1F4E79;
+    color: #FFFFFF;
     letter-spacing: 1px;
     animation: text-appear 0.8s ease-out 0.2s both;
 }
