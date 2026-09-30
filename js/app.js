@@ -236,14 +236,25 @@ const app = {
             const savedData = localStorage.getItem('pdrFleetAppData');
             if (savedData) {
                 const data = JSON.parse(savedData);
-                if (data.people) this.people = data.people;
-                if (data.vehicles) this.vehicles = data.vehicles;
-                if (data.trailers) this.trailers = data.trailers;
+                console.log('📦 Raw data from localStorage:', data);
+                if (data.people) {
+                    this.people = data.people;
+                    console.log(`✓ Loaded ${data.people.length} people from localStorage`);
+                }
+                if (data.vehicles) {
+                    this.vehicles = data.vehicles;
+                    console.log(`✓ Loaded ${data.vehicles.length} vehicles from localStorage`);
+                }
+                if (data.trailers) {
+                    this.trailers = data.trailers;
+                    console.log(`✓ Loaded ${data.trailers.length} trailers from localStorage`);
+                }
                 if (data.currentUsage) this.currentUsage = data.currentUsage;
-                console.log('✓ Loaded data from localStorage');
+            } else {
+                console.log('ℹ️ No saved data in localStorage, using defaults');
             }
         } catch (e) {
-            console.error('Error loading from localStorage:', e);
+            console.error('❌ Error loading from localStorage:', e);
         }
     },
 
@@ -2145,6 +2156,7 @@ const app = {
         const address = formData.get('address');
         const role = formData.get('role');
 
+        console.log('✎ Submitting person form:', { personId, name, email, phone, address, role });
         // Get selected permissions
         const permissionsList = document.querySelectorAll('input[name="permissions"]:checked');
         const permissions = {
@@ -2175,6 +2187,7 @@ const app = {
                 permissions: permissions
             });
             alert('✓ Team member added successfully');
+            console.log('✓ New person added:', { id: newId, name, email, phone, address, role });
         } else {
             // Update existing person
             const person = this.people.find(p => p.id === personId);
@@ -2186,8 +2199,10 @@ const app = {
                 person.role = role;
                 person.permissions = permissions;
                 alert('✓ Team member updated successfully');
+                console.log('✓ Person updated:', { id: personId, name, email, phone, address, role });
             }
         }
+        console.log('→ Calling saveToLocalStorage()');
 
         this.saveToLocalStorage();
         this.closeEditPersonModal();
