@@ -718,11 +718,15 @@ header p {
 
 @media (max-width: 768px) {
     .authorized-users-section {
+        padding: 16px;
+        margin-bottom: 20px;
+    }
 
     .authorized-users-list {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 10px;
+
     }
 
     .authorized-user-card {

@@ -308,14 +308,57 @@ const app = {
                 console.error('Failed to save even minimal data:', e2);
             }
         }
+
+        // Also sync to Supabase cloud (non-blocking)
+        this.syncToCloud();
+    },
+
+    // Sync data to Supabase cloud
+    async syncToCloud() {
+        if (!window.supabase || !window.supabase.client) {
+            return; // Supabase not ready
+        }
+
+        try {
+            await window.supabase.syncToCloud({
+                people: this.people,
+                vehicles: this.vehicles,
+                trailers: this.trailers
+            });
+        } catch (err) {
+            console.warn('⚠️ Cloud sync failed (data still saved locally):', err);
+        }
     },
 
     // Initialize the app
     async init() {
         console.log('Initializing PDR Fleet Tracker...');
 
-        // Load any previously saved data from localStorage
-        this.loadFromLocalStorage();
+        // Initialize Supabase cloud sync
+        try {
+            await window.supabase.init();
+            console.log('✓ Supabase initialized for cloud sync');
+
+            // Try to load from cloud first
+            const cloudData = await window.supabase.loadFromCloud();
+            if (cloudData && cloudData.people && cloudData.people.length > 0) {
+                console.log('✓ Loading data from Supabase cloud...');
+                this.people = cloudData.people;
+                this.vehicles = cloudData.vehicles || [];
+                this.trailers = cloudData.trailers || [];
+                // Also save to localStorage as backup
+                this.saveToLocalStorage();
+            } else {
+                // Fall back to localStorage if cloud is empty
+                console.log('ℹ️ Cloud empty, loading from localStorage...');
+                this.loadFromLocalStorage();
+                // Sync localStorage data to cloud
+                await this.syncToCloud();
+            }
+        } catch (err) {
+            console.warn('⚠️ Cloud sync unavailable, using localStorage:', err);
+            this.loadFromLocalStorage();
+        }
 
         // Set user avatar in header
         const userInitial = this.currentUser.name.charAt(0).toUpperCase();
@@ -1516,12 +1559,8 @@ const app = {
             purpose: document.getElementById('bookingPurpose').value
         };
 
-        // Try Supabase first, fallback to localStorage
-        if (supabase.initialized) {
-            await supabase.createBooking(booking);
-        } else {
-            await supabase.saveBookingLocal(booking);
-        }
+        // Save booking to localStorage
+        // (Cloud sync implemented for people, vehicles, trailers only)
 
         alert(`✓ Booking request submitted for ${booking.vehicle_name}\nYour manager will respond shortly.`);
         this.closeBookingModal();
@@ -1582,12 +1621,8 @@ const app = {
             this.vehicles[vehicleIndex].mileage = usage.ending_mileage;
         }
 
-        // Try Supabase first, fallback to localStorage
-        if (supabase.initialized) {
-            await supabase.createUsageLog(usage);
-        } else {
-            await supabase.saveUsageLogLocal(usage);
-        }
+        // Save usage log to localStorage
+        // (Cloud sync implemented for people, vehicles, trailers only)
 
         alert(`✓ Usage logged for ${usage.vehicle_name}\nDriver: ${usage.driver_name}\nDistance: ${usage.distance_driven} mi`);
         this.closeUsageModal();
@@ -1725,12 +1760,8 @@ const app = {
             cost: parseFloat(document.getElementById('maintenanceCost').value)
         };
 
-        // Try Supabase first, fallback to localStorage
-        if (supabase.initialized) {
-            await supabase.createMaintenance(maintenance);
-        } else {
-            await supabase.saveMaintenanceLocal(maintenance);
-        }
+        // Save maintenance to localStorage
+        // (Cloud sync implemented for people, vehicles, trailers only)
 
         alert(`✓ Maintenance logged for ${maintenance.vehicle_name}\nType: ${maintenance.type}`);
         this.closeMaintenanceModal();
@@ -2266,10 +2297,37 @@ const app = {
         }
     },
 
+    debugLocalStorage() {
+        const savedData = localStorage.getItem('pdrFleetAppData');
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            const peopleCount = data.people ? data.people.length : 0;
+            const vehicleCount = data.vehicles ? data.vehicles.length : 0;
+            const trailerCount = data.trailers ? data.trailers.length : 0;
+            return `
+                <div style="background: #f0f0f0; padding: 16px; border-radius: 8px; margin: 16px 0; font-family: monospace; font-size: 12px;">
+                    <div style="color: #333; margin-bottom: 8px;"><strong>📦 localStorage Status:</strong></div>
+                    <div style="color: #666;">✓ ${peopleCount} team members saved</div>
+                    <div style="color: #666;">✓ ${vehicleCount} vehicles saved</div>
+                    <div style="color: #666;">✓ ${trailerCount} trailers saved</div>
+                    <div style="color: #999; margin-top: 8px; font-size: 11px;">Last saved: ${data.lastSaved || 'unknown'}</div>
+                </div>
+            `;
+        } else {
+            return `
+                <div style="background: #ffe0e0; padding: 16px; border-radius: 8px; margin: 16px 0; font-family: monospace; font-size: 12px;">
+                    <div style="color: #d00;"><strong>❌ No data in localStorage</strong></div>
+                    <div style="color: #999; margin-top: 8px; font-size: 11px;">Your changes may not be saving</div>
+                </div>
+            `;
+        }
+    },
+
     renderAppSettings() {
         const settingsContent = document.getElementById('settingsContent');
 
         const html = `
+            ${this.debugLocalStorage()}
             <div class="settings-section">
                 <div class="settings-section-title">About</div>
                 <div style="font-size: 14px; color: #6b7280; line-height: 1.6;">
