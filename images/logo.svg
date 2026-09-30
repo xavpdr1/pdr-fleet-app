@@ -1,29 +1,16 @@
-<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background circle -->
-  <circle cx="100" cy="100" r="95" fill="none" stroke="#00BCD4" stroke-width="2"/>
+<svg viewBox="0 0 300 150" xmlns="http://www.w3.org/2000/svg">
+  <!-- PDR Text - Bold, modern curved styling -->
+  <text x="50" y="80" font-family="Arial, Helvetica, sans-serif" font-size="70" font-weight="900" 
+        text-anchor="start" fill="#1a1a1a" letter-spacing="-2">PDR</text>
   
-  <!-- Inner accent circle -->
-  <circle cx="100" cy="100" r="85" fill="none" stroke="#00BCD4" stroke-width="1" opacity="0.5"/>
+  <!-- TEAM Text - Lighter weight -->
+  <text x="50" y="120" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="400" 
+        text-anchor="start" fill="#1a1a1a" letter-spacing="2">TEAM</text>
   
-  <!-- PDR Text -->
-  <g>
-    <!-- P -->
-    <path d="M 50 70 L 50 130 M 50 70 L 70 70 Q 80 70 80 80 Q 80 90 70 90 L 50 90" 
-          fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-    
-    <!-- D -->
-    <path d="M 95 70 L 95 130 M 95 70 L 110 70 Q 125 70 125 100 Q 125 130 110 130 L 95 130" 
-          fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-    
-    <!-- R -->
-    <path d="M 140 70 L 140 130 M 140 70 L 160 70 Q 170 70 170 80 Q 170 90 160 90 L 140 90 M 160 90 L 170 130" 
-          fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Motion stripes - three horizontal lines -->
+  <g fill="#1a1a1a">
+    <rect x="50" y="130" width="30" height="6" rx="3"/>
+    <rect x="50" y="139" width="40" height="6" rx="3"/>
+    <rect x="50" y="148" width="25" height="6" rx="3"/>
   </g>
-  
-  <!-- Accent bar under text -->
-  <line x1="45" y1="140" x2="175" y2="140" stroke="#00BCD4" stroke-width="2"/>
-  
-  <!-- Subtitle text -->
-  <text x="100" y="160" font-family="Arial, sans-serif" font-size="14" font-weight="bold" 
-        text-anchor="middle" fill="#00BCD4">FLEET TRACKER</text>
 </svg>
