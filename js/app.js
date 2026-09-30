@@ -217,6 +217,7 @@ const app = {
     currentTab: 'vehicles', // 'vehicles', 'trailers', or 'people'
     tracking: {},
     usageLogs: {}, // Track usage history by vehicle ID
+    currentUsage: {}, // Track who's currently using what: { assetId: { userName: string, startTime: timestamp } }
     selectedPerson: null, // Currently selected person
 
     // Alerts/Recalls system mapped by VIN
@@ -277,7 +278,6 @@ const app = {
         items.forEach(item => {
             const card = document.createElement('div');
             card.className = 'asset-card';
-            card.onclick = () => this.showAssetDetail(item.id);
 
             const icon = this.currentTab === 'vehicles' ? '🚗' : '🚛';
             const secondaryInfo = item.type === 'trailer'
@@ -285,15 +285,31 @@ const app = {
                 : `${item.licensePlate} • ${item.mileage.toLocaleString()} mi`;
 
             const statusColor = this.getStatusColor(item.status);
+            const isInUse = this.currentUsage[item.id];
+            const usageInfo = isInUse ? `<div style="font-size: 12px; color: #f59e0b; font-weight: 600; margin-top: 4px;">⚠️ In use by ${isInUse.userName}</div>` : '';
 
             card.innerHTML = `
-                <div class="asset-icon">${icon}</div>
-                <div class="asset-info">
-                    <div class="asset-name">${item.name}</div>
-                    <div class="asset-details">
-                        <span class="status-dot" style="background: ${statusColor};"></span>
-                        ${secondaryInfo}
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                    <div style="flex: 1;" onclick="app.showAssetDetail('${item.id}')">
+                        <div class="asset-icon">${icon}</div>
+                        <div class="asset-info">
+                            <div class="asset-name">${item.name}</div>
+                            <div class="asset-details">
+                                <span class="status-dot" style="background: ${statusColor};"></span>
+                                ${secondaryInfo}
+                            </div>
+                            ${usageInfo}
+                        </div>
                     </div>
+                    ${isInUse ? `
+                    <button onclick="app.showUsageDetails('${item.id}')" style="padding: 8px 12px; background: #f59e0b; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap; margin-left: 8px; align-self: center;">
+                        Details
+                    </button>
+                    ` : `
+                    <button onclick="app.showLogUsageModal('${item.id}')" style="padding: 8px 12px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap; margin-left: 8px; align-self: center;">
+                        Use It
+                    </button>
+                    `}
                 </div>
             `;
 
@@ -408,9 +424,7 @@ const app = {
         const qrContainer = document.getElementById('qrCodeDisplay');
         qrContainer.innerHTML = '';
 
-        document.getElementById('qrAppletagId').textContent = this.currentVehicle.appletag;
-
-        const qrUrl = `${window.location.href}?asset=${this.currentVehicle.id}&appletag=${this.currentVehicle.appletag}`;
+        const qrUrl = `${window.location.href}?asset=${this.currentVehicle.id}`;
         new QRCode(qrContainer, {
             text: qrUrl,
             width: 250,
@@ -529,9 +543,46 @@ const app = {
         if (actionType === 'checkout') {
             message = `✓ Asset checked out to ${formData.get('driverName')}`;
         } else if (actionType === 'usage') {
-            message = `✓ Usage logged for ${formData.get('driverName')}`;
+            const driverName = formData.get('driverName');
+            message = `✓ Usage logged for ${driverName}`;
+
+            // Log to usage tracking
+            if (!this.usageLogs[this.currentVehicleId]) {
+                this.usageLogs[this.currentVehicleId] = [];
+            }
+
+            this.usageLogs[this.currentVehicleId].push({
+                driver: driverName,
+                timestamp: new Date().toISOString(),
+                startMileage: formData.get('startMileage') || null,
+                endMileage: formData.get('endMileage') || null,
+                fuelAdded: formData.get('fuelAdded') || 0,
+                tripNotes: formData.get('tripNotes') || ''
+            });
+
+            // Mark as in use
+            this.currentUsage[this.currentVehicleId] = {
+                userName: driverName,
+                startTime: new Date()
+            };
+
+            this.renderFleetList();
         } else if (actionType === 'maintenance') {
             message = `✓ Maintenance logged: ${formData.get('maintenanceType')}`;
+
+            // Log maintenance
+            if (!this.usageLogs[this.currentVehicleId]) {
+                this.usageLogs[this.currentVehicleId] = [];
+            }
+
+            this.usageLogs[this.currentVehicleId].push({
+                type: 'maintenance',
+                maintenanceType: formData.get('maintenanceType'),
+                description: formData.get('description'),
+                cost: formData.get('cost') || 0,
+                notes: formData.get('notes') || '',
+                timestamp: new Date().toISOString()
+            });
         }
 
         alert(message);
@@ -549,6 +600,70 @@ const app = {
             link.download = `${this.currentVehicle.name.replace(/\s+/g, '_')}_QRCode.png`;
             link.click();
         }
+    },
+
+    // Show usage details modal
+    showUsageDetails(assetId) {
+        const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
+        if (!asset || !this.currentUsage[assetId]) return;
+
+        const usage = this.currentUsage[assetId];
+        const startTime = new Date(usage.startTime);
+        const duration = new Date() - startTime;
+        const hours = Math.floor(duration / 3600000);
+        const minutes = Math.floor((duration % 3600000) / 60000);
+
+        alert(`\n${asset.name} is currently in use\n\nDriver: ${usage.userName}\nIn use since: ${startTime.toLocaleTimeString()}\nDuration: ${hours}h ${minutes}m\n\nClick "Details" to return to fleet view.`);
+    },
+
+    // Show log usage modal with self-assignment
+    showLogUsageModal(assetId) {
+        const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
+        if (!asset) return;
+
+        const userName = prompt('Enter your name to log usage:');
+        if (!userName || userName.trim() === '') return;
+
+        // Mark asset as in use
+        this.currentUsage[assetId] = {
+            userName: userName.trim(),
+            startTime: new Date()
+        };
+
+        // Log to usage logs
+        if (!this.usageLogs[assetId]) {
+            this.usageLogs[assetId] = [];
+        }
+
+        this.usageLogs[assetId].push({
+            userName: userName.trim(),
+            startTime: new Date().toISOString(),
+            type: 'usage'
+        });
+
+        // Refresh fleet list to show updated status
+        this.renderFleetList();
+
+        alert(`✓ ${asset.name} is now marked as in use by ${userName}`);
+    },
+
+    // End usage for an asset
+    endUsage(assetId) {
+        const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
+        if (!asset || !this.currentUsage[assetId]) return;
+
+        const usage = this.currentUsage[assetId];
+        const endTime = new Date();
+
+        // Update usage log with end time
+        if (this.usageLogs[assetId] && this.usageLogs[assetId].length > 0) {
+            this.usageLogs[assetId][this.usageLogs[assetId].length - 1].endTime = endTime.toISOString();
+        }
+
+        delete this.currentUsage[assetId];
+        this.renderFleetList();
+
+        alert(`✓ ${asset.name} usage ended for ${usage.userName}`);
     },
 
     // [DEPRECATED - moved to renderFleetList]
@@ -1741,13 +1856,31 @@ const app = {
                         <div class="person-actions">
                             ${this.currentUser.isAdmin ? `
                                 <button class="person-action-btn edit" onclick="app.openEditPersonModal('${person.id}')">
-                                    <i class="fas fa-edit"></i> Edit
+                                    <i class="fas fa-edit"></i>
                                 </button>
                                 <button class="person-action-btn delete" onclick="app.deletePerson('${person.id}')">
-                                    <i class="fas fa-trash"></i> Delete
+                                    <i class="fas fa-trash"></i>
                                 </button>
                             ` : ''}
                         </div>
+                    </div>
+                    <div class="person-contact">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                            <i class="fas fa-envelope" style="color: #6b7280; font-size: 14px;"></i>
+                            <span style="font-size: 14px; color: #1f2937;">${person.email}</span>
+                        </div>
+                        ${person.phone ? `
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                            <i class="fas fa-phone" style="color: #6b7280; font-size: 14px;"></i>
+                            <span style="font-size: 14px; color: #1f2937;">${person.phone}</span>
+                        </div>
+                        ` : ''}
+                        ${person.address ? `
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-map-marker-alt" style="color: #6b7280; font-size: 14px;"></i>
+                            <span style="font-size: 14px; color: #1f2937;">${person.address}</span>
+                        </div>
+                        ` : ''}
                     </div>
                     <div class="permissions-grid">
                         <div class="permission-item">
@@ -1798,11 +1931,15 @@ const app = {
             title.textContent = 'Add Team Member';
             document.getElementById('personName').value = '';
             document.getElementById('personEmail').value = '';
+            document.getElementById('personPhone').value = '';
+            document.getElementById('personAddress').value = '';
             document.getElementById('personRole').value = 'Technician';
         } else {
             title.textContent = 'Edit Team Member';
             document.getElementById('personName').value = person.name;
             document.getElementById('personEmail').value = person.email;
+            document.getElementById('personPhone').value = person.phone || '';
+            document.getElementById('personAddress').value = person.address || '';
             document.getElementById('personRole').value = person.role;
         }
 
@@ -1849,6 +1986,8 @@ const app = {
         const personId = document.getElementById('editPersonForm').dataset.personId;
         const name = formData.get('name');
         const email = formData.get('email');
+        const phone = formData.get('phone');
+        const address = formData.get('address');
         const role = formData.get('role');
 
         // Get selected permissions
@@ -1875,6 +2014,8 @@ const app = {
                 id: newId,
                 name: name,
                 email: email,
+                phone: phone,
+                address: address,
                 role: role,
                 permissions: permissions
             });
@@ -1885,6 +2026,8 @@ const app = {
             if (person) {
                 person.name = name;
                 person.email = email;
+                person.phone = phone;
+                person.address = address;
                 person.role = role;
                 person.permissions = permissions;
                 alert('✓ Team member updated successfully');
