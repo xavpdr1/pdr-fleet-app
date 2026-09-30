@@ -230,9 +230,46 @@ const app = {
         ]
     },
 
+    // Load data from localStorage
+    loadFromLocalStorage() {
+        try {
+            const savedData = localStorage.getItem('pdrFleetAppData');
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                if (data.people) this.people = data.people;
+                if (data.vehicles) this.vehicles = data.vehicles;
+                if (data.trailers) this.trailers = data.trailers;
+                if (data.currentUsage) this.currentUsage = data.currentUsage;
+                console.log('✓ Loaded data from localStorage');
+            }
+        } catch (e) {
+            console.error('Error loading from localStorage:', e);
+        }
+    },
+
+    // Save data to localStorage
+    saveToLocalStorage() {
+        try {
+            const data = {
+                people: this.people,
+                vehicles: this.vehicles,
+                trailers: this.trailers,
+                currentUsage: this.currentUsage,
+                lastSaved: new Date().toISOString()
+            };
+            localStorage.setItem('pdrFleetAppData', JSON.stringify(data));
+            console.log('✓ Saved data to localStorage');
+        } catch (e) {
+            console.error('Error saving to localStorage:', e);
+        }
+    },
+
     // Initialize the app
     async init() {
         console.log('Initializing PDR Fleet Tracker...');
+
+        // Load any previously saved data from localStorage
+        this.loadFromLocalStorage();
 
         // Set user avatar in header
         const userInitial = this.currentUser.name.charAt(0).toUpperCase();
@@ -301,15 +338,33 @@ const app = {
                             ${usageInfo}
                         </div>
                     </div>
-                    ${isInUse ? `
-                    <button onclick="app.showUsageDetails('${item.id}')" style="padding: 8px 12px; background: #f59e0b; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap; margin-left: 8px; align-self: center;">
-                        Details
-                    </button>
-                    ` : `
-                    <button onclick="app.showLogUsageModal('${item.id}')" style="padding: 8px 12px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap; margin-left: 8px; align-self: center;">
-                        Use It
-                    </button>
-                    `}
+                    <div style="display: flex; align-items: center; gap: 8px; position: relative;">
+                        ${isInUse ? `
+                        <div style="display: flex; gap: 6px;">
+                            <button onclick="app.showUsageDetails('${item.id}')" style="padding: 8px 12px; background: #f59e0b; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap;">
+                                IN USE
+                            </button>
+                            <button onclick="app.endUsage('${item.id}')" style="padding: 8px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 11px; white-space: nowrap;">
+                                End
+                            </button>
+                        </div>
+                        ` : `
+                        <div style="position: relative;">
+                            <button id="useBtn-${item.id}" onclick="app.toggleUsageDropdown('${item.id}')" style="padding: 8px 12px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap;">
+                                USE
+                            </button>
+                            <div id="dropdown-${item.id}" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 6px; min-width: 180px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; margin-top: 4px;">
+                                <div style="padding: 8px 0;">
+                                    ${this.people.map(person => `
+                                        <div onclick="app.logUsageWithPerson('${item.id}', '${person.name}'); app.toggleUsageDropdown('${item.id}')" style="padding: 10px 12px; cursor: pointer; font-size: 13px; color: #1f2937; border-bottom: 1px solid #f3f4f6; transition: background 0.2s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+                                            ${person.name}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                        `}
+                    </div>
                 </div>
             `;
 
@@ -617,6 +672,43 @@ const app = {
     },
 
     // Show log usage modal with self-assignment
+    toggleUsageDropdown(assetId) {
+        const dropdown = document.getElementById(`dropdown-${assetId}`);
+        if (dropdown) {
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+    },
+
+    logUsageWithPerson(assetId, personName) {
+        const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
+        if (!asset) return;
+
+        // Mark asset as in use
+        this.currentUsage[assetId] = {
+            userName: personName,
+            startTime: new Date()
+        };
+
+        // Log to usage logs
+        if (!this.usageLogs[assetId]) {
+            this.usageLogs[assetId] = [];
+        }
+
+        this.usageLogs[assetId].push({
+            userName: personName,
+            startTime: new Date().toISOString(),
+            type: 'usage'
+        });
+
+        // Save data to localStorage
+        this.saveToLocalStorage();
+
+        // Refresh fleet list to show updated status
+        this.renderFleetList();
+
+        alert(`✓ ${asset.name} is now in use by ${personName}`);
+    },
+
     showLogUsageModal(assetId) {
         const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
         if (!asset) return;
@@ -641,6 +733,9 @@ const app = {
             type: 'usage'
         });
 
+        // Save data to localStorage
+        this.saveToLocalStorage();
+
         // Refresh fleet list to show updated status
         this.renderFleetList();
 
@@ -661,6 +756,10 @@ const app = {
         }
 
         delete this.currentUsage[assetId];
+
+        // Save data to localStorage
+        this.saveToLocalStorage();
+
         this.renderFleetList();
 
         alert(`✓ ${asset.name} usage ended for ${usage.userName}`);
@@ -2034,6 +2133,7 @@ const app = {
             }
         }
 
+        this.saveToLocalStorage();
         this.closeEditPersonModal();
         this.renderSettingsPage();
     },
@@ -2041,6 +2141,7 @@ const app = {
     deletePerson(personId) {
         if (confirm(`Are you sure you want to delete this team member?`)) {
             this.people = this.people.filter(p => p.id !== personId);
+            this.saveToLocalStorage();
             alert('✓ Team member deleted');
             this.renderSettingsPage();
         }
