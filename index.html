@@ -621,12 +621,13 @@
         document.addEventListener('DOMContentLoaded', function() {
             const splashScreen = document.getElementById('splash-screen');
             if (splashScreen) {
+                // Show splash for 3 seconds, then fade out over 800ms
                 setTimeout(() => {
                     splashScreen.classList.add('fade-out');
                     setTimeout(() => {
                         splashScreen.remove();
                     }, 800);
-                }, 2000);
+                }, 3000);
             }
         });
     </script>
