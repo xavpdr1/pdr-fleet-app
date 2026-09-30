@@ -91,6 +91,14 @@ const app = {
     // Initialize the app
     async init() {
         console.log('Initializing PDR Fleet Tracker...');
+        
+        // Check for single-vehicle mode from URL parameters
+        const params = new URLSearchParams(window.location.search);
+        const vehicleParam = params.get('vehicle') || params.get('name');
+        if (vehicleParam) {
+            this.singleVehicleMode = true;
+            this.singleVehicleId = vehicleParam;
+        }
 
         // Load tracking data for all vehicles
         await this.loadTrackingData();
@@ -136,6 +144,17 @@ const app = {
             if (this.currentView === 'qronly') return true;
             return true;
         });
+
+        // Filter to single vehicle if in single-vehicle mode
+        if (this.singleVehicleMode && this.singleVehicleId) {
+            filtered = filtered.filter(v => 
+                v.id === this.singleVehicleId || 
+                v.name === this.singleVehicleId
+            );
+            // Hide controls in single-vehicle mode
+            const controls = document.querySelector('.controls');
+            if (controls) controls.style.display = 'none';
+        }
 
         if (filtered.length === 0) {
             grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><i class="fas fa-inbox"></i><p>No vehicles found</p></div>';
