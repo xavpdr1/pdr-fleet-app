@@ -718,10 +718,29 @@ header p {
 
 @media (max-width: 768px) {
     .authorized-users-section {
-        padding: 16px;
-        margin-bottom: 20px;
-    }
 
     .authorized-users-list {
+        display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 10px;
+    }
+
+    .authorized-user-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+    }
+
+    .user-name {
+        color: #333;
+        font-size: 0.95em;
+        margin-bottom: 4px;
+    }
+
+    .user-role {
+        font-size: 0.8em;
+        color: #666;
+    }
+}
