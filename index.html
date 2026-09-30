@@ -447,12 +447,78 @@
         <div class="vehicles-section">
             <!-- Vehicle Selector -->
             <div class="vehicle-selector">
-                <h2>Vehicles</h2>
+                <h2><i class="fas fa-list"></i> Fleet</h2>
                 <div class="vehicle-buttons" id="vehicleButtons"></div>
             </div>
 
             <!-- Vehicle Details -->
             <div class="vehicle-detail" id="vehicleDetail"></div>
+        </div>
+    </div>
+
+    <!-- QR Code Page Modal -->
+    <div class="modal" id="qrCodeModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="qrModalTitle"></h3>
+                <button class="close-btn" onclick="app.closeQRCodeModal()">×</button>
+            </div>
+            <div style="padding: 24px; text-align: center;">
+                <div class="qr-display" style="background: white; border: 2px solid #B8CCE4;">
+                    <h3 style="margin-top: 0;">Vehicle QR Code</h3>
+                    <div id="qrCodeDisplay" style="padding: 20px; background: #F2F4F8;"></div>
+                    <p class="qr-label" style="margin-top: 16px;">Appletag ID: <strong id="qrAppletagId"></strong></p>
+                    <p style="color: #6b7280; font-size: 12px; margin-top: 8px;">Scan this code to access vehicle information</p>
+                </div>
+                <button class="btn btn-secondary" style="margin-top: 20px; width: 100%;" onclick="app.downloadQRCode()">
+                    <i class="fas fa-download"></i> Download QR Code
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Vehicle Modal -->
+    <div class="modal" id="editVehicleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Vehicle Information</h3>
+                <button class="close-btn" onclick="app.closeEditVehicleModal()">×</button>
+            </div>
+            <form onsubmit="app.submitEditVehicle(event)">
+                <div class="form-group">
+                    <label>Vehicle Name</label>
+                    <input type="text" id="editVehicleName" required>
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <input type="text" id="editVehicleModel" required>
+                </div>
+                <div class="form-group">
+                    <label>License Plate</label>
+                    <input type="text" id="editVehiclePlate" required>
+                </div>
+                <div class="form-group" id="editVehicleMileageGroup">
+                    <label>Current Mileage</label>
+                    <input type="number" id="editVehicleMileage" required>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="editVehicleStatus" required>
+                        <option value="available">Available</option>
+                        <option value="in-use">In Use</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Registration Expiration</label>
+                    <input type="date" id="editVehicleReg" required>
+                </div>
+                <div class="form-group">
+                    <label>Next Maintenance Date</label>
+                    <input type="date" id="editVehicleNextMaint" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
+            </form>
         </div>
     </div>
 
@@ -464,13 +530,8 @@
                 <button class="close-btn" onclick="app.closeModal()">×</button>
             </div>
             <div id="modalBody"></div>
-            <div class="qr-display">
-                <h3>Scan QR Code</h3>
-                <div id="qrcode"></div>
-                <p class="qr-label">Linked to Appletag: <strong id="appletag"></strong></p>
-            </div>
             <div class="action-buttons">
-                <button class="btn btn-primary" onclick="app.openBookingForm()">Request Usage</button>
+                <button class="btn btn-primary" onclick="app.openEditVehicleModal()">Edit Vehicle</button>
                 <button class="btn btn-secondary" onclick="app.openMaintenanceForm()">Log Maintenance</button>
             </div>
         </div>
@@ -614,6 +675,62 @@
                     <input type="number" id="maintenanceCost" step="0.01" value="0">
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Log Maintenance</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Usage Log Modal -->
+    <div class="modal" id="editUsageModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Usage Log Entry</h3>
+                <button class="close-btn" onclick="app.closeEditUsageModal()">×</button>
+            </div>
+            <form onsubmit="app.submitEditUsageLog(event)">
+                <input type="hidden" id="editUsageLogId">
+                <div class="form-group">
+                    <label>Driver Name</label>
+                    <input type="text" id="editUsageDriver" required>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="editUsageDate" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="editUsageStartTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" id="editUsageEndTime" required>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Starting Mileage</label>
+                        <input type="number" id="editUsageStartMileage" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Ending Mileage</label>
+                        <input type="number" id="editUsageEndMileage" required>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Fuel Added (gal)</label>
+                        <input type="number" id="editUsageFuel" step="0.1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Fuel Cost ($)</label>
+                        <input type="number" id="editUsageFuelCost" step="0.01">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="editUsageNotes"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
             </form>
         </div>
     </div>

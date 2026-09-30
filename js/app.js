@@ -10,6 +10,7 @@ const app = {
         vehicles: [
         {
             id: 'truck-1',
+            type: 'vehicle',
             name: 'F-150',
             model: '2021 Ford F-150',
             licensePlate: 'VJB6093',
@@ -33,6 +34,7 @@ const app = {
         },
         {
             id: 'truck-2',
+            type: 'vehicle',
             name: 'F-250',
             model: '2021 Ford F-250',
             licensePlate: 'VHV1039',
@@ -56,8 +58,36 @@ const app = {
         }
     ],
 
+    trailers: [
+        {
+            id: 'trailer-1',
+            type: 'trailer',
+            name: 'Well Trailer',
+            model: '2024 Well Trailer',
+            licensePlate: '882027M',
+            vin: '7VON11624RT415683',
+            assignedTo: 'Field Operations',
+            emptyWeight: 2300,
+            capacity: 4600,
+            grossWeight: 6900,
+            status: 'available',
+            lastMaintenance: '2026-09-15',
+            nextMaintenance: '2026-10-15',
+            appletag: 'APT-003-TRL1',
+            insurance: {
+                provider: 'State Farm',
+                policyNumber: '0031891-SFX-43',
+                expirationDate: '2026-12-16',
+                agent: 'Kelsey DeLuca',
+                phone: '214-295-9717'
+            },
+            registrationExpiration: '2027-06-01'
+        }
+    ],
+
     currentVehicle: null,
     currentVehicleId: null,
+    currentTab: 'vehicles', // 'vehicles' or 'trailers'
     tracking: {},
     usageLogs: {}, // Track usage history by vehicle ID
 
@@ -75,51 +105,113 @@ const app = {
     async init() {
         console.log('Initializing PDR Fleet Tracker...');
 
-        // Load tracking data for all vehicles
+        // Load tracking data for all vehicles and trailers
         await this.loadTrackingData();
 
-        // Render vehicle buttons
+        // Render vehicle/trailer buttons
         this.renderVehicleButtons();
 
         // Select the first vehicle by default
         if (this.vehicles.length > 0) {
             this.selectVehicle(this.vehicles[0].id);
+        } else if (this.trailers.length > 0) {
+            this.currentTab = 'trailers';
+            this.selectVehicle(this.trailers[0].id);
         }
 
         // Set up real-time updates
         this.setupAutoUpdates();
     },
 
-    // Render vehicle selector buttons
+    // Render vehicle/trailer selector buttons with tabs
     renderVehicleButtons() {
         const container = document.getElementById('vehicleButtons');
         container.innerHTML = '';
 
-        this.vehicles.forEach(vehicle => {
+        // Create tabs
+        const tabsContainer = document.createElement('div');
+        tabsContainer.style.display = 'grid';
+        tabsContainer.style.gridTemplateColumns = '1fr 1fr';
+        tabsContainer.style.gap = '8px';
+        tabsContainer.style.marginBottom = '16px';
+
+        const vehiclesTab = document.createElement('button');
+        vehiclesTab.style.cssText = `
+            padding: 10px;
+            border: 2px solid ${this.currentTab === 'vehicles' ? '#2E75B6' : '#e5e7eb'};
+            background: ${this.currentTab === 'vehicles' ? '#2E75B6' : 'white'};
+            color: ${this.currentTab === 'vehicles' ? 'white' : '#1F4E79'};
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        `;
+        vehiclesTab.textContent = '🚗 Vehicles';
+        vehiclesTab.onclick = () => {
+            this.currentTab = 'vehicles';
+            if (this.vehicles.length > 0) {
+                this.selectVehicle(this.vehicles[0].id);
+            }
+        };
+
+        const trailersTab = document.createElement('button');
+        trailersTab.style.cssText = `
+            padding: 10px;
+            border: 2px solid ${this.currentTab === 'trailers' ? '#2E75B6' : '#e5e7eb'};
+            background: ${this.currentTab === 'trailers' ? '#2E75B6' : 'white'};
+            color: ${this.currentTab === 'trailers' ? 'white' : '#1F4E79'};
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        `;
+        trailersTab.textContent = '🚛 Trailers';
+        trailersTab.onclick = () => {
+            this.currentTab = 'trailers';
+            if (this.trailers.length > 0) {
+                this.selectVehicle(this.trailers[0].id);
+            }
+        };
+
+        tabsContainer.appendChild(vehiclesTab);
+        tabsContainer.appendChild(trailersTab);
+        container.appendChild(tabsContainer);
+
+        // Get items to display based on current tab
+        const items = this.currentTab === 'vehicles' ? this.vehicles : this.trailers;
+
+        items.forEach(item => {
             const button = document.createElement('button');
             button.className = 'vehicle-btn';
-            if (vehicle.id === this.currentVehicleId) {
+            if (item.id === this.currentVehicleId) {
                 button.classList.add('active');
             }
 
-            const statusColor = this.getStatusColor(vehicle.status);
+            const statusColor = this.getStatusColor(item.status);
+            const details = item.type === 'trailer'
+                ? `${item.licensePlate} • ${item.capacity} lbs capacity`
+                : `${item.licensePlate} • ${item.mileage.toLocaleString()} mi`;
+
             button.innerHTML = `
-                <div class="vehicle-btn-title">${vehicle.name}</div>
+                <div class="vehicle-btn-title">${item.name}</div>
                 <div class="vehicle-btn-details">
                     <i class="fas fa-circle" style="color: ${statusColor}; font-size: 8px; margin-right: 4px;"></i>
-                    ${vehicle.licensePlate} • ${vehicle.mileage.toLocaleString()} mi
+                    ${details}
                 </div>
             `;
 
-            button.onclick = () => this.selectVehicle(vehicle.id);
+            button.onclick = () => this.selectVehicle(item.id);
             container.appendChild(button);
         });
     },
 
-    // Select a vehicle and display its details
+    // Select a vehicle or trailer and display its details
     selectVehicle(vehicleId) {
         this.currentVehicleId = vehicleId;
-        this.currentVehicle = this.vehicles.find(v => v.id === vehicleId);
+        // First try to find in vehicles, then in trailers
+        this.currentVehicle = this.vehicles.find(v => v.id === vehicleId) || this.trailers.find(t => t.id === vehicleId);
 
         if (!this.currentVehicle) return;
 
@@ -130,13 +222,13 @@ const app = {
         this.renderVehicleDetail();
     },
 
-    // Render vehicle detail view
+    // Render vehicle or trailer detail view
     renderVehicleDetail() {
         const container = document.getElementById('vehicleDetail');
         const vehicle = this.currentVehicle;
 
         if (!vehicle) {
-            container.innerHTML = '<p>Select a vehicle to view details</p>';
+            container.innerHTML = '<p>Select a vehicle or trailer to view details</p>';
             return;
         }
 
@@ -158,17 +250,91 @@ const app = {
             `;
         }
 
-        container.innerHTML = `
-            ${alertHTML}
-            <div class="detail-header">
-                <div class="detail-title">
-                    <h2>${vehicle.name}</h2>
-                    <p>${vehicle.model}</p>
+        // Different info sections for trailers vs vehicles
+        let infoSections = '';
+        if (vehicle.type === 'trailer') {
+            infoSections = `
+                <div class="info-section">
+                    <div class="section-title"><i class="fas fa-info-circle"></i> Trailer Information</div>
+                    <div class="info-row">
+                        <span class="info-label">License Plate:</span>
+                        <span class="info-value">${vehicle.licensePlate}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">VIN:</span>
+                        <span class="info-value" style="font-family: monospace; font-size: 12px;">${vehicle.vin}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Assigned To:</span>
+                        <span class="info-value">${vehicle.assignedTo}</span>
+                    </div>
                 </div>
-                <span class="status-badge ${statusClass}">${statusText}</span>
-            </div>
 
-            <div class="info-grid">
+                <div class="info-section">
+                    <div class="section-title"><i class="fas fa-weight"></i> Weight Specifications</div>
+                    <div class="info-row">
+                        <span class="info-label">Empty Weight:</span>
+                        <span class="info-value">${vehicle.emptyWeight.toLocaleString()} lbs</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Capacity:</span>
+                        <span class="info-value">${vehicle.capacity.toLocaleString()} lbs</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Gross Weight:</span>
+                        <span class="info-value">${vehicle.grossWeight.toLocaleString()} lbs</span>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <div class="section-title"><i class="fas fa-wrench"></i> Maintenance</div>
+                    <div class="info-row">
+                        <span class="info-label">Last Service:</span>
+                        <span class="info-value">${vehicle.lastMaintenance}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Next Service:</span>
+                        <span class="info-value">${vehicle.nextMaintenance}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Appletag ID:</span>
+                        <span class="info-value" style="font-family: monospace; font-size: 12px;">${vehicle.appletag}</span>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <div class="section-title"><i class="fas fa-shield-alt"></i> Insurance</div>
+                    <div class="info-row">
+                        <span class="info-label">Provider:</span>
+                        <span class="info-value">${vehicle.insurance?.provider || 'N/A'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Policy:</span>
+                        <span class="info-value" style="font-family: monospace; font-size: 12px;">${vehicle.insurance?.policyNumber || 'N/A'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Expires:</span>
+                        <span class="info-value">${vehicle.insurance?.expirationDate || 'N/A'}</span>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <div class="section-title"><i class="fas fa-file-contract"></i> Registration</div>
+                    <div class="info-row">
+                        <span class="info-label">Expires:</span>
+                        <span class="info-value">${vehicle.registrationExpiration || 'TBD'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Status:</span>
+                        <span class="info-value" style="color: ${regStatus.expiring ? '#dc2626' : '#10b981'};">
+                            ${regStatus.status === 'valid' ? 'Current' : regStatus.status === 'expired' ? 'EXPIRED' : 'Expiring Soon'}
+                        </span>
+                    </div>
+                </div>
+            `;
+        } else {
+            // Vehicle display
+            infoSections = `
                 <div class="info-section">
                     <div class="section-title"><i class="fas fa-info-circle"></i> Vehicle Information</div>
                     <div class="info-row">
@@ -234,27 +400,79 @@ const app = {
                         </span>
                     </div>
                 </div>
+            `;
+        }
+
+        // Action buttons differ for trailers vs vehicles
+        let actionButtons = '';
+        if (vehicle.type === 'trailer') {
+            actionButtons = `
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="app.openQRCodePage()">QR Code</button>
+                    <button class="btn btn-secondary" onclick="app.openVehicleModal(app.currentVehicle)">More Details</button>
+                </div>
+
+                <div class="action-buttons" style="margin-top: 12px;">
+                    <button class="btn btn-secondary" onclick="app.openEditVehicleModal()">Edit Info</button>
+                    <button class="btn btn-secondary" onclick="app.openMaintenanceForm()">Log Maintenance</button>
+                </div>
+            `;
+        } else {
+            actionButtons = `
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="app.openUsageLogForm()">Log Usage</button>
+                    <button class="btn btn-secondary" onclick="app.openQRCodePage()">QR Code</button>
+                </div>
+
+                <div class="action-buttons" style="margin-top: 12px;">
+                    <button class="btn btn-secondary" onclick="app.openEditVehicleModal()">Edit Info</button>
+                    <button class="btn btn-secondary" onclick="app.openVehicleModal(app.currentVehicle)">More Details</button>
+                </div>
+            `;
+        }
+
+        // Show usage history only for vehicles, not trailers
+        let usageSection = '';
+        if (vehicle.type === 'vehicle') {
+            usageSection = `
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid #B8CCE4;">
+                    <h3 style="color: #1F4E79; font-size: 16px; font-weight: 600; margin-bottom: 16px;">
+                        <i class="fas fa-history"></i> Recent Usage Log
+                    </h3>
+                    <div id="usageHistory">${this.getUsageHistoryHTML(vehicle.id)}</div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = `
+            ${alertHTML}
+            <div class="detail-header">
+                <div class="detail-title">
+                    <h2>${vehicle.name}</h2>
+                    <p>${vehicle.model}</p>
+                </div>
+                <span class="status-badge ${statusClass}">${statusText}</span>
             </div>
 
-            <div class="action-buttons">
-                <button class="btn btn-primary" onclick="app.openUsageLogForm()">Log Usage</button>
-                <button class="btn btn-secondary" onclick="app.openVehicleModal(app.currentVehicle)">View All Details</button>
+            <div class="info-grid">
+                ${infoSections}
             </div>
 
-            <div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid #B8CCE4;">
-                <h3 style="color: #1F4E79; font-size: 16px; font-weight: 600; margin-bottom: 16px;">
-                    <i class="fas fa-history"></i> Recent Usage Log
-                </h3>
-                <div id="usageHistory">${this.getUsageHistoryHTML(vehicle.id)}</div>
-            </div>
+            ${actionButtons}
+
+            ${usageSection}
         `;
     },
     
-    // Load tracking data from Appletag
+    // Load tracking data from Appletag for vehicles and trailers
     async loadTrackingData() {
         for (const vehicle of this.vehicles) {
             const tracking = await appletag.getTracking(vehicle.appletag);
             this.tracking[vehicle.id] = tracking;
+        }
+        for (const trailer of this.trailers) {
+            const tracking = await appletag.getTracking(trailer.appletag);
+            this.tracking[trailer.id] = tracking;
         }
     },
 
@@ -407,6 +625,122 @@ const app = {
         document.getElementById('vehicleModal').classList.remove('active');
     },
 
+    // Open QR code page
+    openQRCodePage() {
+        if (!this.currentVehicle) return;
+
+        const modal = document.getElementById('qrCodeModal');
+        const title = document.getElementById('qrModalTitle');
+        const qrContainer = document.getElementById('qrCodeDisplay');
+        const appletag = document.getElementById('qrAppletagId');
+
+        title.textContent = `${this.currentVehicle.name} - QR Code`;
+        appletag.textContent = this.currentVehicle.appletag;
+
+        // Generate QR code
+        qrContainer.innerHTML = '';
+        const qrUrl = `${window.location.href}?vehicle=${this.currentVehicle.id}&appletag=${this.currentVehicle.appletag}`;
+        new QRCode(qrContainer, {
+            text: qrUrl,
+            width: 300,
+            height: 300,
+            correctLevel: QRCode.CorrectLevel.H,
+            colorDark: '#1F4E79',
+            colorLight: '#ffffff'
+        });
+
+        modal.classList.add('active');
+    },
+
+    // Close QR code modal
+    closeQRCodeModal() {
+        document.getElementById('qrCodeModal').classList.remove('active');
+    },
+
+    // Download QR code
+    downloadQRCode() {
+        if (!this.currentVehicle) return;
+
+        // Get canvas from QR code and download
+        const canvas = document.querySelector('#qrCodeDisplay canvas');
+        if (canvas) {
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = `${this.currentVehicle.name.replace(/\s+/g, '_')}_QRCode.png`;
+            link.click();
+        }
+    },
+
+    // Open edit vehicle/trailer modal
+    openEditVehicleModal() {
+        if (!this.currentVehicle) return;
+
+        document.getElementById('editVehicleName').value = this.currentVehicle.name;
+        document.getElementById('editVehicleModel').value = this.currentVehicle.model;
+        document.getElementById('editVehiclePlate').value = this.currentVehicle.licensePlate;
+
+        // Show/hide mileage field based on type
+        const mileageGroup = document.getElementById('editVehicleMileageGroup');
+        if (this.currentVehicle.type === 'trailer') {
+            if (mileageGroup) mileageGroup.style.display = 'none';
+        } else {
+            if (mileageGroup) mileageGroup.style.display = 'block';
+            document.getElementById('editVehicleMileage').value = this.currentVehicle.mileage;
+        }
+
+        document.getElementById('editVehicleStatus').value = this.currentVehicle.status;
+        document.getElementById('editVehicleReg').value = this.currentVehicle.registrationExpiration;
+        document.getElementById('editVehicleNextMaint').value = this.currentVehicle.nextMaintenance;
+
+        document.getElementById('editVehicleModal').classList.add('active');
+    },
+
+    // Close edit vehicle modal
+    closeEditVehicleModal() {
+        document.getElementById('editVehicleModal').classList.remove('active');
+    },
+
+    // Submit vehicle/trailer edit
+    submitEditVehicle(event) {
+        event.preventDefault();
+
+        let vehicleIndex = -1;
+        let array = this.vehicles;
+
+        if (this.currentVehicle.type === 'trailer') {
+            vehicleIndex = this.trailers.findIndex(v => v.id === this.currentVehicle.id);
+            array = this.trailers;
+        } else {
+            vehicleIndex = this.vehicles.findIndex(v => v.id === this.currentVehicle.id);
+        }
+
+        if (vehicleIndex < 0) return;
+
+        // Update data
+        array[vehicleIndex].name = document.getElementById('editVehicleName').value;
+        array[vehicleIndex].model = document.getElementById('editVehicleModel').value;
+        array[vehicleIndex].licensePlate = document.getElementById('editVehiclePlate').value;
+
+        // Only update mileage if it's a vehicle, not a trailer
+        if (array[vehicleIndex].type === 'vehicle') {
+            array[vehicleIndex].mileage = parseInt(document.getElementById('editVehicleMileage').value);
+        }
+
+        array[vehicleIndex].status = document.getElementById('editVehicleStatus').value;
+        array[vehicleIndex].registrationExpiration = document.getElementById('editVehicleReg').value;
+        array[vehicleIndex].nextMaintenance = document.getElementById('editVehicleNextMaint').value;
+
+        // Update current vehicle reference
+        this.currentVehicle = array[vehicleIndex];
+
+        alert('✓ Information updated');
+        this.closeEditVehicleModal();
+
+        // Refresh display
+        this.renderVehicleButtons();
+        this.renderVehicleDetail();
+    },
+
     // Open booking form
     openBookingForm() {
         if (!this.currentVehicle) return;
@@ -542,6 +876,7 @@ const app = {
         html += '<th style="padding: 8px; text-align: left; color: #1F4E79; font-weight: 600;">Date</th>';
         html += '<th style="padding: 8px; text-align: left; color: #1F4E79; font-weight: 600;">Distance</th>';
         html += '<th style="padding: 8px; text-align: left; color: #1F4E79; font-weight: 600;">Fuel Added</th>';
+        html += '<th style="padding: 8px; text-align: center; color: #1F4E79; font-weight: 600;">Action</th>';
         html += '</tr>';
 
         logs.forEach(log => {
@@ -550,11 +885,69 @@ const app = {
             html += `<td style="padding: 10px;">${log.date}</td>`;
             html += `<td style="padding: 10px; font-weight: 600;">${log.distance_driven} mi</td>`;
             html += `<td style="padding: 10px;">${log.fuel_added} gal</td>`;
+            html += `<td style="padding: 10px; text-align: center;">
+                <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="app.openEditUsageLog('${log.id}')">Edit</button>
+            </td>`;
             html += '</tr>';
         });
 
         html += '</table>';
         return html;
+    },
+
+    // Open edit usage log modal
+    openEditUsageLog(logId) {
+        if (!this.currentVehicle) return;
+
+        const log = this.usageLogs[this.currentVehicle.id]?.find(l => l.id === logId);
+        if (!log) return;
+
+        document.getElementById('editUsageLogId').value = logId;
+        document.getElementById('editUsageDriver').value = log.driver_name;
+        document.getElementById('editUsageDate').value = log.date;
+        document.getElementById('editUsageStartTime').value = log.start_time;
+        document.getElementById('editUsageEndTime').value = log.end_time;
+        document.getElementById('editUsageStartMileage').value = log.starting_mileage;
+        document.getElementById('editUsageEndMileage').value = log.ending_mileage;
+        document.getElementById('editUsageFuel').value = log.fuel_added;
+        document.getElementById('editUsageFuelCost').value = log.fuel_cost;
+        document.getElementById('editUsageNotes').value = log.notes;
+
+        document.getElementById('editUsageModal').classList.add('active');
+    },
+
+    // Close edit usage log modal
+    closeEditUsageModal() {
+        document.getElementById('editUsageModal').classList.remove('active');
+    },
+
+    // Submit edit usage log
+    submitEditUsageLog(event) {
+        event.preventDefault();
+
+        const logId = document.getElementById('editUsageLogId').value;
+        const logs = this.usageLogs[this.currentVehicle.id];
+        const logIndex = logs.findIndex(l => l.id === logId);
+
+        if (logIndex < 0) return;
+
+        // Update log data
+        logs[logIndex].driver_name = document.getElementById('editUsageDriver').value;
+        logs[logIndex].date = document.getElementById('editUsageDate').value;
+        logs[logIndex].start_time = document.getElementById('editUsageStartTime').value;
+        logs[logIndex].end_time = document.getElementById('editUsageEndTime').value;
+        logs[logIndex].starting_mileage = parseInt(document.getElementById('editUsageStartMileage').value);
+        logs[logIndex].ending_mileage = parseInt(document.getElementById('editUsageEndMileage').value);
+        logs[logIndex].fuel_added = parseFloat(document.getElementById('editUsageFuel').value);
+        logs[logIndex].fuel_cost = parseFloat(document.getElementById('editUsageFuelCost').value);
+        logs[logIndex].notes = document.getElementById('editUsageNotes').value;
+        logs[logIndex].distance_driven = logs[logIndex].ending_mileage - logs[logIndex].starting_mileage;
+
+        alert('✓ Usage log updated');
+        this.closeEditUsageModal();
+
+        // Refresh display
+        this.renderVehicleDetail();
     },
 
     // Open maintenance form
