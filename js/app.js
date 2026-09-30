@@ -153,6 +153,54 @@ const app = {
                 phone: '214-295-9717'
             },
             registrationExpiration: '2027-06-01'
+        },
+        {
+            id: 'trailer-2',
+            type: 'trailer',
+            name: 'GooseNeck',
+            model: '2024 GooseNeck Trailer',
+            licensePlate: '961334M',
+            vin: '5WW6T2426R6033973',
+            assignedTo: 'Field Operations',
+            emptyWeight: 6370,
+            capacity: 8630,
+            grossWeight: 14000,
+            status: 'available',
+            lastMaintenance: '2026-09-12',
+            nextMaintenance: '2026-10-12',
+            appletag: 'APT-004-TRL2',
+            insurance: {
+                provider: 'State Farm',
+                policyNumber: '0031891-SFX-43',
+                expirationDate: '2026-12-16',
+                agent: 'Kelsey DeLuca',
+                phone: '214-295-9717'
+            },
+            registrationExpiration: '2026-09-30'
+        },
+        {
+            id: 'trailer-3',
+            type: 'trailer',
+            name: 'Trailer',
+            model: '2025 Trailer',
+            licensePlate: '980007M',
+            vin: '4D6EB14115C068035',
+            assignedTo: 'Field Operations',
+            emptyWeight: 1315,
+            capacity: 1675,
+            grossWeight: 2990,
+            status: 'available',
+            lastMaintenance: '2026-09-10',
+            nextMaintenance: '2026-10-10',
+            appletag: 'APT-005-TRL3',
+            insurance: {
+                provider: 'State Farm',
+                policyNumber: '0031891-SFX-43',
+                expirationDate: '2026-12-16',
+                agent: 'Kelsey DeLuca',
+                phone: '214-295-9717'
+            },
+            registrationExpiration: '2026-10-31'
         }
     ],
 
