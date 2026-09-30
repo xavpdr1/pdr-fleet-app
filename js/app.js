@@ -593,7 +593,7 @@ const app = {
         this.setActiveNav('qr');
     },
 
-    // Open photo upload
+    // Open photo upload with image compression
     openPhotoUpload(assetId) {
         const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
         if (!asset) return;
@@ -606,14 +606,42 @@ const app = {
             const file = e.target.files[0];
             if (!file) return;
 
+            // Compress image to reduce size
             const reader = new FileReader();
             reader.onload = (event) => {
-                // Store the base64 image in the asset
-                asset.photo = event.target.result;
-                this.saveToLocalStorage();
-                this.renderFleetList();
-                this.showAssetDetail(assetId);
-                alert('✓ Photo uploaded successfully');
+                const img = new Image();
+                img.onload = () => {
+                    // Create canvas and compress
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    // Max dimensions: 400px
+                    const maxDim = 400;
+                    if (width > maxDim || height > maxDim) {
+                        const ratio = Math.min(maxDim / width, maxDim / height);
+                        width *= ratio;
+                        height *= ratio;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Convert to compressed JPEG (quality 0.7)
+                    asset.photo = canvas.toDataURL('image/jpeg', 0.7);
+
+                    // Save asynchronously without blocking UI
+                    setTimeout(() => {
+                        this.saveToLocalStorage();
+                        this.renderFleetList();
+                        this.showAssetDetail(assetId);
+                    }, 100);
+
+                    alert('✓ Photo uploaded successfully');
+                };
+                img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         };
