@@ -3,12 +3,8 @@
 const app = {
 
     authorizedReps: [
-        { name: 'Paulo Ribeiro', role: 'Lead Technician' },
-        { name: 'Mike Johnson', role: 'Field Operations' },
-        { name: 'Sarah Chen', role: 'Site Manager' },
-        { name: 'David Martinez', role: 'Technician' },
-        { name: 'Jessica Williams', role: 'Field Operations' },
-        { name: 'Tom Anderson', role: 'Technician' }
+        { name: 'Xavier Fernandez', role: 'Fleet Manager' },
+        { name: 'Curtis Wall', role: 'Authorized User' }
     ],
 
         vehicles: [
