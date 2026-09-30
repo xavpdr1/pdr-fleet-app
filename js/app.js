@@ -334,31 +334,44 @@ const app = {
     async init() {
         console.log('Initializing PDR Fleet Tracker...');
 
-        // Initialize Supabase cloud sync
-        try {
-            await window.supabase.init();
+        // Load from localStorage immediately (fast, no blocking)
+        this.loadFromLocalStorage();
+
+        // Initialize Supabase cloud sync in background (non-blocking)
+        // Use timeout to prevent freezing if network is slow
+        Promise.race([
+            window.supabase.init(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase init timeout')), 3000))
+        ]).then(async () => {
             console.log('✓ Supabase initialized for cloud sync');
 
-            // Try to load from cloud first
-            const cloudData = await window.supabase.loadFromCloud();
-            if (cloudData && cloudData.people && cloudData.people.length > 0) {
-                console.log('✓ Loading data from Supabase cloud...');
-                this.people = cloudData.people;
-                this.vehicles = cloudData.vehicles || [];
-                this.trailers = cloudData.trailers || [];
-                // Also save to localStorage as backup
-                this.saveToLocalStorage();
-            } else {
-                // Fall back to localStorage if cloud is empty
-                console.log('ℹ️ Cloud empty, loading from localStorage...');
-                this.loadFromLocalStorage();
-                // Sync localStorage data to cloud
-                await this.syncToCloud();
+            // Try to load from cloud (non-blocking with timeout)
+            try {
+                const cloudData = await Promise.race([
+                    window.supabase.loadFromCloud(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Cloud load timeout')), 5000))
+                ]);
+
+                if (cloudData && cloudData.people && cloudData.people.length > 0) {
+                    console.log('✓ Loading data from Supabase cloud...');
+                    this.people = cloudData.people;
+                    this.vehicles = cloudData.vehicles || [];
+                    this.trailers = cloudData.trailers || [];
+                    // Also save to localStorage as backup
+                    this.saveToLocalStorage();
+                } else {
+                    // Cloud empty, sync local data to cloud
+                    console.log('ℹ️ Cloud empty, syncing local data...');
+                    this.syncToCloud(); // Non-blocking
+                }
+            } catch (err) {
+                console.warn('⚠️ Cloud load failed:', err.message);
+                // Keep using localStorage data
+                this.syncToCloud(); // Try to sync in background
             }
-        } catch (err) {
-            console.warn('⚠️ Cloud sync unavailable, using localStorage:', err);
-            this.loadFromLocalStorage();
-        }
+        }).catch(err => {
+            console.warn('⚠️ Supabase unavailable, using localStorage only:', err.message);
+        });
 
         // Set user avatar in header
         const userInitial = this.currentUser.name.charAt(0).toUpperCase();
