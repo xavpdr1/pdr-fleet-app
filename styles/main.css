@@ -83,17 +83,18 @@ header p {
 
 .control-group {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     background: rgba(255,255,255,0.1);
-    padding: 12px;
+    padding: 10px;
     border-radius: 8px;
     backdrop-filter: blur(10px);
     flex-wrap: wrap;
     justify-content: center;
+    align-items: center;
 }
 
 .control-group button {
-    padding: 10px 20px;
+    padding: 12px 16px;
     border: 2px solid white;
     background: rgba(255,255,255,0.1);
     color: white;
@@ -102,6 +103,15 @@ header p {
     cursor: pointer;
     transition: all 0.3s ease;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95em;
+    line-height: 1.4;
+}
+
+.control-group button:active {
+    transform: scale(0.98);
 }
 
 .control-group button.active {
@@ -318,7 +328,7 @@ header p {
 }
 
 .btn {
-    padding: 10px;
+    padding: 12px;
     border: none;
     border-radius: 6px;
     font-weight: 600;
@@ -326,6 +336,11 @@ header p {
     font-size: 0.9em;
     transition: all 0.3s ease;
     text-align: center;
+    display: inline-block;
+}
+
+.btn:active {
+    transform: scale(0.98);
 }
 
 .btn-primary {
@@ -518,13 +533,14 @@ header p {
 
     .control-group {
         width: 100%;
-        flex-direction: row;
-        flex-wrap: wrap;
+        justify-content: flex-start;
     }
 
     .control-group button {
-        flex: 1;
-        min-width: 80px;
+        flex: 1 1 auto;
+        min-width: auto;
+        padding: 12px 12px;
+        font-size: 0.9em;
     }
 
     body {
@@ -541,16 +557,10 @@ header p {
         margin-bottom: 20px;
     }
 
-    button {
-        font-size: 0.9em;
-        padding: 10px 12px;
-    }
-
     .btn {
         width: 100%;
         padding: 12px;
         font-size: 0.95em;
-        margin: 8px 0;
     }
 
     .modal-content button {
@@ -588,8 +598,13 @@ header p {
     }
 
     .control-group button {
-        padding: 8px 10px;
-        font-size: 0.8em;
+        padding: 10px 12px;
+        font-size: 0.85em;
+        flex: 1;
+    }
+
+    .control-group button i {
+        font-size: 0.9em;
     }
 
     .vehicle-card {
@@ -609,7 +624,7 @@ header p {
     }
 
     .btn {
-        padding: 10px;
+        padding: 12px;
         font-size: 0.9em;
     }
 
