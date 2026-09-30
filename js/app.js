@@ -593,7 +593,7 @@ const app = {
         this.setActiveNav('qr');
     },
 
-    // Open photo upload with image compression
+    // Open photo upload
     openPhotoUpload(assetId) {
         const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
         if (!asset) return;
@@ -606,17 +606,17 @@ const app = {
             const file = e.target.files[0];
             if (!file) return;
 
-            // Compress image to reduce size
             const reader = new FileReader();
             reader.onload = (event) => {
+                // Use Image and Canvas for compression to avoid UI freeze
                 const img = new Image();
                 img.onload = () => {
-                    // Create canvas and compress
+                    // Create canvas for image compression
                     const canvas = document.createElement('canvas');
                     let width = img.width;
                     let height = img.height;
 
-                    // Max dimensions: 400px
+                    // Resize to max 400px while maintaining aspect ratio
                     const maxDim = 400;
                     if (width > maxDim || height > maxDim) {
                         const ratio = Math.min(maxDim / width, maxDim / height);
@@ -629,17 +629,16 @@ const app = {
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // Convert to compressed JPEG (quality 0.7)
+                    // Compress as JPEG with 0.7 quality (reduces ~5MB to <500KB)
                     asset.photo = canvas.toDataURL('image/jpeg', 0.7);
 
-                    // Save asynchronously without blocking UI
+                    // Use setTimeout to prevent UI thread blocking
                     setTimeout(() => {
                         this.saveToLocalStorage();
                         this.renderFleetList();
                         this.showAssetDetail(assetId);
+                        alert('✓ Photo uploaded successfully');
                     }, 100);
-
-                    alert('✓ Photo uploaded successfully');
                 };
                 img.src = event.target.result;
             };
@@ -853,6 +852,9 @@ const app = {
             location: location || null
         };
 
+        // Update asset status to in-use
+        asset.status = 'in-use';
+
         // Log to usage logs
         if (!this.usageLogs[assetId]) {
             this.usageLogs[assetId] = [];
@@ -894,6 +896,9 @@ const app = {
             location: location && location.trim() ? location.trim() : null
         };
 
+        // Update asset status to in-use
+        asset.status = 'in-use';
+
         // Log to usage logs
         if (!this.usageLogs[assetId]) {
             this.usageLogs[assetId] = [];
@@ -929,6 +934,9 @@ const app = {
         }
 
         delete this.currentUsage[assetId];
+
+        // Reset asset status to available
+        asset.status = 'available';
 
         // Save data to localStorage
         this.saveToLocalStorage();
