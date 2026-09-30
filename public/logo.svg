@@ -1,44 +1,29 @@
-<svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
-  <!-- PDR Letters using shapes -->
-  
-  <!-- P -->
+<svg viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- P Letter -->
   <g>
-    <!-- Vertical bar -->
-    <rect x="80" y="80" width="80" height="280" fill="#005BAB" rx="8"/>
-    <!-- Top curve -->
-    <path d="M 160 80 Q 280 80 280 170 Q 280 240 160 240 L 160 80" fill="#005BAB"/>
-    <!-- Diagonal connecting line at bottom of P bowl -->
-    <rect x="160" y="230" width="140" height="50" fill="#005BAB"/>
+    <path d="M 120 150 L 120 450 M 120 150 Q 120 80 220 80 Q 300 80 300 160 Q 300 240 220 240 L 120 240" stroke="#005BAB" stroke-width="60" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
   
-  <!-- D -->
+  <!-- D Letter -->
   <g>
-    <!-- Vertical bar -->
-    <rect x="380" y="80" width="80" height="280" fill="#005BAB" rx="8"/>
-    <!-- Right curve -->
-    <path d="M 460 80 Q 560 80 560 220 Q 560 360 460 360 L 460 80" fill="#005BAB" stroke="#005BAB" stroke-width="2"/>
+    <path d="M 420 150 L 420 450 M 420 150 Q 420 80 520 80 Q 620 80 620 300 Q 620 520 520 520 Q 420 520 420 450" stroke="#005BAB" stroke-width="60" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
   
-  <!-- R -->
+  <!-- R Letter -->
   <g>
-    <!-- Vertical bar -->
-    <rect x="680" y="80" width="80" height="280" fill="#005BAB" rx="8"/>
-    <!-- Top curve -->
-    <path d="M 760 80 Q 880 80 880 170 Q 880 240 760 240 L 760 80" fill="#005BAB"/>
-    <!-- Diagonal leg -->
-    <line x1="760" y1="240" x2="920" y2="360" stroke="#005BAB" stroke-width="80" stroke-linecap="round"/>
+    <path d="M 780 150 L 780 450 M 780 150 Q 780 80 880 80 Q 960 80 960 160 Q 960 240 880 240 L 780 240 L 960 450" stroke="#005BAB" stroke-width="60" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
   
-  <!-- TEAM Text (simpler, using basic text) -->
-  <text x="100" y="430" font-family="Arial, Helvetica, sans-serif" font-size="90" font-weight="bold" fill="#1A2332">TEAM</text>
+  <!-- TEAM Text -->
+  <text x="140" y="540" font-family="Arial, sans-serif" font-size="100" font-weight="bold" font-style="italic" fill="#1A2332">TEAM</text>
   
   <!-- Diagonal Stripes -->
   <!-- Dark Navy Stripe -->
-  <polygon points="80,460 200,460 240,520 120,520" fill="#1A2332"/>
+  <polygon points="120,480 240,480 300,600 180,600" fill="#1A2332"/>
   
   <!-- Medium Blue Stripe -->
-  <polygon points="240,460 360,460 400,520 280,520" fill="#005BAB"/>
+  <polygon points="280,480 400,480 460,600 340,600" fill="#005BAB"/>
   
   <!-- Light Blue Stripe -->
-  <polygon points="400,460 520,460 560,520 440,520" fill="#0084D1"/>
+  <polygon points="440,480 560,480 620,600 500,600" fill="#0084D1"/>
 </svg>

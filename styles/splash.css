@@ -25,22 +25,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 0;
 }
 
 #splash-logo {
-  width: 300px;
-  height: 150px;
+  width: 400px;
+  height: 250px;
   animation: logo-appear 0.8s ease-in-out;
-}
-
-#splash-text {
-  font-family: Calibri, Arial, sans-serif;
-  font-size: 32px;
-  font-weight: 600;
-  color: #1F4E79;
-  letter-spacing: 2px;
-  animation: text-appear 0.8s ease-in-out 0.2s both;
 }
 
 @keyframes logo-appear {
@@ -58,30 +49,9 @@
   animation: logo-fade 0.8s ease-in-out forwards;
 }
 
-#splash-screen.fade-out #splash-text {
-  animation: text-fade 0.8s ease-in-out forwards;
-}
-
 @keyframes logo-fade {
   to {
     opacity: 0;
     transform: scale(1.2);
-  }
-}
-
-@keyframes text-fade {
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes text-appear {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
