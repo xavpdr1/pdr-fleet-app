@@ -97,11 +97,7 @@ const app = {
     // Initialize the app
     async init() {
         console.log('Initializing PDR Fleet Tracker...');
-        // Set logo src
-        const logoImg = document.querySelector("header .pdr-logo");
-        const splashLogo = document.getElementById("splash-logo");
-        if (logoImg) logoImg.src = "/logo.png";
-        if (splashLogo) splashLogo.src = "/logo.png";
+        
         // Check for single-vehicle mode from URL parameters
         const params = new URLSearchParams(window.location.search);
         const vehicleParam = params.get('vehicle') || params.get('name');
@@ -119,6 +115,7 @@ const app = {
 
         // Set up real-time updates
         this.setupAutoUpdates();
+    },
 
     // Render authorized users
     renderAuthorizedUsers() {
