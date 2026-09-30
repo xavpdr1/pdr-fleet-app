@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDR-Team Fleet Management</title>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script type="module" crossorigin src="/assets/index-aa9230d9.js"></script>
+  <link rel="stylesheet" href="/assets/index-c41a43f2.css">
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <div id="splash-container">
+            <img id="splash-logo" src="./logo.png" alt="PDR-Team Logo">
+            <div id="splash-text">Fleet Management</div>
+        </div>
+    </div>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="./logo.png" alt="PDR-Team Logo" class="pdr-logo">
+                </div>
+                <div class="title-section">
+                    <h1>PDR-Team Fleet Tracker</h1>
+                    <p>Driver logs, maintenance tracking, and recall notifications</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <button class="active" onclick="app.switchView('all')"><i class="fas fa-th"></i> All Vehicles</button>
+                <button onclick="app.switchView('active')"><i class="fas fa-check-circle"></i> Active</button>
+                <button onclick="app.switchView('qronly')"><i class="fas fa-qrcode"></i> QR Codes</button>
+            </div>
+            <div class="filter-group">
+                <select onchange="app.filterByStatus(this.value)" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="available">Available</option>
+                    <option value="in-use">In Use</option>
+                    <option value="maintenance">Maintenance</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Authorized Users Section -->
+        <div class="authorized-users-section" id="authorizedUsersSection">
+            <div class="authorized-users-header">
+                <h3><i class="fas fa-users"></i> Authorized Representatives</h3>
+                <p>Users with access to fleet units</p>
+            </div>
+            <div class="authorized-users-list" id="authorizedUsersList"></div>
+        </div>
+        <div class="vehicles-grid" id="vehiclesGrid"></div>
+    </div>
+
+    <!-- Vehicle Details Modal -->
+    <div class="modal" id="vehicleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="modalTitle"></span>
+                <button class="close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <div id="modalBody"></div>
+            <div class="qr-display">
+                <h3 style="margin-bottom: 16px; color: #333;">Scan QR Code</h3>
+                <div id="qrcode"></div>
+                <p style="margin-top: 12px; font-size: 0.9em; color: #999;">Linked to Appletag: <strong id="appletag"></strong></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Driver Log Modal -->
+    <div class="modal" id="driverLogModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                Add Driver Log
+                <button class="close-btn" onclick="app.closeDriverLogModal()">×</button>
+            </div>
+            <form onsubmit="app.submitDriverLog(event)">
+                <div class="form-group">
+                    <label>Vehicle</label>
+                    <input type="text" id="driverLogVehicle" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="driverLogDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Driver Name</label>
+                    <input type="text" id="driverLogDriver" required>
+                </div>
+                <div class="form-group">
+                    <label>Starting Mileage</label>
+                    <input type="number" id="driverLogStartMiles" required>
+                </div>
+                <div class="form-group">
+                    <label>Ending Mileage</label>
+                    <input type="number" id="driverLogEndMiles" required>
+                </div>
+                <div class="form-group">
+                    <label>Route/Destination</label>
+                    <input type="text" id="driverLogRoute" required>
+                </div>
+                <div class="form-group">
+                    <label>Fuel Used (gallons)</label>
+                    <input type="number" id="driverLogFuel" step="0.1" required>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="driverLogNotes" placeholder="Any issues or notes about the trip"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Driver Log</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Maintenance Modal -->
+    <div class="modal" id="maintenanceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                Log Maintenance
+                <button class="close-btn" onclick="app.closeMaintenanceModal()">×</button>
+            </div>
+            <form onsubmit="app.submitMaintenance(event)">
+                <div class="form-group">
+                    <label>Vehicle</label>
+                    <input type="text" id="maintenanceVehicle" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="maintenanceDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Maintenance Type</label>
+                    <select id="maintenanceType" required>
+                        <option value="">Select...</option>
+                        <option value="oil-change">Oil Change</option>
+                        <option value="tire-rotation">Tire Rotation</option>
+                        <option value="inspection">Inspection</option>
+                        <option value="repair">Repair</option>
+                        <option value="fuel">Fuel/Charge</option>
+                        <option value="cleaning">Cleaning</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="maintenanceDesc" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Mileage</label>
+                    <input type="number" id="maintenanceMileage" required>
+                </div>
+                <div class="form-group">
+                    <label>Cost ($)</label>
+                    <input type="number" id="maintenanceCost" step="0.01" value="0">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Log Maintenance</button>
+            </form>
+        </div>
+    </div>
+
+
+
+</body>
+</html>
