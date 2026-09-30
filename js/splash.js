@@ -1,34 +1,25 @@
-// Splash Screen Manager
-class SplashScreen {
-  constructor(duration = 2000) {
-    this.duration = duration;
-    this.splashElement = document.getElementById('splash-screen');
-  }
+// Initialize splash screen
+document.addEventListener('DOMContentLoaded', function() {
+    const splashScreen = document.getElementById('splash-screen');
+    console.log('[Splash] Page loaded, splash element:', !!splashScreen);
 
-  start() {
-    // Logo appears and is visible for the specified duration
-    setTimeout(() => {
-      this.fade();
-    }, this.duration);
-  }
+    if (splashScreen) {
+        // Ensure it's visible
+        splashScreen.style.display = 'flex';
+        console.log('[Splash] Splash screen visible, waiting 3.5 seconds before fade...');
+        
+        // Wait 3.5 seconds, then fade out
+        setTimeout(() => {
+            console.log('[Splash] Adding fade-out class');
+            splashScreen.classList.add('fade-out');
 
-  fade() {
-    // Fade out the splash screen
-    if (this.splashElement) {
-      this.splashElement.classList.add('fade-out');
-      
-      // Remove from DOM after animation completes
-      setTimeout(() => {
-        if (this.splashElement && this.splashElement.parentNode) {
-          this.splashElement.parentNode.removeChild(this.splashElement);
-        }
-      }, 1000); // Match the transition duration in CSS
+            // Remove from DOM after fade completes
+            setTimeout(() => {
+                console.log('[Splash] Removing splash screen from DOM');
+                splashScreen.remove();
+            }, 1000);
+        }, 3500);
+    } else {
+        console.log('[Splash] ERROR: splash-screen element not found!');
     }
-  }
-}
-
-// Initialize splash screen when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  const splash = new SplashScreen(2000); // 2 second display duration
-  splash.start();
 });
