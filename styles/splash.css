@@ -29,9 +29,10 @@
 }
 
 #splash-logo {
-    width: 120px;
-    height: 120px;
+    width: 200px;
+    height: auto;
     animation: logo-appear 0.8s ease-out;
+    object-fit: contain;
 }
 
 @keyframes logo-appear {
