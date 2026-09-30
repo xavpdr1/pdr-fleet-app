@@ -1,25 +1,37 @@
 // Initialize splash screen
 document.addEventListener('DOMContentLoaded', function() {
     const splashScreen = document.getElementById('splash-screen');
-    console.log('[Splash] Page loaded, splash element:', !!splashScreen);
-
+    
+    // Alert to absolutely confirm this is running
+    alert('SPLASH SCREEN STARTING - You should see this alert!');
+    
+    console.log('[Splash] DOMContentLoaded fired');
+    console.log('[Splash] splash-screen element found:', !!splashScreen);
+    
     if (splashScreen) {
-        // Ensure it's visible
-        splashScreen.style.display = 'flex';
-        console.log('[Splash] Splash screen visible, waiting 3.5 seconds before fade...');
+        // Make it extremely obvious
+        splashScreen.style.display = 'flex !important';
+        splashScreen.style.opacity = '1 !important';
+        splashScreen.style.visibility = 'visible !important';
         
-        // Wait 3.5 seconds, then fade out
+        console.log('[Splash] Made splash screen visible');
+        console.log('[Splash] Will fade out in 4 seconds');
+        
+        // Wait 4 seconds, then fade out
         setTimeout(() => {
-            console.log('[Splash] Adding fade-out class');
+            console.log('[Splash] Now fading out...');
             splashScreen.classList.add('fade-out');
 
             // Remove from DOM after fade completes
             setTimeout(() => {
-                console.log('[Splash] Removing splash screen from DOM');
-                splashScreen.remove();
+                console.log('[Splash] Removing from DOM');
+                if (splashScreen.parentNode) {
+                    splashScreen.parentNode.removeChild(splashScreen);
+                }
             }, 1000);
-        }, 3500);
+        }, 4000);
     } else {
-        console.log('[Splash] ERROR: splash-screen element not found!');
+        console.error('[Splash] CRITICAL: splash-screen element NOT FOUND!');
+        alert('ERROR: splash-screen element not found in DOM!');
     }
 });
