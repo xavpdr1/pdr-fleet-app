@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDR-Team Fleet Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1F4E79 0%, #2D3847 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            margin-bottom: 40px;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, rgba(31, 78, 121, 0.95) 0%, rgba(45, 56, 71, 0.95) 100%);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            max-width: 900px;
+        }
+
+        .logo-section {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            border: none;
+        }
+
+        .pdr-logo {
+            height: 60px;
+            width: auto;
+            display: block;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        }
+
+        .title-section {
+            text-align: left;
+        }
+
+        header h1 {
+            font-size: 2em;
+            margin-bottom: 8px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            font-size: 0.95em;
+            opacity: 0.85;
+            line-height: 1.4;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            background: rgba(255,255,255,0.1);
+            padding: 12px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-group button {
+            padding: 10px 20px;
+            border: 2px solid white;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-group button.active {
+            background: white;
+            color: #1F4E79;
+        }
+
+        .control-group button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-group select {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            background: white;
+            color: #333;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .vehicles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .vehicle-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .vehicle-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+        }
+
+        .vehicle-name {
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+
+        .vehicle-model {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.9em;
+            margin-top: 4px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .dot-active {
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+
+        .dot-inactive {
+            background: #f87171;
+        }
+
+        .dot-unknown {
+            background: #facc15;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+
+        .info-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 0.85em;
+            font-weight: 700;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 0.95em;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .value {
+            color: #333;
+            font-weight: 600;
+        }
+
+        .tracking-info {
+            background: #f8f9fa;
+            border-left: 4px solid #1F4E79;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 12px 0;
+        }
+
+        .tracking-info .label {
+            font-size: 0.85em;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .tracking-info .value {
+            font-size: 0.95em;
+        }
+
+        .location-badge {
+            display: inline-block;
+            background: #D9E1F2;
+            color: #1F4E79;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .battery-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .battery-bar {
+            width: 40px;
+            height: 8px;
+            background: #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .battery-fill {
+            height: 100%;
+            background: #4ade80;
+            border-radius: 4px;
+        }
+
+        .battery-fill.low {
+            background: #f87171;
+        }
+
+        .battery-fill.medium {
+            background: #facc15;
+        }
+
+        .card-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+        }
+
+        .btn {
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: #1F4E79;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2E75B6;
+        }
+
+        .btn-secondary {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #dee2e6;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.8em;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .qr-display {
+            text-align: center;
+            margin: 24px 0;
+            padding: 24px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .tracking-details {
+            background: #F2F4F8;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+
+        .tracking-details h4 {
+            color: #1F4E79;
+            margin-bottom: 12px;
+        }
+
+        .tracking-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(31, 78, 121, 0.1);
+        }
+
+        .tracking-detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1em;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+        }
+
+        .empty-state i {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 1.1em;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+
+            .title-section {
+                text-align: center;
+            }
+
+            .pdr-logo {
+                font-size: 1.6em;
+            }
+
+            header h1 {
+                font-size: 1.6em;
+            }
+
+            header p {
+                font-size: 0.9em;
+            }
+
+            .vehicles-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card-actions {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .control-group {
+                width: 100%;
+            }
+
+            .control-group button {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAATYAAABWCAYAAAEyOIrRAAAKQ2lDQ1BJQ0MgcHJvZmlsZQAAeNqd
+U3dYk/cWPt/3ZQ9WQtjwsZdsgQAiI6wIyBBZohCSAGGEEBJAxYWIClYUFRGcSFXEgtUKSJ2I4qAo
+uGdBiohai1VcOO4f3Ke1fXrv7e371/u855zn/M55zw+AERImkeaiagA5UoU8Otgfj09IxMm9gAIV
+SOAEIBDmy8JnBcUAAPADeXh+dLA//AGvbwACAHDVLiQSx+H/g7pQJlcAIJEA4CIS5wsBkFIAyC5U
+yBQAyBgAsFOzZAoAlAAAbHl8QiIAqg0A7PRJPgUA2KmT3BcA2KIcqQgAjQEAmShHJAJAuwBgVYFS
+LALAwgCgrEAiLgTArgGAWbYyRwKAvQUAdo5YkA9AYACAmUIszAAgOAIAQx4TzQMgTAOgMNK/4Klf
+cIW4SAEAwMuVzZdL0jMUuJXQGnfy8ODiIeLCbLFCYRcpEGYJ5CKcl5sjE0jnA0zODAAAGvnRwf44
+P5Dn5uTh5mbnbO/0xaL+a/BvIj4h8d/+vIwCBAAQTs/v2l/l5dYDcMcBsHW/a6lbANpWAGjf+V0z
+2wmgWgrQevmLeTj8QB6eoVDIPB0cCgsL7SViob0w44s+/zPhb+CLfvb8QB7+23rwAHGaQJmtwKOD
+/XFhbnauUo7nywRCMW735yP+x4V//Y4p0eI0sVwsFYrxWIm4UCJNx3m5UpFEIcmV4hLpfzLxH5b9
+CZN3DQCshk/ATrYHtctswH7uAQKLDljSdgBAfvMtjBoLkQAQZzQyefcAAJO/+Y9AKwEAzZek4wAA
+vOgYXKiUF0zGCAAARKCBKrBBBwzBFKzADpzBHbzAFwJhBkRADCTAPBBCBuSAHAqhGJZBGVTAOtgE
+tbADGqARmuEQtMExOA3n4BJcgetwFwZgGJ7CGLyGCQRByAgTYSE6iBFijtgizggXmY4EImFINJKA
+pCDpiBRRIsXIcqQCqUJqkV1II/ItchQ5jVxA+pDbyCAyivyKvEcxlIGyUQPUAnVAuagfGorGoHPR
+dDQPXYCWomvRGrQePYC2oqfRS+h1dAB9io5jgNExDmaM2WFcjIdFYIlYGibHFmPlWDVWjzVjHVg3
+dhUbwJ5h7wgkAouAE+wIXoQQwmyCkJBHWExYQ6gl7CO0EroIVwmDhDHCJyKTqE+0JXoS+cR4Yjqx
+kFhGrCbuIR4hniVeJw4TX5NIJA7JkuROCiElkDJJC0lrSNtILaRTpD7SEGmcTCbrkG3J3uQIsoCs
+IJeRt5APkE+S+8nD5LcUOsWI4kwJoiRSpJQSSjVlP+UEpZ8yQpmgqlHNqZ7UCKqIOp9aSW2gdlAv
+U4epEzR1miXNmxZDy6Qto9XQmmlnafdoL+l0ugndgx5Fl9CX0mvoB+nn6YP0dwwNhg2Dx0hiKBlr
+GXsZpxi3GS+ZTKYF05eZyFQw1zIbmWeYD5hvVVgq9ip8FZHKEpU6lVaVfpXnqlRVc1U/1XmqC1Sr
+VQ+rXlZ9pkZVs1DjqQnUFqvVqR1Vu6k2rs5Sd1KPUM9RX6O+X/2C+mMNsoaFRqCGSKNUY7fGGY0h
+FsYyZfFYQtZyVgPrLGuYTWJbsvnsTHYF+xt2L3tMU0NzqmasZpFmneZxzQEOxrHg8DnZnErOIc4N
+znstAy0/LbHWaq1mrX6tN9p62r7aYu1y7Rbt69rvdXCdQJ0snfU6bTr3dQm6NrpRuoW623XP6j7T
+Y+t56Qn1yvUO6d3RR/Vt9KP1F+rv1u/RHzcwNAg2kBlsMThj8MyQY+hrmGm40fCE4agRy2i6kcRo
+o9FJoye4Ju6HZ+M1eBc+ZqxvHGKsNN5l3Gs8YWJpMtukxKTF5L4pzZRrmma60bTTdMzMyCzcrNis
+yeyOOdWca55hvtm82/yNhaVFnMVKizaLx5balnzLBZZNlvesmFY+VnlW9VbXrEnWXOss623WV2xQ
+G1ebDJs6m8u2qK2brcR2m23fFOIUjynSKfVTbtox7PzsCuya7AbtOfZh9iX2bfbPHcwcEh3WO3Q7
+fHJ0dcx2bHC866ThNMOpxKnD6VdnG2ehc51zNRemS5DLEpd2lxdTbaeKp26fesuV5RruutK10/Wj
+m7ub3K3ZbdTdzD3Ffav7TS6bG8ldwz3vQfTw91jicczjnaebp8LzkOcvXnZeWV77vR5Ps5wmntYw
+bcjbxFvgvct7YDo+PWX6zukDPsY+Ap96n4e+pr4i3z2+I37Wfpl+B/ye+zv6y/2P+L/hefIW8U4F
+YAHBAeUBvYEagbMDawMfBJkEpQc1BY0FuwYvDD4VQgwJDVkfcpNvwBfyG/ljM9xnLJrRFcoInRVa
+G/owzCZMHtYRjobPCN8Qfm+m+UzpzLYIiOBHbIi4H2kZmRf5fRQpKjKqLupRtFN0cXT3LNas5Fn7
+Z72O8Y+pjLk722q2cnZnrGpsUmxj7Ju4gLiquIF4h/hF8ZcSdBMkCe2J5MTYxD2J43MC52yaM5zk
+mlSWdGOu5dyiuRfm6c7Lnnc8WTVZkHw4hZgSl7I/5YMgQlAvGE/lp25NHRPyhJuFT0W+oo2iUbG3
+uEo8kuadVpX2ON07fUP6aIZPRnXGMwlPUit5kRmSuSPzTVZE1t6sz9lx2S05lJyUnKNSDWmWtCvX
+MLcot09mKyuTDeR55m3KG5OHyvfkI/lz89sVbIVM0aO0Uq5QDhZML6greFsYW3i4SL1IWtQz32b+
+6vkjC4IWfL2QsFC4sLPYuHhZ8eAiv0W7FiOLUxd3LjFdUrpkeGnw0n3LaMuylv1Q4lhSVfJqedzy
+jlKD0qWlQyuCVzSVqZTJy26u9Fq5YxVhlWRV72qX1VtWfyoXlV+scKyorviwRrjm4ldOX9V89Xlt
+2treSrfK7etI66Trbqz3Wb+vSr1qQdXQhvANrRvxjeUbX21K3nShemr1js20zcrNAzVhNe1bzLas
+2/KhNqP2ep1/XctW/a2rt77ZJtrWv913e/MOgx0VO97vlOy8tSt4V2u9RX31btLugt2PGmIbur/m
+ft24R3dPxZ6Pe6V7B/ZF7+tqdG9s3K+/v7IJbVI2jR5IOnDlm4Bv2pvtmne1cFoqDsJB5cEn36Z8
+e+NQ6KHOw9zDzd+Zf7f1COtIeSvSOr91rC2jbaA9ob3v6IyjnR1eHUe+t/9+7zHjY3XHNY9XnqCd
+KD3x+eSCk+OnZKeenU4/PdSZ3Hn3TPyZa11RXb1nQ8+ePxd07ky3X/fJ897nj13wvHD0Ivdi2yW3
+S609rj1HfnD94UivW2/rZffL7Vc8rnT0Tes70e/Tf/pqwNVz1/jXLl2feb3vxuwbt24m3Ry4Jbr1
++Hb27Rd3Cu5M3F16j3iv/L7a/eoH+g/qf7T+sWXAbeD4YMBgz8NZD+8OCYee/pT/04fh0kfMR9Uj
+RiONj50fHxsNGr3yZM6T4aeypxPPyn5W/3nrc6vn3/3i+0vPWPzY8Av5i8+/rnmp83Lvq6mvOscj
+xx+8znk98ab8rc7bfe+477rfx70fmSj8QP5Q89H6Y8en0E/3Pud8/vwv94Tz+4A5JREAAAAZdEVY
+dFNvZnR3YXJlAEFkb2JlIEltYWdlUmVhZHlxyWU8AAADI2lUWHRYTUw6Y29tLmFkb2JlLnhtcAAA
+AAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4g
+PHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENv
+cmUgNS42LWMxNDAgNzkuMTYwNDUxLCAyMDE3LzA1LzA2LTAxOjA4OjIxICAgICAgICAiPiA8cmRm
+OlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1u
+cyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5h
+ZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOnhtcE1NPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8x
+LjAvbW0vIiB4bWxuczpzdFJlZj0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL3NUeXBlL1Jl
+c291cmNlUmVmIyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ0MgKE1hY2ludG9z
+aCkiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6QTRDMUI1RUYwQjM5MTFFODlBNzREMEY4OTY0
+ODE3NjUiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6QTRDMUI1RjAwQjM5MTFFODlBNzREMEY4
+OTY0ODE3NjUiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDpB
+NEMxQjVFRDBCMzkxMUU4OUE3NEQwRjg5NjQ4MTc2NSIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRp
+ZDpBNEMxQjVFRTBCMzkxMUU4OUE3NEQwRjg5NjQ4MTc2NSIvPiA8L3JkZjpEZXNjcmlwdGlvbj4g
+PC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PuylKDEAABc0SURBVHja
+Yvz//z/DYAUsIIKRkREu8J9I1zJCNZGqnhQ9DKSG3H8owMXHpYdEO7aA9LCQYwhyKGDjo5lphsb/
+B9JClB3I7iHDh7eICTUsIT0BmxqowzGjFRaU5EQxIUBM7ACFGZG0RKI7juRsS4qjoOr1gbiD6PQ5
+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" alt="PDR-Team Logo" class="pdr-logo">
+                </div>
+                <div class="title-section">
+                    <h1>PDR-Team Fleet Tracker</h1>
+                    <p>Real-time vehicle tracking with QR codes and Appletag integration</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <button class="active" onclick="app.switchView('all')"><i class="fas fa-th"></i> All Vehicles</button>
+                <button onclick="app.switchView('active')"><i class="fas fa-map-marker-alt"></i> Active</button>
+                <button onclick="app.switchView('tracked')"><i class="fas fa-signal"></i> Tracked</button>
+                <button onclick="app.switchView('qronly')"><i class="fas fa-qrcode"></i> QR Codes</button>
+            </div>
+            <div class="filter-group">
+                <select onchange="app.filterByStatus(this.value)" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="available">Available</option>
+                    <option value="in-use">In Use</option>
+                    <option value="maintenance">Maintenance</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="vehicles-grid" id="vehiclesGrid"></div>
+    </div>
+
+    <!-- Vehicle Details Modal -->
+    <div class="modal" id="vehicleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="modalTitle"></span>
+                <button class="close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <div id="modalBody"></div>
+            <div class="tracking-details" id="trackingDetails"></div>
+            <div class="qr-display">
+                <h3 style="margin-bottom: 16px; color: #333;">Scan QR Code</h3>
+                <div id="qrcode"></div>
+                <p style="margin-top: 12px; font-size: 0.9em; color: #999;">Linked to Appletag: <strong id="appletag"></strong></p>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+                <button class="btn btn-primary" onclick="app.openBookingForm()">Request Usage</button>
+                <button class="btn btn-secondary" onclick="app.openMaintenanceForm()">Log Maintenance</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Modal -->
+    <div class="modal" id="bookingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                Request Vehicle Usage
+                <button class="close-btn" onclick="app.closeBookingModal()">×</button>
+            </div>
+            <form onsubmit="app.submitBooking(event)">
+                <div class="form-group">
+                    <label>Vehicle</label>
+                    <input type="text" id="bookingVehicle" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="bookingDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Time (Start)</label>
+                    <input type="time" id="bookingTime" required>
+                </div>
+                <div class="form-group">
+                    <label>Duration (hours)</label>
+                    <input type="number" id="bookingDuration" min="1" max="8" value="2" required>
+                </div>
+                <div class="form-group">
+                    <label>Destination</label>
+                    <input type="text" id="bookingDestination" required>
+                </div>
+                <div class="form-group">
+                    <label>Business Purpose</label>
+                    <textarea id="bookingPurpose" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Request</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Maintenance Modal -->
+    <div class="modal" id="maintenanceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                Log Maintenance
+                <button class="close-btn" onclick="app.closeMaintenanceModal()">×</button>
+            </div>
+            <form onsubmit="app.submitMaintenance(event)">
+                <div class="form-group">
+                    <label>Vehicle</label>
+                    <input type="text" id="maintenanceVehicle" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="maintenanceDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Maintenance Type</label>
+                    <select id="maintenanceType" required>
+                        <option value="">Select...</option>
+                        <option value="oil-change">Oil Change</option>
+                        <option value="tire-rotation">Tire Rotation</option>
+                        <option value="inspection">Inspection</option>
+                        <option value="repair">Repair</option>
+                        <option value="fuel">Fuel/Charge</option>
+                        <option value="cleaning">Cleaning</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="maintenanceDesc" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Mileage/Hours</label>
+                    <input type="number" id="maintenanceMileage" required>
+                </div>
+                <div class="form-group">
+                    <label>Cost ($)</label>
+                    <input type="number" id="maintenanceCost" step="0.01" value="0">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Log Maintenance</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Appletag API Integration
+        const appletag = {
+            async getTracking(appletag_id) {
+                const mockData = {
+                    'APT-001-TRK1': { status: 'active', location: 'Downtown Service Center', latitude: 40.7128, longitude: -74.0060, battery: 85, signal: 'Strong', lastSeen: '2 min ago' },
+                    'APT-002-TRK2': { status: 'active', location: 'Site 42, Main St', latitude: 40.7489, longitude: -73.9680, battery: 72, signal: 'Good', lastSeen: '5 min ago' },
+                    'APT-003-VAN': { status: 'inactive', location: 'Maintenance Facility', latitude: 40.7614, longitude: -73.9776, battery: 90, signal: 'Strong', lastSeen: '1 hour ago' },
+                    'APT-004-SD1': { status: 'active', location: 'City Center', latitude: 40.7549, longitude: -73.9840, battery: 78, signal: 'Excellent', lastSeen: '1 min ago' },
+                    'APT-005-SD2': { status: 'inactive', location: 'Parking Lot B', latitude: 40.7580, longitude: -73.9855, battery: 45, signal: 'Fair', lastSeen: '30 min ago' }
+                };
+                return mockData[appletag_id] || { status: 'unknown', location: 'Unknown', battery: 0, signal: 'No signal' };
+            }
+        };
+
+        // Supabase Integration (mock)
+        const supabase = {
+            initialized: false,
+            async createBooking(booking) { console.log('Booking saved to Supabase:', booking); },
+            async saveBookingLocal(booking) { localStorage.setItem('booking_' + Date.now(), JSON.stringify(booking)); },
+            async createMaintenance(maintenance) { console.log('Maintenance saved to Supabase:', maintenance); },
+            async saveMaintenanceLocal(maintenance) { localStorage.setItem('maintenance_' + Date.now(), JSON.stringify(maintenance)); }
+        };
+
+        // Main Application
+        const app = {
+            vehicles: [
+                { id: 'truck-1', name: 'Truck 1', model: '2022 Ford F-150', licensePlate: 'PDR-2201', vin: 'XXXXXX1234567890F1', assignedTo: 'Service Lead', capacity: '5 seats', primaryUse: 'Site visits, equipment transport', mileage: 45230, status: 'available', lastMaintenance: '2026-09-15', nextMaintenance: '2026-10-15', appletag: 'APT-001-TRK1' },
+                { id: 'truck-2', name: 'Truck 2', model: '2021 Chevrolet Silverado', licensePlate: 'PDR-2202', vin: 'XXXXXX2345678901C2', assignedTo: 'Service Lead', capacity: '5 seats', primaryUse: 'Site visits, equipment transport', mileage: 52100, status: 'in-use', lastMaintenance: '2026-08-20', nextMaintenance: '2026-09-20', appletag: 'APT-002-TRK2' },
+                { id: 'van-1', name: 'Van', model: '2023 Ford Transit', licensePlate: 'PDR-2203', vin: 'XXXXXX3456789012V3', assignedTo: 'Technician pool', capacity: '2 seats + cargo', primaryUse: 'Material transport, training', mileage: 12450, status: 'available', lastMaintenance: '2026-09-10', nextMaintenance: '2026-10-10', appletag: 'APT-003-VAN' },
+                { id: 'sedan-1', name: 'Sedan 1', model: '2020 Toyota Camry', licensePlate: 'PDR-2204', vin: 'XXXXXX4567890123S4', assignedTo: 'Admin/Office', capacity: '5 seats', primaryUse: 'Local office travel, meetings', mileage: 78900, status: 'available', lastMaintenance: '2026-09-01', nextMaintenance: '2026-10-01', appletag: 'APT-004-SD1' },
+                { id: 'sedan-2', name: 'Sedan 2', model: '2021 Nissan Altima', licensePlate: 'PDR-2205', vin: 'XXXXXX5678901234N5', assignedTo: 'Admin/Office', capacity: '5 seats', primaryUse: 'Local office travel, meetings', mileage: 65400, status: 'maintenance', lastMaintenance: '2026-08-15', nextMaintenance: '2026-09-30', appletag: 'APT-005-SD2' }
+            ],
+            currentVehicle: null,
+            currentView: 'all',
+            statusFilter: '',
+            tracking: {},
+
+            async init() {
+                for (const vehicle of this.vehicles) {
+                    const tracking = await appletag.getTracking(vehicle.appletag);
+                    this.tracking[vehicle.id] = tracking;
+                }
+                this.renderVehicles();
+                setInterval(() => {
+                    this.loadTrackingData().then(() => {
+                        if (this.currentView !== 'qronly') {
+                            this.renderVehicles();
+                        }
+                    });
+                }, 30000);
+            },
+
+            async loadTrackingData() {
+                for (const vehicle of this.vehicles) {
+                    const tracking = await appletag.getTracking(vehicle.appletag);
+                    this.tracking[vehicle.id] = tracking;
+                }
+            },
+
+            renderVehicles() {
+                const grid = document.getElementById('vehiclesGrid');
+                grid.innerHTML = '';
+
+                let filtered = this.vehicles.filter(v => {
+                    if (this.statusFilter && v.status !== this.statusFilter) return false;
+                    if (this.currentView === 'active') return v.status === 'in-use';
+                    if (this.currentView === 'tracked') {
+                        const tracking = this.tracking[v.id];
+                        return tracking && tracking.status === 'active';
+                    }
+                    if (this.currentView === 'qronly') return true;
+                    return true;
+                });
+
+                if (filtered.length === 0) {
+                    grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><i class="fas fa-inbox"></i><p>No vehicles found</p></div>';
+                    return;
+                }
+
+                filtered.forEach(vehicle => {
+                    if (this.currentView === 'qronly') {
+                        this.renderQRCard(vehicle);
+                    } else {
+                        this.renderVehicleCard(vehicle);
+                    }
+                });
+            },
+
+            renderVehicleCard(vehicle) {
+                const grid = document.getElementById('vehiclesGrid');
+                const card = document.createElement('div');
+                card.className = 'vehicle-card';
+                card.onclick = () => this.openVehicleModal(vehicle);
+
+                const tracking = this.tracking[vehicle.id] || {};
+                const statusColor = this.getStatusColor(vehicle.status);
+                const statusText = vehicle.status.replace('-', ' ').toUpperCase();
+                const batteryPercent = tracking.battery || 0;
+                const batteryColor = this.getBatteryColor(batteryPercent);
+                const trackingStatus = this.getTrackingStatus(vehicle);
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div>
+                            <div class="vehicle-name">${vehicle.name}</div>
+                            <div class="vehicle-model">${vehicle.model}</div>
+                        </div>
+                        <div class="status-badge">${trackingStatus}</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-section">
+                            <div class="section-title">Vehicle Info</div>
+                            <div class="info-row">
+                                <span class="label">License Plate:</span>
+                                <span class="value">${vehicle.licensePlate}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Appletag ID:</span>
+                                <span class="value" style="color: #667eea; font-family: monospace;">${vehicle.appletag}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Mileage:</span>
+                                <span class="value">${vehicle.mileage.toLocaleString()} mi</span>
+                            </div>
+                        </div>
+
+                        <div class="info-section">
+                            <div class="section-title">Status</div>
+                            <div class="info-row">
+                                <span class="label">Vehicle Status:</span>
+                                <span class="value" style="color: ${statusColor};">${statusText}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Next Service:</span>
+                                <span class="value">${vehicle.nextMaintenance}</span>
+                            </div>
+                        </div>
+
+                        <div class="info-section">
+                            <div class="section-title">Tracking</div>
+                            <div class="tracking-info">
+                                <div class="label">Current Location:</div>
+                                <div class="value">${tracking.location || 'Unknown'}</div>
+                                <div class="location-badge"><i class="fas fa-map-marker-alt"></i> ${tracking.latitude?.toFixed(4) || 'N/A'}, ${tracking.longitude?.toFixed(4) || 'N/A'}</div>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Battery:</span>
+                                <span class="value">
+                                    <div class="battery-indicator">
+                                        <div class="battery-bar">
+                                            <div class="battery-fill ${batteryColor}" style="width: ${batteryPercent}%"></div>
+                                        </div>
+                                        ${batteryPercent}%
+                                    </div>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="padding: 0 24px 24px;">
+                        <div class="card-actions">
+                            <button class="btn btn-primary" onclick="event.stopPropagation(); app.openVehicleModal(app.vehicles.find(v => v.id === '${vehicle.id}'))">View Details</button>
+                            <button class="btn btn-secondary" onclick="event.stopPropagation()">Show QR</button>
+                        </div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            },
+
+            renderQRCard(vehicle) {
+                const grid = document.getElementById('vehiclesGrid');
+                const card = document.createElement('div');
+                card.className = 'vehicle-card';
+                card.style.cursor = 'auto';
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div>
+                            <div class="vehicle-name">${vehicle.name}</div>
+                            <div class="vehicle-model">${vehicle.licensePlate}</div>
+                        </div>
+                    </div>
+                    <div class="card-body" style="text-align: center;">
+                        <div id="qr-${vehicle.id}" style="display: flex; justify-content: center; margin: 16px 0;"></div>
+                        <div style="font-size: 0.9em; color: #999; margin-top: 12px;">
+                            <div><strong>Appletag:</strong> ${vehicle.appletag}</div>
+                        </div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+
+                setTimeout(() => {
+                    const qrUrl = `${window.location.href}?vehicle=${vehicle.id}&appletag=${vehicle.appletag}`;
+                    new QRCode(document.getElementById(`qr-${vehicle.id}`), {
+                        text: qrUrl,
+                        width: 150,
+                        height: 150,
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                }, 100);
+            },
+
+            async openVehicleModal(vehicle) {
+                this.currentVehicle = vehicle;
+                const modal = document.getElementById('vehicleModal');
+                const title = document.getElementById('modalTitle');
+                const body = document.getElementById('modalBody');
+                const tracking = document.getElementById('trackingDetails');
+                const appletag = document.getElementById('appletag');
+
+                const trackingData = this.tracking[vehicle.id] || {};
+                const statusColor = this.getStatusColor(vehicle.status);
+                const statusText = vehicle.status.replace('-', ' ').toUpperCase();
+                const batteryPercent = trackingData.battery || 0;
+
+                title.textContent = `${vehicle.name} (${vehicle.licensePlate})`;
+
+                body.innerHTML = `
+                    <div class="info-section">
+                        <div class="section-title">Vehicle Information</div>
+                        <div class="info-row">
+                            <span class="label">Model:</span>
+                            <span class="value">${vehicle.model}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">VIN:</span>
+                            <span class="value">${vehicle.vin}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Assigned to:</span>
+                            <span class="value">${vehicle.assignedTo}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Capacity:</span>
+                            <span class="value">${vehicle.capacity}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Mileage:</span>
+                            <span class="value">${vehicle.mileage.toLocaleString()} miles</span>
+                        </div>
+                    </div>
+
+                    <div class="info-section">
+                        <div class="section-title">Maintenance</div>
+                        <div class="info-row">
+                            <span class="label">Last Service:</span>
+                            <span class="value">${vehicle.lastMaintenance}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Next Service:</span>
+                            <span class="value">${vehicle.nextMaintenance}</span>
+                        </div>
+                    </div>
+
+                    <div class="info-section">
+                        <div class="section-title">Status</div>
+                        <div class="info-row">
+                            <span class="label">Vehicle Status:</span>
+                            <span class="value" style="color: ${statusColor};">${statusText}</span>
+                        </div>
+                    </div>
+                `;
+
+                tracking.innerHTML = `
+                    <h4><i class="fas fa-satellite"></i> Appletag Tracking (${vehicle.appletag})</h4>
+                    <div class="tracking-detail-row">
+                        <span>Location:</span>
+                        <strong>${trackingData.location || 'Unknown'}</strong>
+                    </div>
+                    <div class="tracking-detail-row">
+                        <span>Coordinates:</span>
+                        <strong>${trackingData.latitude?.toFixed(4) || 'N/A'}, ${trackingData.longitude?.toFixed(4) || 'N/A'}</strong>
+                    </div>
+                    <div class="tracking-detail-row">
+                        <span>Last Seen:</span>
+                        <strong>${trackingData.lastSeen || 'N/A'}</strong>
+                    </div>
+                    <div class="tracking-detail-row">
+                        <span>Battery:</span>
+                        <strong>${batteryPercent}%</strong>
+                    </div>
+                    <div class="tracking-detail-row">
+                        <span>Signal Strength:</span>
+                        <strong>${trackingData.signal || 'Unknown'}</strong>
+                    </div>
+                `;
+
+                appletag.textContent = vehicle.appletag;
+
+                setTimeout(() => {
+                    const qrContainer = document.getElementById('qrcode');
+                    qrContainer.innerHTML = '';
+                    const qrUrl = `${window.location.href}?vehicle=${vehicle.id}&appletag=${vehicle.appletag}`;
+                    new QRCode(qrContainer, {
+                        text: qrUrl,
+                        width: 200,
+                        height: 200,
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                }, 100);
+
+                modal.classList.add('active');
+            },
+
+            closeModal() {
+                document.getElementById('vehicleModal').classList.remove('active');
+            },
+
+            openBookingForm() {
+                if (!this.currentVehicle) return;
+                document.getElementById('bookingVehicle').value = this.currentVehicle.name;
+                document.getElementById('bookingModal').classList.add('active');
+            },
+
+            closeBookingModal() {
+                document.getElementById('bookingModal').classList.remove('active');
+            },
+
+            async submitBooking(event) {
+                event.preventDefault();
+
+                const booking = {
+                    vehicle_id: this.currentVehicle.id,
+                    vehicle_name: document.getElementById('bookingVehicle').value,
+                    date: document.getElementById('bookingDate').value,
+                    time: document.getElementById('bookingTime').value,
+                    duration: parseInt(document.getElementById('bookingDuration').value),
+                    destination: document.getElementById('bookingDestination').value,
+                    purpose: document.getElementById('bookingPurpose').value
+                };
+
+                if (supabase.initialized) {
+                    await supabase.createBooking(booking);
+                } else {
+                    await supabase.saveBookingLocal(booking);
+                }
+
+                alert(`✓ Booking request submitted for ${booking.vehicle_name}\nYour manager will respond shortly.`);
+                this.closeBookingModal();
+                event.target.reset();
+            },
+
+            openMaintenanceForm() {
+                if (!this.currentVehicle) return;
+                document.getElementById('maintenanceVehicle').value = this.currentVehicle.name;
+                document.getElementById('maintenanceModal').classList.add('active');
+            },
+
+            closeMaintenanceModal() {
+                document.getElementById('maintenanceModal').classList.remove('active');
+            },
+
+            async submitMaintenance(event) {
+                event.preventDefault();
+
+                const maintenance = {
+                    vehicle_id: this.currentVehicle.id,
+                    vehicle_name: document.getElementById('maintenanceVehicle').value,
+                    date: document.getElementById('maintenanceDate').value,
+                    type: document.getElementById('maintenanceType').value,
+                    description: document.getElementById('maintenanceDesc').value,
+                    mileage: parseInt(document.getElementById('maintenanceMileage').value),
+                    cost: parseFloat(document.getElementById('maintenanceCost').value)
+                };
+
+                if (supabase.initialized) {
+                    await supabase.createMaintenance(maintenance);
+                } else {
+                    await supabase.saveMaintenanceLocal(maintenance);
+                }
+
+                alert(`✓ Maintenance logged for ${maintenance.vehicle_name}\nType: ${maintenance.type}`);
+                this.closeMaintenanceModal();
+                event.target.reset();
+            },
+
+            switchView(view) {
+                this.currentView = view;
+                const buttons = document.querySelectorAll('.control-group button');
+                buttons.forEach(btn => btn.classList.remove('active'));
+                event.target.closest('button').classList.add('active');
+                this.renderVehicles();
+            },
+
+            filterByStatus(status) {
+                this.statusFilter = status;
+                this.renderVehicles();
+            },
+
+            getStatusColor(status) {
+                const colors = {
+                    'available': '#4ade80',
+                    'in-use': '#facc15',
+                    'maintenance': '#f87171'
+                };
+                return colors[status] || '#999';
+            },
+
+            getBatteryColor(battery) {
+                if (battery >= 60) return 'green';
+                if (battery >= 30) return 'medium';
+                return 'low';
+            },
+
+            getTrackingStatus(vehicle) {
+                const tracking = this.tracking[vehicle.id];
+                if (!tracking) return `<span class="status-dot dot-unknown"></span>Unknown`;
+                if (tracking.status === 'active') {
+                    return `<span class="status-dot dot-active"></span>Active`;
+                } else {
+                    return `<span class="status-dot dot-inactive"></span>Inactive`;
+                }
+            }
+        };
+
+        // Initialize when ready
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>

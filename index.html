@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDR-Team Fleet Tracker</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="data:image/png;base64,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lUmVhZHlxyWU8AAADI2lUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNS42LWMxNDAgNzkuMTYwNDUxLCAyMDE3LzA1LzA2LTAxOjA4OjIxICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOnhtcE1NPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvbW0vIiB4bWxuczpzdFJlZj0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL3NUeXBlL1Jlc291cmNlUmVmIyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ0MgKE1hY2ludG9zaCkiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6QTRDMUI1RUYwQjM5MTFFODlBNzREMEY4OTY0ODE3NjUiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6QTRDMUI1RjAwQjM5MTFFODlBNzREMEY4OTY0ODE3NjUiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDpBNEMxQjVFRDBCMzkxMUU4OUE3NEQwRjg5NjQ4MTc2NSIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDpBNEMxQjVFRTBCMzkxMUU4OUE3NEQwRjg5NjQ4MTc2NSIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PuylKDEAABc0SURBVHjaYvz//z/DYAUsIIKRkREu8J9I1zJCNZGqnhQ9DKSG3H8owMXHpYdEO7aA9LCQYwhyKGDjo5lphsb/B9JClB3I7iH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" alt="PDR-Team Logo" class="pdr-logo">
+                </div>
+                <div class="title-section">
+                    <h1>PDR-Team Fleet Tracker</h1>
+                    <p>Real-time vehicle tracking with QR codes and Appletag integration</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <button class="active" onclick="app.switchView('all')"><i class="fas fa-th"></i> All Vehicles</button>
+                <button onclick="app.switchView('active')"><i class="fas fa-map-marker-alt"></i> Active</button>
+                <button onclick="app.switchView('tracked')"><i class="fas fa-signal"></i> Tracked</button>
+                <button onclick="app.switchView('qronly')"><i class="fas fa-qrcode"></i> QR Codes</button>
+            </div>
+            <div class="filter-group">
+                <select onchange="app.filterByStatus(this.value)" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="available">Available</option>
+                    <option value="in-use">In Use</option>
+                    <option value="maintenance">Maintenance</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="vehicles-grid" id="vehiclesGrid"></div>
+    </div>
+
+    <!-- Vehicle Details Modal -->
+    <div class="modal" id="vehicleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="modalTitle"></span>
+                <button class="close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <div id="modalBody"></div>
+            <div class="tracking-details" id="trackingDetails"></div>
+            <div class="qr-display">
+                <h3 style="margin-bottom: 16px; color: #333;">Scan QR Code</h3>
+                <div id="qrcode"></div>
+                <p style="margin-top: 12px; font-size: 0.9em; color: #999;">Linked to Appletag: <strong id="appletag"></strong></p>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+                <button class="btn btn-primary" onclick="app.openBookingForm()">Request Usage</button>
+                <button class="btn btn-secondary" onclick="app.openMaintenanceForm()">Log Maintenance</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Modal -->
+    <div class="modal" id="bookingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                Request Vehicle Usage
+                <button class="close-btn" onclick="app.closeBookingModal()">×</button>
+            </div>
+            <form onsubmit="app.submitBooking(event)">
+                <div class="form-group">
+                    <label>Vehicle</label>
+                    <input type="text" id="bookingVehicle" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="bookingDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Time (Start)</label>
+                    <input type="time" id="bookingTime" required>
+                </div>
+                <div class="form-group">
+                    <label>Duration (hours)</label>
+                    <input type="number" id="bookingDuration" min="1" max="8" value="2" required>
+                </div>
+                <div class="form-group">
+                    <label>Destination</label>
+                    <input type="text" id="bookingDestination" required>
+                </div>
+                <div class="form-group">
+                    <label>Business Purpose</label>
+                    <textarea id="bookingPurpose" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Request</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Maintenance Modal -->
+    <div class="modal" id="maintenanceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                Log Maintenance
+                <button class="close-btn" onclick="app.closeMaintenanceModal()">×</button>
+            </div>
+            <form onsubmit="app.submitMaintenance(event)">
+                <div class="form-group">
+                    <label>Vehicle</label>
+                    <input type="text" id="maintenanceVehicle" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="maintenanceDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Maintenance Type</label>
+                    <select id="maintenanceType" required>
+                        <option value="">Select...</option>
+                        <option value="oil-change">Oil Change</option>
+                        <option value="tire-rotation">Tire Rotation</option>
+                        <option value="inspection">Inspection</option>
+                        <option value="repair">Repair</option>
+                        <option value="fuel">Fuel/Charge</option>
+                        <option value="cleaning">Cleaning</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="maintenanceDesc" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Mileage/Hours</label>
+                    <input type="number" id="maintenanceMileage" required>
+                </div>
+                <div class="form-group">
+                    <label>Cost ($)</label>
+                    <input type="number" id="maintenanceCost" step="0.01" value="0">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Log Maintenance</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/supabase.js"></script>
+    <script src="js/appletag.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

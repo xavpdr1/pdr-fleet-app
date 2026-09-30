@@ -1,0 +1,27 @@
+{
+  "name": "pdr-fleet-tracker",
+  "version": "1.0.0",
+  "description": "PDR-Team vehicle fleet tracking system with QR codes and Appletag integration",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && netlify deploy --prod --dir=dist"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "vite": "^4.4.9"
+  },
+  "keywords": [
+    "fleet-tracking",
+    "pdr",
+    "vehicle-management",
+    "appletag",
+    "qr-codes"
+  ],
+  "author": "PDR-Team USA",
+  "license": "MIT"
+}
