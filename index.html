@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>PDR Fleet Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDR-Team Fleet Tracker</title>
     <link rel="stylesheet" href="styles/main.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -14,17 +14,11 @@
             box-sizing: border-box;
         }
 
-        html, body {
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-        }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-            background: #f8f9fa;
-            display: flex;
-            flex-direction: column;
+            font-family: 'Arial', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
 
         #splash-screen {
@@ -33,23 +27,28 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: white;
+            background-color: #ffffff;
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 10000;
             opacity: 1;
             transition: opacity 0.8s ease-out;
+            visibility: visible;
         }
 
         #splash-screen.fade-out {
             opacity: 0;
             pointer-events: none;
+            visibility: hidden;
         }
 
         #splash-logo {
-            max-width: 200px;
+            max-width: 90%;
+            max-height: 80vh;
+            width: auto;
             height: auto;
+            object-fit: contain;
             animation: fadeInScale 0.6s ease-out;
         }
 
@@ -64,409 +63,240 @@
             }
         }
 
-        .app-header {
-            background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%);
-            color: white;
-            padding: 20px 16px;
-            padding-top: max(20px, env(safe-area-inset-top));
-            box-shadow: 0 4px 12px rgba(31, 78, 121, 0.2);
-            z-index: 100;
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .header-title {
-            font-size: 24px;
-            font-weight: 700;
-        }
-
-        .header-subtitle {
-            font-size: 13px;
-            opacity: 0.9;
-        }
-
-        .main-content {
-            flex: 1;
-            overflow-y: auto;
-            padding-bottom: 70px;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .page {
-            display: none;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        .page.active {
-            display: block;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Fleet Page */
-        .fleet-container {
-            padding: 16px;
-        }
-
-        .fleet-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-            border-radius: 8px;
-            background: white;
-            padding: 4px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .fleet-tab {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            background: transparent;
-            color: #6b7280;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .fleet-tab.active {
-            background: #2E75B6;
-            color: white;
-            box-shadow: 0 2px 8px rgba(46, 117, 182, 0.3);
-        }
-
-        .asset-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .asset-card {
-            background: white;
-            border-radius: 12px;
-            padding: 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            border-left: 4px solid #2E75B6;
-        }
-
-        .asset-card:active {
-            transform: scale(0.98);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .asset-icon {
-            width: 40px;
-            height: 40px;
-            background: #D9E1F2;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #1F4E79;
-            font-size: 20px;
-        }
-
-        .asset-info {
-            flex: 1;
-        }
-
-        .asset-name {
-            font-weight: 600;
-            color: #1f2937;
-            font-size: 15px;
-            margin-bottom: 4px;
-        }
-
-        .asset-details {
-            font-size: 12px;
-            color: #6b7280;
-            display: flex;
-            gap: 8px;
-        }
-
-        .status-dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-right: 4px;
-        }
-
-        .status-available { background: #10b981; }
-        .status-in-use { background: #f59e0b; }
-        .status-maintenance { background: #ef4444; }
-
-        /* QR Scanner Page */
-        .qr-scanner-container {
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .qr-display-box {
+        header {
             background: white;
             border-radius: 12px;
             padding: 24px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        .qr-display-box h3 {
+        h1 {
             color: #1F4E79;
-            font-size: 16px;
-            margin-bottom: 16px;
-            font-weight: 600;
+            font-size: 28px;
+            margin-bottom: 8px;
         }
 
-        #qrCodeDisplay {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 16px;
-            background: white;
-            padding: 16px;
-            border-radius: 8px;
-        }
-
-        #qrCodeDisplay canvas {
-            max-width: 100%;
-            height: auto;
-        }
-
-        .qr-appletag-label {
-            font-size: 12px;
+        .subtitle {
             color: #6b7280;
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #e5e7eb;
+            font-size: 14px;
         }
 
-        .qr-appletag-label strong {
-            color: #1f2937;
-            font-family: monospace;
+        .vehicles-section {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 24px;
+            margin-bottom: 24px;
         }
 
-        .qr-action-section {
+        .vehicle-selector {
             background: white;
             border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            height: fit-content;
         }
 
-        .qr-section-title {
-            font-weight: 600;
-            color: #1F4E79;
-            font-size: 14px;
-            margin-bottom: 12px;
-        }
-
-        .qr-quick-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .qr-action-btn {
-            background: #D9E1F2;
-            color: #1F4E79;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .qr-action-btn:active {
-            background: #B8CCE4;
-            transform: scale(0.98);
-        }
-
-        .qr-action-btn.primary {
-            background: #2E75B6;
-            color: white;
-        }
-
-        .qr-action-btn.primary:active {
-            background: #1F4E79;
-        }
-
-        .qr-form-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 500;
-            display: none;
-            flex-direction: column;
-            align-items: flex-end;
-            padding-top: env(safe-area-inset-top);
-        }
-
-        .qr-form-modal.active {
-            display: flex;
-        }
-
-        .qr-form-sheet {
-            background: white;
-            border-radius: 16px 16px 0 0;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            animation: slideUpForm 0.3s ease-out;
-        }
-
-        @keyframes slideUpForm {
-            from {
-                transform: translateY(100%);
-            }
-            to {
-                transform: translateY(0);
-            }
-        }
-
-        .qr-form-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px;
-            border-bottom: 1px solid #e5e7eb;
-            background: white;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        .qr-form-header h3 {
+        .vehicle-selector h2 {
             font-size: 16px;
             color: #1F4E79;
-            font-weight: 600;
-        }
-
-        .close-form-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #6b7280;
-        }
-
-        .qr-form-content {
-            padding: 16px;
-            padding-bottom: 32px;
-        }
-
-        .form-group {
             margin-bottom: 16px;
-        }
-
-        .form-label {
-            display: block;
-            font-size: 14px;
             font-weight: 600;
-            color: #1F4E79;
-            margin-bottom: 6px;
         }
 
-        .form-input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: inherit;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: #2E75B6;
-            box-shadow: 0 0 0 3px rgba(46, 117, 182, 0.1);
-        }
-
-        .form-submit-btn {
-            width: 100%;
-            padding: 14px;
-            background: #2E75B6;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 15px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .form-submit-btn:active {
-            background: #1F4E79;
-            transform: scale(0.98);
-        }
-
-        /* Bottom Navigation */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            border-top: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: space-around;
-            padding-bottom: env(safe-area-inset-bottom);
-            z-index: 100;
-            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
-        }
-
-        .nav-item {
-            flex: 1;
-            padding: 12px 0;
+        .vehicle-buttons {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 4px;
+            gap: 8px;
+        }
+
+        .vehicle-btn {
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s ease;
-            color: #6b7280;
-            border: none;
-            background: none;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .vehicle-btn:hover {
+            border-color: #2E75B6;
+            background: #F2F4F8;
+            transform: translateX(4px);
+        }
+
+        .vehicle-btn.active {
+            background: #2E75B6;
+            color: white;
+            border-color: #2E75B6;
+            box-shadow: 0 4px 12px rgba(46, 117, 182, 0.4);
+        }
+
+        .vehicle-btn-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .vehicle-btn-details {
             font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .vehicle-detail {
+            background: white;
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #B8CCE4;
+        }
+
+        .detail-title h2 {
+            font-size: 24px;
+            color: #1F4E79;
+            margin-bottom: 4px;
+        }
+
+        .detail-title p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-available {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-in-use {
+            background: #fef08a;
+            color: #854d0e;
+        }
+
+        .status-maintenance {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .info-section {
+            padding: 16px;
+            background: #D9E1F2;
+            border-radius: 8px;
+        }
+
+        .section-title {
+            font-weight: 600;
+            color: #1F4E79;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            color: #6b7280;
             font-weight: 500;
         }
 
-        .nav-item.active {
-            color: #2E75B6;
+        .info-value {
+            color: #1f2937;
+            font-weight: 600;
         }
 
-        .nav-icon {
-            font-size: 20px;
+        .alert-section {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 24px;
+        }
+
+        .alert-title {
+            color: #d97706;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .alert-message {
+            color: #92400e;
+            font-size: 13px;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 2px solid #B8CCE4;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #2E75B6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1F4E79;
+            box-shadow: 0 4px 12px rgba(46, 117, 182, 0.3);
+        }
+
+        .btn-secondary {
+            background: #D9E1F2;
+            color: #1F4E79;
+        }
+
+        .btn-secondary:hover {
+            background: #B8CCE4;
         }
 
         .modal {
@@ -480,7 +310,6 @@
             z-index: 1000;
             align-items: center;
             justify-content: center;
-            padding: 16px;
         }
 
         .modal.active {
@@ -490,20 +319,115 @@
         .modal-content {
             background: white;
             border-radius: 12px;
-            width: 100%;
+            width: 90%;
             max-width: 500px;
             max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
         }
 
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid #B8CCE4;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #1F4E79;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        form {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #1F4E79;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #2E75B6;
+            box-shadow: 0 0 0 3px rgba(46, 117, 182, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .qr-display {
+            text-align: center;
+            padding: 24px;
+            background: #F2F4F8;
+            border-radius: 8px;
+            margin-top: 24px;
+        }
+
+        .qr-display h3 {
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #1F4E79;
+        }
+
+        #qrcode {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .qr-label {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
         @media (max-width: 768px) {
-            .app-header {
-                padding: 16px;
+            .vehicles-section {
+                grid-template-columns: 1fr;
             }
 
-            .header-title {
-                font-size: 20px;
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .vehicle-detail {
+                padding: 20px;
             }
         }
     </style>
@@ -514,106 +438,301 @@
         <img id="splash-logo" src="./logo.png" alt="PDR-Team Fleet Management">
     </div>
 
-    <div class="app-header">
-        <div class="header-content">
-            <div>
-                <div class="header-title"><i class="fas fa-truck"></i> PDR Fleet</div>
-                <div class="header-subtitle">Vehicle Management</div>
+    <div class="app-container">
+        <header>
+            <h1><i class="fas fa-truck"></i> PDR Fleet Tracker</h1>
+            <p class="subtitle">Vehicle management, tracking, and maintenance logs</p>
+        </header>
+
+        <div class="vehicles-section">
+            <!-- Vehicle Selector -->
+            <div class="vehicle-selector">
+                <h2><i class="fas fa-list"></i> Fleet</h2>
+                <div class="vehicle-buttons" id="vehicleButtons"></div>
             </div>
+
+            <!-- Vehicle Details -->
+            <div class="vehicle-detail" id="vehicleDetail"></div>
         </div>
     </div>
 
-    <div class="main-content">
-        <!-- Fleet Page -->
-        <div class="page active" id="fleetPage">
-            <div class="fleet-container">
-                <div class="fleet-tabs">
-                    <button class="fleet-tab active" data-tab="vehicles" onclick="app.switchFleetTab('vehicles')">
-                        🚗 Vehicles
-                    </button>
-                    <button class="fleet-tab" data-tab="trailers" onclick="app.switchFleetTab('trailers')">
-                        🚛 Trailers
-                    </button>
-                </div>
-                <div class="asset-list" id="assetList"></div>
+    <!-- QR Code Page Modal -->
+    <div class="modal" id="qrCodeModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="qrModalTitle"></h3>
+                <button class="close-btn" onclick="app.closeQRCodeModal()">×</button>
             </div>
-        </div>
-
-        <!-- Asset Detail Page -->
-        <div class="page" id="assetDetailPage">
-            <div style="padding: 16px; padding-top: 12px;">
-                <button onclick="app.showPage('fleetPage')" style="background: none; border: none; color: #2E75B6; font-size: 16px; margin-bottom: 16px; cursor: pointer; font-weight: 600;">
-                    <i class="fas fa-arrow-left"></i> Back
+            <div style="padding: 24px; text-align: center;">
+                <div class="qr-display" style="background: white; border: 2px solid #B8CCE4;">
+                    <h3 style="margin-top: 0;">Vehicle QR Code</h3>
+                    <div id="qrCodeDisplay" style="padding: 20px; background: #F2F4F8;"></div>
+                    <p class="qr-label" style="margin-top: 16px;">Appletag ID: <strong id="qrAppletagId"></strong></p>
+                    <p style="color: #6b7280; font-size: 12px; margin-top: 8px;">Scan this code to access vehicle information</p>
+                </div>
+                <button class="btn btn-secondary" style="margin-top: 20px; width: 100%;" onclick="app.downloadQRCode()">
+                    <i class="fas fa-download"></i> Download QR Code
                 </button>
-                <div id="assetDetailContent"></div>
-            </div>
-        </div>
-
-        <!-- QR Scanner Page -->
-        <div class="page" id="qrPage">
-            <div class="qr-scanner-container">
-                <div class="qr-display-box">
-                    <h3>Asset QR Code</h3>
-                    <div id="qrCodeDisplay"></div>
-                    <div class="qr-appletag-label">
-                        Appletag ID: <strong id="qrAppletagId">APT-000-000</strong>
-                    </div>
-                </div>
-
-                <div class="qr-action-section">
-                    <div class="qr-section-title">Quick Actions</div>
-                    <div class="qr-quick-actions" id="qrQuickActions">
-                        <button class="qr-action-btn primary" onclick="app.showQRFormModal('checkout')">
-                            <i class="fas fa-check-circle"></i> Checkout Asset
-                        </button>
-                        <button class="qr-action-btn" onclick="app.showQRFormModal('usage')">
-                            <i class="fas fa-odometer"></i> Log Usage
-                        </button>
-                        <button class="qr-action-btn" onclick="app.showQRFormModal('maintenance')">
-                            <i class="fas fa-wrench"></i> Log Maintenance
-                        </button>
-                    </div>
-                </div>
-
-                <div class="qr-action-section">
-                    <button class="qr-action-btn" style="justify-content: center; margin-bottom: 0;" onclick="app.downloadQRCode()">
-                        <i class="fas fa-download"></i> Download QR Code
-                    </button>
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- QR Form Modal -->
-    <div class="qr-form-modal" id="qrFormModal">
-        <div class="qr-form-sheet">
-            <div class="qr-form-header">
-                <h3 id="qrFormTitle">Action</h3>
-                <button class="close-form-btn" onclick="app.closeQRFormModal()">×</button>
+    <!-- Edit Vehicle Modal -->
+    <div class="modal" id="editVehicleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Vehicle Information</h3>
+                <button class="close-btn" onclick="app.closeEditVehicleModal()">×</button>
             </div>
-            <div class="qr-form-content">
-                <form id="qrForm" onsubmit="app.submitQRForm(event)">
-                    <div id="qrFormFields"></div>
-                    <button type="submit" class="form-submit-btn">Submit</button>
-                </form>
+            <form onsubmit="app.submitEditVehicle(event)">
+                <div class="form-group">
+                    <label>Vehicle Name</label>
+                    <input type="text" id="editVehicleName" required>
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <input type="text" id="editVehicleModel" required>
+                </div>
+                <div class="form-group">
+                    <label>License Plate</label>
+                    <input type="text" id="editVehiclePlate" required>
+                </div>
+                <div class="form-group" id="editVehicleMileageGroup">
+                    <label>Current Mileage</label>
+                    <input type="number" id="editVehicleMileage" required>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="editVehicleStatus" required>
+                        <option value="available">Available</option>
+                        <option value="in-use">In Use</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Registration Expiration</label>
+                    <input type="date" id="editVehicleReg" required>
+                </div>
+                <div class="form-group">
+                    <label>Next Maintenance Date</label>
+                    <input type="date" id="editVehicleNextMaint" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Vehicle Details Modal -->
+    <div class="modal" id="vehicleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle"></h3>
+                <button class="close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <div id="modalBody"></div>
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="app.openEditVehicleModal()">Edit Vehicle</button>
+                <button class="btn btn-secondary" onclick="app.openMaintenanceForm()">Log Maintenance</button>
             </div>
         </div>
     </div>
 
-    <!-- Bottom Navigation -->
-    <div class="bottom-nav">
-        <button class="nav-item active" onclick="app.showPage('fleetPage'); app.setActiveNav('fleet')">
-            <span class="nav-icon"><i class="fas fa-list"></i></span>
-            <span>Fleet</span>
-        </button>
-        <button class="nav-item" onclick="app.showPage('qrPage'); app.setActiveNav('qr')">
-            <span class="nav-icon"><i class="fas fa-qrcode"></i></span>
-            <span>Scan QR</span>
-        </button>
-        <button class="nav-item" onclick="app.showPage('settingsPage'); app.setActiveNav('settings')">
-            <span class="nav-icon"><i class="fas fa-cog"></i></span>
-            <span>Settings</span>
-        </button>
+    <!-- Booking Modal -->
+    <div class="modal" id="bookingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Request Vehicle Usage</h3>
+                <button class="close-btn" onclick="app.closeBookingModal()">×</button>
+            </div>
+            <form onsubmit="app.submitBooking(event)">
+                <div class="form-group">
+                    <label>Vehicle</label>
+                    <input type="text" id="bookingVehicle" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="bookingDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Time (Start)</label>
+                    <input type="time" id="bookingTime" required>
+                </div>
+                <div class="form-group">
+                    <label>Duration (hours)</label>
+                    <input type="number" id="bookingDuration" min="1" max="8" value="2" required>
+                </div>
+                <div class="form-group">
+                    <label>Destination</label>
+                    <input type="text" id="bookingDestination" required>
+                </div>
+                <div class="form-group">
+                    <label>Business Purpose</label>
+                    <textarea id="bookingPurpose" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Request</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Usage Log Modal -->
+    <div class="modal" id="usageModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Log Vehicle Usage</h3>
+                <button class="close-btn" onclick="app.closeUsageModal()">×</button>
+            </div>
+            <form onsubmit="app.submitUsageLog(event)">
+                <div class="form-group">
+                    <label>Vehicle</label>
+                    <input type="text" id="usageVehicle" readonly>
+                    <input type="hidden" id="usageVehicleId">
+                </div>
+                <div class="form-group">
+                    <label>Driver Name</label>
+                    <input type="text" id="usageDriver" required placeholder="Enter driver name">
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="usageDate" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="usageStartTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" id="usageEndTime" required>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Starting Mileage</label>
+                        <input type="number" id="usageStartMileage" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Ending Mileage</label>
+                        <input type="number" id="usageEndMileage" required>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Fuel Added (gal)</label>
+                        <input type="number" id="usageFuel" step="0.1" value="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Fuel Cost ($)</label>
+                        <input type="number" id="usageFuelCost" step="0.01" value="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="usageNotes" placeholder="Trip details, stops, etc."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Log Usage</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Maintenance Modal -->
+    <div class="modal" id="maintenanceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Log Maintenance</h3>
+                <button class="close-btn" onclick="app.closeMaintenanceModal()">×</button>
+            </div>
+            <form onsubmit="app.submitMaintenance(event)">
+                <div class="form-group">
+                    <label>Vehicle</label>
+                    <input type="text" id="maintenanceVehicle" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="maintenanceDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Maintenance Type</label>
+                    <select id="maintenanceType" required>
+                        <option value="">Select...</option>
+                        <option value="oil-change">Oil Change</option>
+                        <option value="tire-rotation">Tire Rotation</option>
+                        <option value="inspection">Inspection</option>
+                        <option value="repair">Repair</option>
+                        <option value="fuel">Fuel/Charge</option>
+                        <option value="cleaning">Cleaning</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="maintenanceDesc" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Mileage/Hours</label>
+                    <input type="number" id="maintenanceMileage" required>
+                </div>
+                <div class="form-group">
+                    <label>Cost ($)</label>
+                    <input type="number" id="maintenanceCost" step="0.01" value="0">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Log Maintenance</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Usage Log Modal -->
+    <div class="modal" id="editUsageModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Usage Log Entry</h3>
+                <button class="close-btn" onclick="app.closeEditUsageModal()">×</button>
+            </div>
+            <form onsubmit="app.submitEditUsageLog(event)">
+                <input type="hidden" id="editUsageLogId">
+                <div class="form-group">
+                    <label>Driver Name</label>
+                    <input type="text" id="editUsageDriver" required>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="editUsageDate" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="editUsageStartTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" id="editUsageEndTime" required>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Starting Mileage</label>
+                        <input type="number" id="editUsageStartMileage" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Ending Mileage</label>
+                        <input type="number" id="editUsageEndMileage" required>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Fuel Added (gal)</label>
+                        <input type="number" id="editUsageFuel" step="0.1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Fuel Cost ($)</label>
+                        <input type="number" id="editUsageFuelCost" step="0.01">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="editUsageNotes"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
+            </form>
+        </div>
     </div>
 
     <script>
@@ -621,13 +740,12 @@
         document.addEventListener('DOMContentLoaded', function() {
             const splashScreen = document.getElementById('splash-screen');
             if (splashScreen) {
-                // Show splash for 2 seconds, then fade out over 800ms
                 setTimeout(() => {
                     splashScreen.classList.add('fade-out');
                     setTimeout(() => {
                         splashScreen.remove();
                     }, 800);
-                }, 2000);
+                }, 3000);
             }
         });
     </script>
