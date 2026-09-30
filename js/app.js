@@ -7,6 +7,77 @@ const app = {
         { name: 'Curtis Wall', role: 'Authorized User' }
     ],
 
+    // Current logged-in user (in production, this would come from authentication)
+    currentUser: { name: 'Xavier Fernandez', isAdmin: true },
+
+    // People/Users management
+    people: [
+        {
+            id: 'person-1',
+            name: 'Xavier Fernandez',
+            email: 'xavier.fernandez@pdr-team.com',
+            role: 'Admin',
+            permissions: {
+                viewVehicles: true,
+                editVehicles: true,
+                viewTrailers: true,
+                editTrailers: true,
+                logUsage: true,
+                logMaintenance: true,
+                managePeople: true,
+                manageAlerts: true
+            }
+        },
+        {
+            id: 'person-2',
+            name: 'Curtis Wall',
+            email: 'curtis.wall@pdr-team.com',
+            role: 'Technician',
+            permissions: {
+                viewVehicles: true,
+                editVehicles: false,
+                viewTrailers: true,
+                editTrailers: false,
+                logUsage: true,
+                logMaintenance: true,
+                managePeople: false,
+                manageAlerts: false
+            }
+        },
+        {
+            id: 'person-3',
+            name: 'Anton Potgieter',
+            email: 'anton.potgieter@pdr-team.com',
+            role: 'Technician',
+            permissions: {
+                viewVehicles: true,
+                editVehicles: false,
+                viewTrailers: true,
+                editTrailers: false,
+                logUsage: true,
+                logMaintenance: true,
+                managePeople: false,
+                manageAlerts: false
+            }
+        },
+        {
+            id: 'person-4',
+            name: 'Dial Mayfield',
+            email: 'dial.mayfield@pdr-team.com',
+            role: 'Technician',
+            permissions: {
+                viewVehicles: true,
+                editVehicles: false,
+                viewTrailers: true,
+                editTrailers: false,
+                logUsage: true,
+                logMaintenance: true,
+                managePeople: false,
+                manageAlerts: false
+            }
+        }
+    ],
+
         vehicles: [
         {
             id: 'truck-1',
@@ -87,9 +158,10 @@ const app = {
 
     currentVehicle: null,
     currentVehicleId: null,
-    currentTab: 'vehicles', // 'vehicles' or 'trailers'
+    currentTab: 'vehicles', // 'vehicles', 'trailers', or 'people'
     tracking: {},
     usageLogs: {}, // Track usage history by vehicle ID
+    selectedPerson: null, // Currently selected person
 
     // Alerts/Recalls system mapped by VIN
     alerts: {
@@ -108,23 +180,310 @@ const app = {
         // Load tracking data for all vehicles and trailers
         await this.loadTrackingData();
 
-        // Render vehicle/trailer buttons
-        this.renderVehicleButtons();
-
-        // Select the first vehicle by default
-        if (this.vehicles.length > 0) {
-            this.selectVehicle(this.vehicles[0].id);
-        } else if (this.trailers.length > 0) {
-            this.currentTab = 'trailers';
-            this.selectVehicle(this.trailers[0].id);
-        }
+        // Render fleet list
+        this.renderFleetList();
 
         // Set up real-time updates
         this.setupAutoUpdates();
     },
 
+    // Page Navigation
+    showPage(pageId) {
+        document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+        const page = document.getElementById(pageId);
+        if (page) {
+            page.classList.add('active');
+        }
+    },
+
+    setActiveNav(navId) {
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        const navItems = document.querySelectorAll('.nav-item');
+        const navMap = { 'fleet': 0, 'qr': 1, 'settings': 2 };
+        if (navMap[navId] !== undefined) {
+            navItems[navMap[navId]].classList.add('active');
+        }
+    },
+
+    // Render fleet list (vehicles and trailers)
+    renderFleetList() {
+        const assetList = document.getElementById('assetList');
+        const items = this.currentTab === 'vehicles' ? this.vehicles : this.trailers;
+
+        assetList.innerHTML = '';
+        items.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'asset-card';
+            card.onclick = () => this.showAssetDetail(item.id);
+
+            const icon = this.currentTab === 'vehicles' ? '🚗' : '🚛';
+            const secondaryInfo = item.type === 'trailer'
+                ? `${item.licensePlate} • ${item.capacity} lbs`
+                : `${item.licensePlate} • ${item.mileage.toLocaleString()} mi`;
+
+            const statusColor = this.getStatusColor(item.status);
+
+            card.innerHTML = `
+                <div class="asset-icon">${icon}</div>
+                <div class="asset-info">
+                    <div class="asset-name">${item.name}</div>
+                    <div class="asset-details">
+                        <span class="status-dot" style="background: ${statusColor};"></span>
+                        ${secondaryInfo}
+                    </div>
+                </div>
+            `;
+
+            assetList.appendChild(card);
+        });
+    },
+
+    // Switch between vehicles and trailers tabs
+    switchFleetTab(tab) {
+        this.currentTab = tab;
+        document.querySelectorAll('.fleet-tab').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+        this.renderFleetList();
+    },
+
+    // Show asset detail page
+    showAssetDetail(assetId) {
+        const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
+        if (!asset) return;
+
+        this.currentVehicle = asset;
+        this.currentVehicleId = assetId;
+
+        const detailContent = document.getElementById('assetDetailContent');
+        const tracking = this.tracking[asset.id] || {};
+        const statusText = asset.status.replace('-', ' ').toUpperCase();
+
+        let specs = '';
+        if (asset.type === 'trailer') {
+            specs = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div style="background: #D9E1F2; padding: 12px; border-radius: 8px;">
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Empty Weight</div>
+                        <div style="font-size: 16px; font-weight: 600; color: #1F4E79;">${asset.emptyWeight.toLocaleString()} lbs</div>
+                    </div>
+                    <div style="background: #D9E1F2; padding: 12px; border-radius: 8px;">
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Capacity</div>
+                        <div style="font-size: 16px; font-weight: 600; color: #1F4E79;">${asset.capacity.toLocaleString()} lbs</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            specs = `
+                <div style="background: #D9E1F2; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Current Mileage</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #1F4E79;">${asset.mileage.toLocaleString()} mi</div>
+                </div>
+            `;
+        }
+
+        detailContent.innerHTML = `
+            <h2 style="color: #1F4E79; font-size: 24px; margin-bottom: 8px;">${asset.name}</h2>
+            <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">${asset.model}</p>
+
+            <div style="background: #f3f4f6; padding: 8px 12px; border-radius: 6px; margin-bottom: 16px; display: inline-block;">
+                <span style="font-size: 12px; font-weight: 600; color: #1F4E79;">${statusText}</span>
+            </div>
+
+            ${specs}
+
+            <div style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-weight: 600; color: #1F4E79; margin-bottom: 12px; font-size: 14px;">Information</div>
+                <div style="display: grid; gap: 8px; font-size: 14px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #6b7280;">License Plate</span>
+                        <span style="font-weight: 600; color: #1f2937;">${asset.licensePlate}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #6b7280;">VIN</span>
+                        <span style="font-weight: 600; color: #1f2937; font-family: monospace; font-size: 12px;">${asset.vin}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #6b7280;">Assigned To</span>
+                        <span style="font-weight: 600; color: #1f2937;">${asset.assignedTo}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-weight: 600; color: #1F4E79; margin-bottom: 12px; font-size: 14px;">Maintenance</div>
+                <div style="display: grid; gap: 8px; font-size: 14px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #6b7280;">Last Service</span>
+                        <span style="font-weight: 600; color: #1f2937;">${asset.lastMaintenance}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #6b7280;">Next Service</span>
+                        <span style="font-weight: 600; color: #1f2937;">${asset.nextMaintenance}</span>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="app.openAssetQR()" style="width: 100%; padding: 14px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; margin-top: 16px; cursor: pointer;">
+                <i class="fas fa-qrcode"></i> View QR Code
+            </button>
+        `;
+
+        this.showPage('assetDetailPage');
+    },
+
+    // Open QR code for current asset
+    openAssetQR() {
+        if (!this.currentVehicle) return;
+
+        const qrContainer = document.getElementById('qrCodeDisplay');
+        qrContainer.innerHTML = '';
+
+        document.getElementById('qrAppletagId').textContent = this.currentVehicle.appletag;
+
+        const qrUrl = `${window.location.href}?asset=${this.currentVehicle.id}&appletag=${this.currentVehicle.appletag}`;
+        new QRCode(qrContainer, {
+            text: qrUrl,
+            width: 250,
+            height: 250,
+            correctLevel: QRCode.CorrectLevel.H,
+            colorDark: '#1F4E79',
+            colorLight: '#ffffff'
+        });
+
+        this.showPage('qrPage');
+        this.setActiveNav('qr');
+    },
+
+    // Show QR form modal
+    showQRFormModal(actionType) {
+        const formTitle = document.getElementById('qrFormTitle');
+        const formFields = document.getElementById('qrFormFields');
+
+        let title = '', fields = '';
+
+        if (actionType === 'checkout') {
+            title = '📋 Checkout Asset';
+            fields = `
+                <div class="form-group">
+                    <label class="form-label">Driver Name</label>
+                    <input type="text" name="driverName" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Purpose</label>
+                    <input type="text" name="purpose" class="form-input" placeholder="e.g., Site visit, Equipment transport" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Expected Return Time</label>
+                    <input type="time" name="returnTime" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <input type="text" name="notes" class="form-input" placeholder="Optional">
+                </div>
+            `;
+        } else if (actionType === 'usage') {
+            const isVehicle = this.currentVehicle.type === 'vehicle';
+            title = '⚡ Log Usage';
+            fields = `
+                <div class="form-group">
+                    <label class="form-label">Driver Name</label>
+                    <input type="text" name="driverName" class="form-input" required>
+                </div>
+                ${isVehicle ? `
+                <div class="form-group">
+                    <label class="form-label">Starting Mileage</label>
+                    <input type="number" name="startMileage" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ending Mileage</label>
+                    <input type="number" name="endMileage" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Fuel Added (gal)</label>
+                    <input type="number" name="fuelAdded" class="form-input" step="0.1" value="0">
+                </div>
+                ` : ''}
+                <div class="form-group">
+                    <label class="form-label">Trip Notes</label>
+                    <input type="text" name="tripNotes" class="form-input" placeholder="Where, what for, etc.">
+                </div>
+            `;
+        } else if (actionType === 'maintenance') {
+            title = '🔧 Log Maintenance';
+            fields = `
+                <div class="form-group">
+                    <label class="form-label">Maintenance Type</label>
+                    <select name="maintenanceType" class="form-input" required>
+                        <option value="">Select...</option>
+                        <option value="oil-change">Oil Change</option>
+                        <option value="tire-rotation">Tire Rotation</option>
+                        <option value="inspection">Inspection</option>
+                        <option value="repair">Repair</option>
+                        <option value="cleaning">Cleaning</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <input type="text" name="description" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cost ($)</label>
+                    <input type="number" name="cost" class="form-input" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <input type="text" name="notes" class="form-input" placeholder="Optional">
+                </div>
+            `;
+        }
+
+        formTitle.textContent = title;
+        formFields.innerHTML = fields;
+        document.getElementById('qrForm').dataset.actionType = actionType;
+        document.getElementById('qrFormModal').classList.add('active');
+    },
+
+    // Close QR form modal
+    closeQRFormModal() {
+        document.getElementById('qrFormModal').classList.remove('active');
+    },
+
+    // Submit QR form
+    submitQRForm(event) {
+        event.preventDefault();
+
+        const formData = new FormData(document.getElementById('qrForm'));
+        const actionType = document.getElementById('qrForm').dataset.actionType;
+
+        let message = '';
+        if (actionType === 'checkout') {
+            message = `✓ Asset checked out to ${formData.get('driverName')}`;
+        } else if (actionType === 'usage') {
+            message = `✓ Usage logged for ${formData.get('driverName')}`;
+        } else if (actionType === 'maintenance') {
+            message = `✓ Maintenance logged: ${formData.get('maintenanceType')}`;
+        }
+
+        alert(message);
+        this.closeQRFormModal();
+    },
+
+    // Download QR code
+    downloadQRCode() {
+        if (!this.currentVehicle) return;
+
+        const canvas = document.querySelector('#qrCodeDisplay canvas');
+        if (canvas) {
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = `${this.currentVehicle.name.replace(/\s+/g, '_')}_QRCode.png`;
+            link.click();
+        }
+    },
+
+    // [DEPRECATED - moved to renderFleetList]
     // Render vehicle/trailer selector buttons with tabs
-    renderVehicleButtons() {
+    renderVehicleButtons_old() {
         const container = document.getElementById('vehicleButtons');
         container.innerHTML = '';
 
@@ -207,8 +566,9 @@ const app = {
         });
     },
 
+    // [DEPRECATED - moved to showAssetDetail]
     // Select a vehicle or trailer and display its details
-    selectVehicle(vehicleId) {
+    selectVehicle_old(vehicleId) {
         this.currentVehicleId = vehicleId;
         // First try to find in vehicles, then in trailers
         this.currentVehicle = this.vehicles.find(v => v.id === vehicleId) || this.trailers.find(t => t.id === vehicleId);
@@ -222,8 +582,9 @@ const app = {
         this.renderVehicleDetail();
     },
 
+    // [DEPRECATED - moved to showAssetDetail]
     // Render vehicle or trailer detail view
-    renderVehicleDetail() {
+    renderVehicleDetail_old() {
         const container = document.getElementById('vehicleDetail');
         const vehicle = this.currentVehicle;
 
@@ -480,8 +841,10 @@ const app = {
     setupAutoUpdates() {
         setInterval(() => {
             this.loadTrackingData().then(() => {
-                if (this.currentView !== 'qronly') {
-                    this.renderVehicles();
+                // Refresh fleet list if on fleet page
+                const fleetPage = document.getElementById('fleetPage');
+                if (fleetPage && fleetPage.classList.contains('active')) {
+                    this.renderFleetList();
                 }
             });
         }, 30000); // Update every 30 seconds
