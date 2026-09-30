@@ -2231,9 +2231,36 @@ const app = {
     },
 
     renderAppSettings() {
+    debugLocalStorage() {
+        const savedData = localStorage.getItem('pdrFleetAppData');
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            const peopleCount = data.people ? data.people.length : 0;
+            const vehicleCount = data.vehicles ? data.vehicles.length : 0;
+            const trailerCount = data.trailers ? data.trailers.length : 0;
+            return `
+                <div style="background: #f0f0f0; padding: 16px; border-radius: 8px; margin: 16px 0; font-family: monospace; font-size: 12px;">
+                    <div style="color: #333; margin-bottom: 8px;"><strong>📦 localStorage Status:</strong></div>
+                    <div style="color: #666;">✓ ${peopleCount} team members saved</div>
+                    <div style="color: #666;">✓ ${vehicleCount} vehicles saved</div>
+                    <div style="color: #666;">✓ ${trailerCount} trailers saved</div>
+                    <div style="color: #999; margin-top: 8px; font-size: 11px;">Last saved: ${data.lastSaved || 'unknown'}</div>
+                </div>
+            `;
+        } else {
+            return `
+                <div style="background: #ffe0e0; padding: 16px; border-radius: 8px; margin: 16px 0; font-family: monospace; font-size: 12px;">
+                    <div style="color: #d00;"><strong>❌ No data in localStorage</strong></div>
+                    <div style="color: #999; margin-top: 8px; font-size: 11px;">Your changes may not be saving</div>
+                </div>
+            `;
+        }
+    },
+
         const settingsContent = document.getElementById('settingsContent');
 
         const html = `
+            ${this.debugLocalStorage()}
             <div class="settings-section">
                 <div class="settings-section-title">About</div>
                 <div style="font-size: 14px; color: #6b7280; line-height: 1.6;">
