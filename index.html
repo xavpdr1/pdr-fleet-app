@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDR-Team Fleet Tracker</title>
+    <title>PDR-Team Fleet Management</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/splash.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -14,6 +14,7 @@
     <div id="splash-screen">
         <div id="splash-container">
             <img id="splash-logo" src="./logo.png" alt="PDR-Team Logo">
+            <div id="splash-text">Fleet Management</div>
         </div>
     </div>
     <div class="container">
@@ -24,7 +25,7 @@
                 </div>
                 <div class="title-section">
                     <h1>PDR-Team Fleet Tracker</h1>
-                    <p>Real-time vehicle tracking with QR codes and Appletag integration</p>
+                    <p>Driver logs, maintenance tracking, and recall notifications</p>
                 </div>
             </div>
         </header>
@@ -32,8 +33,7 @@
         <div class="controls">
             <div class="control-group">
                 <button class="active" onclick="app.switchView('all')"><i class="fas fa-th"></i> All Vehicles</button>
-                <button onclick="app.switchView('active')"><i class="fas fa-map-marker-alt"></i> Active</button>
-                <button onclick="app.switchView('tracked')"><i class="fas fa-signal"></i> Tracked</button>
+                <button onclick="app.switchView('active')"><i class="fas fa-check-circle"></i> Active</button>
                 <button onclick="app.switchView('qronly')"><i class="fas fa-qrcode"></i> QR Codes</button>
             </div>
             <div class="filter-group">
@@ -65,52 +65,55 @@
                 <button class="close-btn" onclick="app.closeModal()">×</button>
             </div>
             <div id="modalBody"></div>
-            <div class="tracking-details" id="trackingDetails"></div>
             <div class="qr-display">
                 <h3 style="margin-bottom: 16px; color: #333;">Scan QR Code</h3>
                 <div id="qrcode"></div>
                 <p style="margin-top: 12px; font-size: 0.9em; color: #999;">Linked to Appletag: <strong id="appletag"></strong></p>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
-                <button class="btn btn-primary" onclick="app.openBookingForm()">Request Usage</button>
-                <button class="btn btn-secondary" onclick="app.openMaintenanceForm()">Log Maintenance</button>
-            </div>
         </div>
     </div>
 
-    <!-- Booking Modal -->
-    <div class="modal" id="bookingModal">
+    <!-- Driver Log Modal -->
+    <div class="modal" id="driverLogModal">
         <div class="modal-content">
             <div class="modal-header">
-                Request Vehicle Usage
-                <button class="close-btn" onclick="app.closeBookingModal()">×</button>
+                Add Driver Log
+                <button class="close-btn" onclick="app.closeDriverLogModal()">×</button>
             </div>
-            <form onsubmit="app.submitBooking(event)">
+            <form onsubmit="app.submitDriverLog(event)">
                 <div class="form-group">
                     <label>Vehicle</label>
-                    <input type="text" id="bookingVehicle" readonly>
+                    <input type="text" id="driverLogVehicle" readonly>
                 </div>
                 <div class="form-group">
                     <label>Date</label>
-                    <input type="date" id="bookingDate" required>
+                    <input type="date" id="driverLogDate" required>
                 </div>
                 <div class="form-group">
-                    <label>Time (Start)</label>
-                    <input type="time" id="bookingTime" required>
+                    <label>Driver Name</label>
+                    <input type="text" id="driverLogDriver" required>
                 </div>
                 <div class="form-group">
-                    <label>Duration (hours)</label>
-                    <input type="number" id="bookingDuration" min="1" max="8" value="2" required>
+                    <label>Starting Mileage</label>
+                    <input type="number" id="driverLogStartMiles" required>
                 </div>
                 <div class="form-group">
-                    <label>Destination</label>
-                    <input type="text" id="bookingDestination" required>
+                    <label>Ending Mileage</label>
+                    <input type="number" id="driverLogEndMiles" required>
                 </div>
                 <div class="form-group">
-                    <label>Business Purpose</label>
-                    <textarea id="bookingPurpose" required></textarea>
+                    <label>Route/Destination</label>
+                    <input type="text" id="driverLogRoute" required>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Request</button>
+                <div class="form-group">
+                    <label>Fuel Used (gallons)</label>
+                    <input type="number" id="driverLogFuel" step="0.1" required>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="driverLogNotes" placeholder="Any issues or notes about the trip"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Driver Log</button>
             </form>
         </div>
     </div>
@@ -148,7 +151,7 @@
                     <textarea id="maintenanceDesc" required></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Mileage/Hours</label>
+                    <label>Mileage</label>
                     <input type="number" id="maintenanceMileage" required>
                 </div>
                 <div class="form-group">
@@ -160,8 +163,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/supabase.js"></script>
-    <script type="module" src="js/appletag.js"></script>
     <script type="module" src="js/splash.js"></script>
     <script type="module" src="js/app.js"></script>
 </body>
