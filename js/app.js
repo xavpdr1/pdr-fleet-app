@@ -318,8 +318,8 @@ const app = {
 
             const fallbackEmoji = this.currentTab === 'vehicles' ? '🚗' : '🚛';
             const iconDisplay = item.photo ?
-                `<img src="${item.photo}" alt="${item.name}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px;">`
-                : `<div style="font-size: 28px; display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: #e5e7eb; border-radius: 8px;">${fallbackEmoji}</div>`;
+                `<div style="width: 56px; height: 56px; flex-shrink: 0; overflow: hidden; border-radius: 8px; background: #e5e7eb; display: flex; align-items: center; justify-content: center;"><img src="${item.photo}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover;"></div>`
+                : `<div style="font-size: 28px; display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; flex-shrink: 0; background: #e5e7eb; border-radius: 8px;">${fallbackEmoji}</div>`;
             const secondaryInfo = item.type === 'trailer'
                 ? `${item.licensePlate} • ${item.capacity} lbs`
                 : `${item.licensePlate} • ${item.mileage.toLocaleString()} mi`;
