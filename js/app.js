@@ -177,6 +177,13 @@ const app = {
     async init() {
         console.log('Initializing PDR Fleet Tracker...');
 
+        // Set user avatar in header
+        const userInitial = this.currentUser.name.charAt(0).toUpperCase();
+        const avatarElement = document.getElementById('userAvatar');
+        if (avatarElement) {
+            avatarElement.textContent = userInitial;
+        }
+
         // Load tracking data for all vehicles and trailers
         await this.loadTrackingData();
 
@@ -1487,6 +1494,55 @@ const app = {
         }
 
         return html;
+    },
+
+    // ============ USER PROFILE METHODS ============
+    openUserProfileModal() {
+        const user = this.currentUser;
+        const userInitial = user.name.charAt(0).toUpperCase();
+
+        document.getElementById('profileAvatar').textContent = userInitial;
+        document.getElementById('userAvatar').textContent = userInitial;
+        document.getElementById('profileName').textContent = user.name;
+        document.getElementById('profileRole').textContent = user.isAdmin ? 'Administrator' : 'Technician';
+
+        // Find the actual user object from people array
+        const userObj = this.people.find(p => p.name === user.name);
+        if (userObj) {
+            document.getElementById('profileEmail').textContent = userObj.email;
+
+            // Render permissions
+            const permissionLabels = {
+                'viewVehicles': 'View Vehicles',
+                'editVehicles': 'Edit Vehicles',
+                'viewTrailers': 'View Trailers',
+                'editTrailers': 'Edit Trailers',
+                'logUsage': 'Log Usage',
+                'logMaintenance': 'Log Maintenance',
+                'managePeople': 'Manage People',
+                'manageAlerts': 'Manage Alerts'
+            };
+
+            let permissionsHTML = '';
+            Object.entries(userObj.permissions).forEach(([key, value]) => {
+                if (value) {
+                    permissionsHTML += `
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="color: #10b981; font-weight: bold;">✓</span>
+                            <span style="color: #1f2937;">${permissionLabels[key]}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            document.getElementById('profilePermissions').innerHTML = permissionsHTML || '<div style="color: #6b7280;">No permissions</div>';
+        }
+
+        document.getElementById('userProfileModal').classList.add('active');
+    },
+
+    closeUserProfileModal() {
+        document.getElementById('userProfileModal').classList.remove('active');
     },
 
     // ============ EDIT ASSET METHODS ============
