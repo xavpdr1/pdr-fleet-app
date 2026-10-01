@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
     <title>PDR Fleet Tracker</title>
     <link rel="stylesheet" href="styles/main.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -726,6 +726,13 @@
             overflow-y: auto;
             box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
         }
+
+        /* iPhone zooms in when a text box smaller than 16px is tapped, and stays zoomed.
+           Keep every field at 16px on phones so that never happens. */
+        @media (max-width: 768px) {
+            input, select, textarea { font-size: 16px !important; }
+        }
+        html, body { max-width: 100%; overflow-x: hidden; }
 
         @media (max-width: 768px) {
             .app-header {
