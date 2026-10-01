@@ -872,19 +872,19 @@ const app = {
         const total = list.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
         return `
             <div style="background: white; border-radius: 12px; padding: 16px; margin-top: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <div style="font-weight: 600; color: #1F4E79; font-size: 14px;"><i class="fas fa-wrench"></i> Maintenance Log</div>
-                    <button onclick="app.openMaintLog('${asset.id}')" style="padding: 8px 12px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer;">+ Log maintenance</button>
+                    <button onclick="app.openMaintLog('${asset.id}')" style="white-space: nowrap; padding: 8px 12px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer;">+ Log maintenance</button>
                 </div>
                 ${list.length ? `
                     <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">${list.length} entr${list.length === 1 ? 'y' : 'ies'}${total ? ` · $${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} total` : ''} · tap one to edit</div>
                     ${list.map(l => `
                         <div onclick="app.openMaintLog('${asset.id}', '${esc(l.id)}')" style="padding: 10px 0; border-top: 1px solid #f3f4f6; cursor: pointer;">
-                            <div style="display: flex; justify-content: space-between; gap: 8px;">
-                                <span style="font-weight: 600; color: #1f2937; font-size: 14px;">${esc(l.maintenanceType || 'Maintenance')}</span>
+                            <div style="display: flex; justify-content: space-between; gap: 8px; min-width: 0;">
+                                <span style="font-weight: 600; color: #1f2937; font-size: 14px; min-width: 0; overflow-wrap: anywhere;">${esc(l.maintenanceType || 'Maintenance')}</span>
                                 <span style="color: #6b7280; font-size: 13px; white-space: nowrap;">${fmt(l._date)}</span>
                             </div>
-                            ${l.description ? `<div style="font-size: 13px; color: #374151; margin-top: 2px;">${esc(l.description)}</div>` : ''}
+                            ${l.description ? `<div style="font-size: 13px; color: #374151; margin-top: 2px; overflow-wrap: anywhere;">${esc(l.description)}</div>` : ''}
                             <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${[l.doneBy && 'By ' + esc(l.doneBy), l.mileage && Number(l.mileage).toLocaleString() + ' mi', parseFloat(l.cost) ? '$' + parseFloat(l.cost).toFixed(2) : ''].filter(Boolean).join(' · ')}</div>
                         </div>`).join('')}
                 ` : '<div style="font-size: 13px; color: #6b7280;">No maintenance logged yet.</div>'}
