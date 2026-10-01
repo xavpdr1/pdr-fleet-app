@@ -891,6 +891,8 @@
     <script type="module">
         // Import photo storage and make it globally available
         import photoStorage from './js/photoStorage.js';
+        import dataStorage from './js/dataStorage.js';
+        window.dataStorage = dataStorage;
         window.photoStorage = photoStorage;
     </script>
     <script type="module" src="js/supabase.js"></script>

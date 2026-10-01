@@ -230,87 +230,96 @@ const app = {
         ]
     },
 
-    // Load data from localStorage
-    loadFromLocalStorage() {
+    // Load data from IndexedDB first, then fallback to localStorage
+    async loadData() {
+        try {
+            // Try to load from IndexedDB first (more reliable for large data)
+            if (window.dataStorage) {
+                const indexedData = await window.dataStorage.loadAllData();
+                if (indexedData && indexedData.people && indexedData.people.length > 0) {
+                    this.people = indexedData.people || [];
+                    this.vehicles = indexedData.vehicles || [];
+                    this.trailers = indexedData.trailers || [];
+                    this.currentUsage = indexedData.currentUsage || {};
+                    console.log('✓ Loaded data from IndexedDB');
+                    console.log(`  - ${this.people.length} people`);
+                    console.log(`  - ${this.vehicles.length} vehicles`);
+                    console.log(`  - ${this.trailers.length} trailers`);
+                    return;  // Successfully loaded from IndexedDB
+                }
+            }
+        } catch (err) {
+            console.warn('⚠️ IndexedDB load failed:', err);
+        }
+        
+        // Fallback to localStorage if IndexedDB is empty
         try {
             const savedData = localStorage.getItem('pdrFleetAppData');
             if (savedData) {
                 const data = JSON.parse(savedData);
-                console.log('📦 Raw data from localStorage:', data);
+                console.log('📦 Loaded data from localStorage (fallback)');
                 if (data.people) {
                     this.people = data.people;
-                    console.log(`✓ Loaded ${data.people.length} people from localStorage`);
+                    console.log(`  - ${data.people.length} people`);
                 }
                 if (data.vehicles) {
                     this.vehicles = data.vehicles;
-                    console.log(`✓ Loaded ${data.vehicles.length} vehicles from localStorage`);
+                    console.log(`  - ${data.vehicles.length} vehicles`);
                 }
                 if (data.trailers) {
                     this.trailers = data.trailers;
-                    console.log(`✓ Loaded ${data.trailers.length} trailers from localStorage`);
+                    console.log(`  - ${data.trailers.length} trailers`);
                 }
                 if (data.currentUsage) this.currentUsage = data.currentUsage;
             } else {
-                console.log('ℹ️ No saved data in localStorage, using defaults');
+                console.log('ℹ️ No saved data found, using defaults');
             }
         } catch (e) {
             console.error('❌ Error loading from localStorage:', e);
         }
     },
+    
+    // Legacy method for compatibility
+    async loadFromLocalStorage() {
+        return this.loadData();
+    },
 
-    // Save data to localStorage
-    saveToLocalStorage() {
+    // Save data to IndexedDB with localStorage backup
+    async saveData() {
         try {
-            // Create a copy of data without photos (to avoid storage quota issues)
-            const dataToSave = {
-                people: this.people,
-                vehicles: this.vehicles.map(v => ({
-                    ...v,
-                    photo: null  // Don't store large base64 photos in localStorage
-                })),
-                trailers: this.trailers.map(t => ({
-                    ...t,
-                    photo: null  // Don't store large base64 photos in localStorage
-                })),
-                currentUsage: this.currentUsage,
-                lastSaved: new Date().toISOString()
+            // Save to IndexedDB first (primary storage, no quota issues)
+            if (window.dataStorage) {
+                await window.dataStorage.saveAllData(
+                    this.people,
+                    this.vehicles,
+                    this.trailers,
+                    this.currentUsage
+                );
+                console.log('✓ Saved all data to IndexedDB');
+            }
+        } catch (err) {
+            console.error('⚠️ IndexedDB save failed:', err);
+        }
+        
+        // Also save minimal metadata to localStorage as backup
+        try {
+            const minimalData = {
+                lastSaved: new Date().toISOString(),
+                assetCount: this.people.length + this.vehicles.length + this.trailers.length,
+                hasIndexedDB: !!window.dataStorage
             };
-
-            const jsonString = JSON.stringify(dataToSave);
-
-            // Check size before saving (localStorage limit is usually 5-10MB)
-            if (jsonString.length > 4000000) {
-                console.warn('Data too large for localStorage, clearing old photos...');
-                // If still too large, just save people and currentUsage
-                const minimalData = {
-                    people: this.people,
-                    currentUsage: this.currentUsage,
-                    lastSaved: new Date().toISOString()
-                };
-                localStorage.setItem('pdrFleetAppData', JSON.stringify(minimalData));
-                console.log('✓ Saved minimal data to localStorage (photos excluded)');
-            } else {
-                localStorage.setItem('pdrFleetAppData', jsonString);
-                console.log('✓ Saved data to localStorage');
-            }
+            localStorage.setItem('pdrFleetAppData', JSON.stringify(minimalData));
         } catch (e) {
-            console.error('Error saving to localStorage:', e);
-            // Try to clear space and retry
-            try {
-                const minimalData = {
-                    people: this.people,
-                    currentUsage: this.currentUsage,
-                    lastSaved: new Date().toISOString()
-                };
-                localStorage.setItem('pdrFleetAppData', JSON.stringify(minimalData));
-                console.log('✓ Saved minimal data after quota error');
-            } catch (e2) {
-                console.error('Failed to save even minimal data:', e2);
-            }
+            console.error('Error saving to localStorage backup:', e);
         }
 
         // Also sync to Supabase cloud (non-blocking)
         this.syncToCloud();
+    },
+    
+    // Legacy method for compatibility
+    async saveToLocalStorage() {
+        return this.saveData();
     },
 
     // Sync data to Supabase cloud
@@ -334,8 +343,15 @@ const app = {
     async init() {
         console.log('Initializing PDR Fleet Tracker...');
 
-        // Load from localStorage immediately (fast, no blocking)
-        this.loadFromLocalStorage();
+        // Initialize photo storage (IndexedDB) in background
+        if (window.photoStorage) {
+            window.photoStorage.init().catch(err => {
+                console.warn('⚠️ Photo storage unavailable:', err);
+            });
+        }
+
+        // Load from IndexedDB first (reliable), fallback to localStorage
+        await this.loadData();
 
         // Initialize Supabase cloud sync in background (non-blocking)
         // Use timeout to prevent freezing if network is slow
@@ -409,18 +425,26 @@ const app = {
     },
 
     // Render fleet list (vehicles and trailers)
-    renderFleetList() {
+    async renderFleetList() {
         const assetList = document.getElementById('assetList');
         const items = this.currentTab === 'vehicles' ? this.vehicles : this.trailers;
 
         assetList.innerHTML = '';
-        items.forEach(item => {
+        
+        // Process each item, loading photos asynchronously
+        for (const item of items) {
             const card = document.createElement('div');
             card.className = 'asset-card';
 
+            // Load photo from IndexedDB if it exists
+            let photoData = null;
+            if (window.photoStorage && item.hasPhoto) {
+                photoData = await window.photoStorage.loadPhoto(item.id);
+            }
+
             const fallbackEmoji = this.currentTab === 'vehicles' ? '🚗' : '🚛';
-            const iconDisplay = item.photo ?
-                `<div style="width: 56px; height: 56px; flex-shrink: 0; overflow: hidden; border-radius: 8px; background: #e5e7eb; display: flex; align-items: center; justify-content: center;"><img src="${item.photo}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover;"></div>`
+            const iconDisplay = photoData ?
+                `<div style="width: 56px; height: 56px; flex-shrink: 0; overflow: hidden; border-radius: 8px; background: #e5e7eb; display: flex; align-items: center; justify-content: center;"><img src="${photoData}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover;"></div>`
                 : `<div style="font-size: 28px; display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; flex-shrink: 0; background: #e5e7eb; border-radius: 8px;">${fallbackEmoji}</div>`;
             const secondaryInfo = item.type === 'trailer'
                 ? `${item.licensePlate} • ${item.capacity} lbs`
@@ -479,7 +503,7 @@ const app = {
             `;
 
             assetList.appendChild(card);
-        });
+        }
     },
 
     // Switch between vehicles and trailers tabs
@@ -491,7 +515,7 @@ const app = {
     },
 
     // Show asset detail page
-    showAssetDetail(assetId) {
+    async showAssetDetail(assetId) {
         const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
         if (!asset) return;
 
@@ -525,9 +549,24 @@ const app = {
             `;
         }
 
+        // Load photo from IndexedDB if it exists
+        let photoHtml = '';
+        if (window.photoStorage && asset.hasPhoto) {
+            const photoData = await window.photoStorage.loadPhoto(assetId);
+            if (photoData) {
+                photoHtml = `
+                    <div style="width: 100%; height: 200px; border-radius: 12px; overflow: hidden; margin-bottom: 16px; background: #e5e7eb;">
+                        <img src="${photoData}" alt="${asset.name}" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                `;
+            }
+        }
+
         detailContent.innerHTML = `
             <h2 style="color: #1F4E79; font-size: 24px; margin-bottom: 8px;">${asset.name}</h2>
             <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">${asset.model}</p>
+
+            ${photoHtml}
 
             <div style="background: #f3f4f6; padding: 8px 12px; border-radius: 6px; margin-bottom: 16px; display: inline-block;">
                 <span style="font-size: 12px; font-weight: 600; color: #1F4E79;">${statusText}</span>
@@ -643,10 +682,19 @@ const app = {
                     ctx.drawImage(img, 0, 0, width, height);
 
                     // Compress as JPEG with 0.7 quality (reduces ~5MB to <500KB)
-                    asset.photo = canvas.toDataURL('image/jpeg', 0.7);
+                    const compressedPhoto = canvas.toDataURL('image/jpeg', 0.7);
 
                     // Use setTimeout to prevent UI thread blocking
-                    setTimeout(() => {
+                    setTimeout(async () => {
+                        // Save photo to IndexedDB instead of asset object
+                        if (window.photoStorage) {
+                            await window.photoStorage.savePhoto(assetId, compressedPhoto);
+                        }
+
+                        // Mark asset as having a photo (without storing the actual data)
+                        asset.hasPhoto = true;
+                        asset.photo = null; // Don't store in memory
+
                         this.saveToLocalStorage();
                         this.renderFleetList();
                         this.showAssetDetail(assetId);
