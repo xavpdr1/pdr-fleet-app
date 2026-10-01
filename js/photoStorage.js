@@ -38,6 +38,7 @@ const photoStorage = {
 
     // Save a photo for an asset
     async savePhoto(assetId, photoData) {
+        if (!this.db) await this.init();
         if (!this.db) return false;
 
         return new Promise((resolve) => {
@@ -71,6 +72,7 @@ const photoStorage = {
 
     // Load a photo for an asset
     async loadPhoto(assetId) {
+        if (!this.db) await this.init();
         if (!this.db) return null;
 
         return new Promise((resolve) => {
@@ -102,6 +104,7 @@ const photoStorage = {
 
     // Delete a photo
     async deletePhoto(assetId) {
+        if (!this.db) await this.init();
         if (!this.db) return false;
 
         return new Promise((resolve) => {
@@ -128,6 +131,7 @@ const photoStorage = {
 
     // Clear all photos
     async clearAll() {
+        if (!this.db) await this.init();
         if (!this.db) return false;
 
         return new Promise((resolve) => {

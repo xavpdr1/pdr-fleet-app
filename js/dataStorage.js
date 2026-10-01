@@ -38,6 +38,7 @@ const dataStorage = {
 
     // Save all asset data
     async saveAllData(people, vehicles, trailers, currentUsage) {
+        if (!this.db) await this.init();   // open the database on first use
         if (!this.db) return false;
 
         return new Promise((resolve) => {
@@ -74,6 +75,7 @@ const dataStorage = {
 
     // Load all asset data
     async loadAllData() {
+        if (!this.db) await this.init();   // open the database on first use
         if (!this.db) return null;
 
         return new Promise((resolve) => {
@@ -110,6 +112,7 @@ const dataStorage = {
 
     // Clear all data
     async clearAll() {
+        if (!this.db) await this.init();   // open the database on first use
         if (!this.db) return false;
 
         return new Promise((resolve) => {

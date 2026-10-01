@@ -23,6 +23,53 @@ window.supabase = {
         }
     },
     
+    // ===== fleet_records: one JSON row per item (person / vehicle / trailer / photo) =====
+    // Storing each item as JSON means new fields never break uploads (the old
+    // vehicles/trailers tables had lowercase columns, so every upload failed).
+
+    // All non-photo rows, or null if the table is missing / offline (caller must then keep local data)
+    async loadRecords() {
+        if (!this.client) return null;
+        const { data, error } = await this.client
+            .from('fleet_records')
+            .select('kind,id,data,deleted,updated_at')
+            .neq('kind', 'photo');
+        if (error) { console.error('✗ fleet_records load failed:', error.message); return null; }
+        return data || [];
+    },
+
+    // rows: [{ kind, id, data, deleted }]  → true on success
+    async saveRecords(rows) {
+        if (!this.client) return false;
+        if (!rows.length) return true;
+        const stamp = new Date().toISOString();
+        const { error } = await this.client
+            .from('fleet_records')
+            .upsert(rows.map(r => ({ ...r, updated_at: stamp })), { onConflict: 'kind,id' });
+        if (error) { console.error('✗ fleet_records save failed:', error.message); return false; }
+        console.log('✓ Uploaded', rows.length, 'fleet record(s)');
+        return true;
+    },
+
+    async photoIdsInCloud() {
+        if (!this.client) return null;
+        const { data, error } = await this.client.from('fleet_records').select('id').eq('kind', 'photo').eq('deleted', false);
+        if (error) return null;
+        return new Set((data || []).map(r => r.id));
+    },
+
+    async savePhotoCloud(assetId, photo) {
+        return this.saveRecords([{ kind: 'photo', id: assetId, data: { photo }, deleted: false }]);
+    },
+
+    async loadPhotoCloud(assetId) {
+        if (!this.client) return null;
+        const { data, error } = await this.client.from('fleet_records')
+            .select('data').eq('kind', 'photo').eq('id', assetId).eq('deleted', false).maybeSingle();
+        if (error || !data) return null;
+        return data.data && data.data.photo || null;
+    },
+
     // Save people to Supabase
     async savePeople(people) {
         if (!this.client) return false;

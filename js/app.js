@@ -241,6 +241,7 @@ const app = {
                     this.vehicles = indexedData.vehicles || [];
                     this.trailers = indexedData.trailers || [];
                     this.currentUsage = indexedData.currentUsage || {};
+                    this._loadedFromStorage = true;
                     console.log('✓ Loaded data from IndexedDB');
                     console.log(`  - ${this.people.length} people`);
                     console.log(`  - ${this.vehicles.length} vehicles`);
@@ -263,6 +264,7 @@ const app = {
                     console.log(`  - ${data.people.length} people`);
                 }
                 if (data.vehicles) {
+                    this._loadedFromStorage = true;
                     this.vehicles = data.vehicles;
                     console.log(`  - ${data.vehicles.length} vehicles`);
                 }
@@ -286,6 +288,9 @@ const app = {
 
     // Save data to IndexedDB with localStorage backup
     async saveData() {
+        // Note which items changed since the last save/sync (gives them a fresh timestamp)
+        const { changed, deleted } = this._hashes ? this._stampChanges() : { changed: [], deleted: [] };
+
         try {
             // Save to IndexedDB first (primary storage, no quota issues)
             if (window.dataStorage) {
@@ -313,10 +318,181 @@ const app = {
             console.error('Error saving to localStorage backup:', e);
         }
 
-        // Also sync to Supabase cloud (non-blocking)
-        this.syncToCloud();
+        // Upload just the changed items (non-blocking)
+        this.pushToCloud(changed, deleted);
     },
-    
+
+    // ===== Cloud sync (Supabase fleet_records) =====
+    _recKinds: { people: 'person', vehicles: 'vehicle', trailers: 'trailer' },
+
+    _hashOf(rec) {
+        const { _updatedAt, _default, ...rest } = rec || {};
+        return JSON.stringify(rest);
+    },
+
+    // Remember what every item looks like right now
+    _snapshot() {
+        this._hashes = {};
+        for (const [list, kind] of Object.entries(this._recKinds)) {
+            for (const r of this[list]) this._hashes[kind + ':' + r.id] = this._hashOf(r);
+        }
+    },
+
+    // Compare with the snapshot: timestamp changed items, list removed ones
+    _stampChanges() {
+        const now = new Date().toISOString();
+        const seen = new Set();
+        const changed = [];
+        for (const [list, kind] of Object.entries(this._recKinds)) {
+            for (const r of this[list]) {
+                const key = kind + ':' + r.id;
+                seen.add(key);
+                const h = this._hashOf(r);
+                if (this._hashes[key] !== h) {
+                    r._updatedAt = now;
+                    delete r._default;
+                    this._hashes[key] = h;
+                    changed.push({ kind, rec: r });
+                }
+            }
+        }
+        const deleted = [];
+        for (const key of Object.keys(this._hashes)) {
+            if (!seen.has(key)) {
+                delete this._hashes[key];
+                const i = key.indexOf(':');
+                deleted.push({ kind: key.slice(0, i), id: key.slice(i + 1) });
+            }
+        }
+        return { changed, deleted };
+    },
+
+    _loadTombs() { try { return JSON.parse(localStorage.getItem('pdrFleetDeleted') || '[]'); } catch (e) { return []; } },
+    _saveTombs(t) { try { localStorage.setItem('pdrFleetDeleted', JSON.stringify(t)); } catch (e) {} },
+
+    async pushToCloud(changed = [], deleted = []) {
+        // deletions are queued on the device until the cloud confirms them
+        let tombs = this._loadTombs();
+        for (const d of deleted) if (!tombs.some(t => t.kind === d.kind && t.id === d.id)) tombs.push(d);
+        this._saveTombs(tombs);
+        if (!window.supabase || !window.supabase.client || !this._cloudReady) return; // cloudSync will catch up later
+
+        const rows = changed
+            .filter(c => !c.rec._default)
+            .map(c => ({ kind: c.kind, id: c.rec.id, data: c.rec, deleted: false }))
+            .concat(tombs.map(t => ({ kind: t.kind, id: t.id, data: {}, deleted: true })));
+        if (!rows.length) return;
+        const ok = await window.supabase.saveRecords(rows);
+        if (ok && tombs.length) this._saveTombs([]);
+    },
+
+    // Merge cloud and device: nothing is ever replaced by an empty list.
+    // For an item on both sides, the one changed most recently wins.
+    async cloudSync() {
+        if (this._syncing || !window.supabase || !window.supabase.client) return;
+        this._syncing = true;
+        try {
+            const rows = await window.supabase.loadRecords();
+            if (!rows) return; // table missing or offline → keep using device data
+
+            const cloud = { person: new Map(), vehicle: new Map(), trailer: new Map() };
+            const gone = new Set();
+            for (const r of rows) {
+                if (!cloud[r.kind]) continue;
+                if (r.deleted) gone.add(r.kind + ':' + r.id);
+                else cloud[r.kind].set(r.id, r.data);
+            }
+            // first run: bring the team list over from the old people table
+            const migratePeople = !rows.some(r => r.kind === 'person');
+            if (migratePeople) {
+                for (const p of await window.supabase.loadPeople()) {
+                    const { created_at, updated_at, ...person } = p;
+                    cloud.person.set(person.id, person);
+                }
+            }
+            const pendingDeletes = new Set(this._loadTombs().map(t => t.kind + ':' + t.id));
+
+            const toPush = [];
+            let localChanged = false;
+            for (const [list, kind] of Object.entries(this._recKinds)) {
+                const local = new Map(this[list].map(r => [r.id, r]));
+                const ids = [...new Set([...local.keys(), ...cloud[kind].keys()])];
+                const out = [];
+                for (const id of ids) {
+                    const key = kind + ':' + id;
+                    if (gone.has(key) || pendingDeletes.has(key)) { if (local.has(id)) localChanged = true; continue; }
+                    const l = local.get(id), c = cloud[kind].get(id);
+                    if (l && !c) {
+                        out.push(l);
+                        if (!l._default) toPush.push({ kind, id, data: l, deleted: false });
+                    } else if (c && !l) {
+                        out.push(c); localChanged = true;
+                    } else {
+                        const lt = l._default ? '' : (l._updatedAt || ''), ct = c._updatedAt || '';
+                        if (lt > ct) { out.push(l); toPush.push({ kind, id, data: l, deleted: false }); }
+                        else { out.push(c); if (this._hashOf(c) !== this._hashOf(l)) localChanged = true; }
+                    }
+                }
+                this[list] = out;
+            }
+
+            if (migratePeople) for (const p of this.people) if (!p._default && !toPush.some(r => r.kind === 'person' && r.id === p.id)) toPush.push({ kind: 'person', id: p.id, data: p, deleted: false });
+            this._cloudReady = true;
+            await this.pushToCloud([], []);          // flush queued deletions
+            if (toPush.length) await window.supabase.saveRecords(toPush);
+            this._snapshot();
+            if (localChanged && window.dataStorage) {
+                await window.dataStorage.saveAllData(this.people, this.vehicles, this.trailers, this.currentUsage);
+            }
+            if (localChanged) this.refreshCurrentView();
+            this.syncPhotos();
+            console.log(`✓ Cloud sync done (${toPush.length} uploaded${localChanged ? ', device updated' : ''})`);
+        } catch (err) {
+            console.warn('⚠️ Cloud sync failed (data still saved on this device):', err);
+        } finally {
+            this._syncing = false;
+        }
+    },
+
+    refreshCurrentView() {
+        const fleetPage = document.getElementById('fleetPage');
+        if (!fleetPage || fleetPage.classList.contains('active')) this.renderFleetList();
+    },
+
+    // Photo: this device first, then the cloud (and keep a copy on the device)
+    async getPhoto(assetId) {
+        let photo = window.photoStorage ? await window.photoStorage.loadPhoto(assetId) : null;
+        if (!photo && window.supabase && window.supabase.client) {
+            photo = await window.supabase.loadPhotoCloud(assetId);
+            if (photo && window.photoStorage) window.photoStorage.savePhoto(assetId, photo);
+        }
+        return photo;
+    },
+
+    // If an item lost its "has photo" mark but its photo is still on this device, reconnect it
+    async recoverPhotoFlags() {
+        if (!window.photoStorage) return;
+        try { await window.photoStorage.init(); } catch (e) { return; }
+        let fixed = 0;
+        for (const a of [...this.vehicles, ...this.trailers]) {
+            if (a.hasPhoto) continue;
+            if (await window.photoStorage.loadPhoto(a.id)) { a.hasPhoto = true; fixed++; }
+        }
+        if (fixed) { console.log('✓ Reconnected', fixed, 'photo(s)'); await this.saveData(); this.refreshCurrentView(); }
+    },
+
+    // Upload photos that only exist on this device
+    async syncPhotos() {
+        if (!window.photoStorage || !window.supabase) return;
+        const inCloud = await window.supabase.photoIdsInCloud();
+        if (!inCloud) return;
+        for (const a of [...this.vehicles, ...this.trailers]) {
+            if (!a.hasPhoto || inCloud.has(a.id)) continue;
+            const photo = await window.photoStorage.loadPhoto(a.id);
+            if (photo) await window.supabase.savePhotoCloud(a.id, photo);
+        }
+    },
+
     // Legacy method for compatibility
     async saveToLocalStorage() {
         return this.saveData();
@@ -352,6 +528,12 @@ const app = {
 
         // Load from IndexedDB first (reliable), fallback to localStorage
         await this.loadData();
+        if (!this._loadedFromStorage) {
+            // built-in sample data: never upload it or let it overwrite real data
+            for (const list of ['people', 'vehicles', 'trailers']) this[list].forEach(r => { r._default = true; });
+        }
+        this._snapshot();
+        this.recoverPhotoFlags();
 
         // Initialize Supabase cloud sync in background (non-blocking)
         // Use timeout to prevent freezing if network is slow
@@ -361,33 +543,10 @@ const app = {
         ]).then(async () => {
             console.log('✓ Supabase initialized for cloud sync');
 
-            // Try to load from cloud (non-blocking with timeout)
-            try {
-                const cloudData = await Promise.race([
-                    window.supabase.loadFromCloud(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Cloud load timeout')), 5000))
-                ]);
-
-                if (cloudData && cloudData.people && cloudData.people.length > 0) {
-                    // SAFETY: only take a list from the cloud if the cloud actually has items.
-                    // (Vehicle/trailer uploads were failing, so the cloud lists were empty and
-                    //  used to wipe the data saved on this device.)
-                    console.log('✓ Loading data from Supabase cloud...');
-                    this.people = cloudData.people;
-                    if (cloudData.vehicles && cloudData.vehicles.length > 0) this.vehicles = cloudData.vehicles;
-                    if (cloudData.trailers && cloudData.trailers.length > 0) this.trailers = cloudData.trailers;
-                    await this.saveData();
-                    this.renderFleetList();
-                } else {
-                    // Cloud empty, sync local data to cloud
-                    console.log('ℹ️ Cloud empty, syncing local data...');
-                    this.syncToCloud(); // Non-blocking
-                }
-            } catch (err) {
-                console.warn('⚠️ Cloud load failed:', err.message);
-                // Keep using localStorage data
-                this.syncToCloud(); // Try to sync in background
-            }
+            await this.cloudSync();
+            // keep phones in step: every minute and whenever the app is reopened
+            setInterval(() => this.cloudSync(), 60000);
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) this.cloudSync(); });
         }).catch(err => {
             console.warn('⚠️ Supabase unavailable, using localStorage only:', err.message);
         });
@@ -442,7 +601,7 @@ const app = {
             // Load photo from IndexedDB if it exists
             let photoData = null;
             if (window.photoStorage && item.hasPhoto) {
-                photoData = await window.photoStorage.loadPhoto(item.id);
+                photoData = await this.getPhoto(item.id);
             }
 
             const fallbackEmoji = this.currentTab === 'vehicles' ? '🚗' : '🚛';
@@ -555,7 +714,7 @@ const app = {
         // Load photo from IndexedDB if it exists
         let photoHtml = '';
         if (window.photoStorage && asset.hasPhoto) {
-            const photoData = await window.photoStorage.loadPhoto(assetId);
+            const photoData = await this.getPhoto(assetId);
             if (photoData) {
                 photoHtml = `
                     <div style="width: 100%; height: 200px; border-radius: 12px; overflow: hidden; margin-bottom: 16px; background: #e5e7eb;">
@@ -693,6 +852,8 @@ const app = {
                         if (window.photoStorage) {
                             await window.photoStorage.savePhoto(assetId, compressedPhoto);
                         }
+                        // share the photo with other phones (non-blocking)
+                        if (window.supabase && window.supabase.client) window.supabase.savePhotoCloud(assetId, compressedPhoto);
 
                         // Mark asset as having a photo (without storing the actual data)
                         asset.hasPhoto = true;
