@@ -288,6 +288,7 @@ const app = {
 
     // Save data to IndexedDB with localStorage backup
     async saveData() {
+        this._packIntoAssets();
         // Note which items changed since the last save/sync (gives them a fresh timestamp)
         const { changed, deleted } = this._hashes ? this._stampChanges() : { changed: [], deleted: [] };
 
@@ -320,6 +321,30 @@ const app = {
 
         // Upload just the changed items (non-blocking)
         this.pushToCloud(changed, deleted);
+    },
+
+    // Usage/maintenance logs and "in use" status live on each vehicle/trailer record,
+    // so they are saved on the phone and shared through the cloud with the unit itself.
+    _packIntoAssets() {
+        for (const a of [...this.vehicles, ...this.trailers]) {
+            a.logs = this.usageLogs[a.id] || [];
+            a.currentUse = this.currentUsage[a.id] || null;
+        }
+    },
+    _hydrateFromAssets() {
+        for (const a of [...this.vehicles, ...this.trailers]) {
+            if (Array.isArray(a.logs)) this.usageLogs[a.id] = a.logs;
+            if ('currentUse' in a) {
+                if (a.currentUse) this.currentUsage[a.id] = a.currentUse;
+                else delete this.currentUsage[a.id];
+            }
+        }
+    },
+
+    // Safety net: save shortly after any tap or form submit (only changed items are uploaded)
+    _autoSave() {
+        clearTimeout(this._autoSaveTimer);
+        this._autoSaveTimer = setTimeout(() => this.saveData(), 600);
     },
 
     // ===== Cloud sync (Supabase fleet_records) =====
@@ -430,13 +455,21 @@ const app = {
                     } else {
                         const lt = l._default ? '' : (l._updatedAt || ''), ct = c._updatedAt || '';
                         if (lt > ct) { out.push(l); toPush.push({ kind, id, data: l, deleted: false }); }
-                        else { out.push(c); if (this._hashOf(c) !== this._hashOf(l)) localChanged = true; }
+                        else if (this._hashOf(c) === this._hashOf(l)) out.push(l);   // same content: keep the object the screen is using
+                        else { out.push(c); localChanged = true; }
                     }
                 }
                 this[list] = out;
             }
 
             if (migratePeople) for (const p of this.people) if (!p._default && !toPush.some(r => r.kind === 'person' && r.id === p.id)) toPush.push({ kind: 'person', id: p.id, data: p, deleted: false });
+            // point the open unit at its (possibly updated) record
+            if (this.currentVehicle) {
+                const cur = this.findAsset(this.currentVehicle.id);
+                if (cur) this.currentVehicle = cur;
+            }
+            this._hydrateFromAssets();
+            this._packIntoAssets();
             this._cloudReady = true;
             await this.pushToCloud([], []);          // flush queued deletions
             if (toPush.length) await window.supabase.saveRecords(toPush);
@@ -533,7 +566,11 @@ const app = {
             // built-in sample data: never upload it or let it overwrite real data
             for (const list of ['people', 'vehicles', 'trailers']) this[list].forEach(r => { r._default = true; });
         }
+        this._hydrateFromAssets();
+        this._packIntoAssets();
         this._snapshot();
+        document.addEventListener('submit', () => this._autoSave(), true);
+        document.addEventListener('click', () => this._autoSave(), true);
         this.recoverPhotoFlags();
 
         // Initialize Supabase cloud sync in background (non-blocking)
@@ -772,6 +809,15 @@ const app = {
                 </div>
             </div>
 
+            <div style="display: flex; align-items: center; gap: 14px; background: white; border-radius: 12px; padding: 12px; margin-top: 16px;">
+                <div id="assetQrMini" style="width: 84px; height: 84px; flex: 0 0 84px;"></div>
+                <div style="font-size: 13px; color: #374151; line-height: 1.5;">
+                    <div style="font-weight: 700; color: #1F4E79;"><i class="fas fa-qrcode"></i> QR code assigned</div>
+                    Scanning this unit's label opens this page.
+                    <div style="font-size: 11px; color: #6b7280;">Code: ${asset.id}</div>
+                </div>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
                 <button onclick="app.openAssetQR()" style="padding: 14px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
                     <i class="fas fa-qrcode"></i> View QR
@@ -788,6 +834,8 @@ const app = {
         `;
 
         this.showPage('assetDetailPage');
+        const mini = document.getElementById('assetQrMini');
+        if (mini && window.QRCode) new QRCode(mini, { text: this.assetLink(asset.id), width: 84, height: 84, correctLevel: QRCode.CorrectLevel.M });
     },
 
     // ===== QR codes for vehicles & trailers =====
@@ -1074,6 +1122,7 @@ const app = {
             });
         }
 
+        this.saveData();
         alert(message);
         this.closeQRFormModal();
     },
@@ -1841,6 +1890,7 @@ const app = {
         // Update current vehicle reference
         this.currentVehicle = array[vehicleIndex];
 
+        this.saveData();
         alert('✓ Information updated');
         this.closeEditVehicleModal();
 
@@ -1937,8 +1987,7 @@ const app = {
             this.vehicles[vehicleIndex].mileage = usage.ending_mileage;
         }
 
-        // Save usage log to localStorage
-        // (Cloud sync implemented for people, vehicles, trailers only)
+        this.saveData();
 
         alert(`✓ Usage logged for ${usage.vehicle_name}\nDriver: ${usage.driver_name}\nDistance: ${usage.distance_driven} mi`);
         this.closeUsageModal();
@@ -2043,6 +2092,7 @@ const app = {
         logs[logIndex].notes = document.getElementById('editUsageNotes').value;
         logs[logIndex].distance_driven = logs[logIndex].ending_mileage - logs[logIndex].starting_mileage;
 
+        this.saveData();
         alert('✓ Usage log updated');
         this.closeEditUsageModal();
 
@@ -2076,8 +2126,12 @@ const app = {
             cost: parseFloat(document.getElementById('maintenanceCost').value)
         };
 
-        // Save maintenance to localStorage
-        // (Cloud sync implemented for people, vehicles, trailers only)
+        // Keep it with the unit's history and update its service date / mileage
+        if (!this.usageLogs[this.currentVehicle.id]) this.usageLogs[this.currentVehicle.id] = [];
+        this.usageLogs[this.currentVehicle.id].push({ ...maintenance, type: 'maintenance', timestamp: new Date().toISOString() });
+        if (maintenance.date) this.currentVehicle.lastMaintenance = maintenance.date;
+        if (this.currentVehicle.type === 'vehicle' && maintenance.mileage > (this.currentVehicle.mileage || 0)) this.currentVehicle.mileage = maintenance.mileage;
+        this.saveData();
 
         alert(`✓ Maintenance logged for ${maintenance.vehicle_name}\nType: ${maintenance.type}`);
         this.closeMaintenanceModal();
@@ -2374,6 +2428,8 @@ const app = {
             asset.grossWeight = parseInt(formData.get('grossWeight'));
         }
 
+        this.saveData();
+
         // Update UI
         this.showAssetDetail(assetId);
         this.renderFleetList();
@@ -2645,6 +2701,14 @@ const app = {
                         ${this.currentUser.isAdmin ? 'Administrator' : 'Technician'}
                     </div>
                 </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">QR Codes</div>
+                <div style="font-size: 13px; color: #6b7280; margin-bottom: 10px;">Every vehicle and trailer has its own QR code. Scanning a label opens that unit's page.</div>
+                <button onclick="app.showQRLabels()" style="width: 100%; padding: 12px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                    <i class="fas fa-print"></i> Print QR labels
+                </button>
             </div>
 
             <div class="settings-section">
