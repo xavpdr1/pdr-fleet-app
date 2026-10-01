@@ -344,7 +344,8 @@ function logHTML(l, open) {
 }
 
 function openUnit(n) {
-  const u = state.units.find(x => x.number === n); if (!u) return;
+  let u = state.units.find(x => x.number === n);
+  if (!u) { u = { id: n, number: n, location: '', comments: '', createdAt: new Date().toISOString() }; state.units.push(u); putUnit(u); }
   const logs = unitLogs(n);
   document.getElementById('detailBody').innerHTML = `
     <div class="sheet-head"><div class="logo"><img src="colibri-logo.jpg" alt="PDR Team"></div></div>
@@ -512,8 +513,8 @@ document.getElementById('addForm').onsubmit = async e => {
   if (!state.units.length) { const u = { id: 'Colibri 19', number: 'Colibri 19', location: '', comments: '', createdAt: new Date().toISOString() }; await putUnit(u); state.units.push(u); }
   renderDashboard();
   const n = new URLSearchParams(location.hash.slice(1)).get('unit');
-  if (n) openForm(n);
-  window.addEventListener('hashchange', () => { const m = new URLSearchParams(location.hash.slice(1)).get('unit'); if (m) openForm(m); });
+  if (n) openUnit(n);
+  window.addEventListener('hashchange', () => { const m = new URLSearchParams(location.hash.slice(1)).get('unit'); if (m) openUnit(m); });
 })();
 </script>
 </body>
