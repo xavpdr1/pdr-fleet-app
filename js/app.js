@@ -994,7 +994,7 @@ const app = {
                         </div>
                         ${d.area ? `<div style="font-weight: 600; font-size: 14px; color: #1f2937; margin-top: 4px;">${this._esc(d.area)}</div>` : ''}
                         ${d.description ? `<div style="font-size: 13px; color: #374151; margin-top: 2px; overflow-wrap: anywhere;">${this._esc(d.description)}</div>` : ''}
-                        <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${d.reportedBy ? 'Reported by ' + this._esc(d.reportedBy) : ''}${d.repaired ? ' · <span style="color:#047857;font-weight:600;">Repaired</span>' : ''}</div>
+                        <div style="font-size: 12px; color: #374151; margin-top: 4px;"><i class="fas fa-user" style="color:#2E75B6;"></i> Reported by <b>${d.reportedBy ? this._esc(d.reportedBy) : 'not set'}</b>${d.repaired ? ' · <span style="color:#047857;font-weight:600;">Repaired</span>' : ''}</div>
                         ${(d.photos || []).length ? `<div style="display: flex; gap: 6px; margin-top: 6px; overflow-x: auto;">${d.photos.map(pid => `<img data-photo-id="${pid}" alt="" style="width: 64px; height: 64px; object-fit: cover; border-radius: 6px; background: #e5e7eb; flex: 0 0 64px;">`).join('')}</div>` : ''}
                     </div>`).join('') : '<div style="font-size: 13px; color: #6b7280;">No damage reported.</div>'}
             </div>`;
@@ -1037,11 +1037,23 @@ const app = {
                     <label class="form-label">What happened / description</label>
                     <textarea class="form-input" id="dmgDesc" rows="3" placeholder="Size, how it happened, anything useful">${this._esc(d?.description || '')}</textarea>
                 </div>
+                ${(() => {
+                    const cur = d ? d.reportedBy : (reporter || this.currentUsage[assetId]?.userName || '');
+                    const names = this.people.map(p => p.name);
+                    const other = cur && !names.includes(cur);
+                    return `
                 <div class="form-group">
                     <label class="form-label">Reported by</label>
-                    <input type="text" class="form-input" id="dmgBy" list="dmgPeople" value="${this._esc(d ? d.reportedBy : (reporter || this.currentUsage[assetId]?.userName || ''))}">
-                    <datalist id="dmgPeople">${this.people.map(p => `<option value="${this._esc(p.name)}">`).join('')}</datalist>
-                </div>
+                    <select class="form-input" id="dmgBySel" required onchange="document.getElementById('dmgByOtherWrap').style.display = this.value === '__other' ? '' : 'none'">
+                        <option value="" disabled${cur ? '' : ' selected'}>Select who is reporting</option>
+                        ${names.map(n => `<option value="${this._esc(n)}"${n === cur ? ' selected' : ''}>${this._esc(n)}</option>`).join('')}
+                        <option value="__other"${other ? ' selected' : ''}>Someone else…</option>
+                    </select>
+                    <div id="dmgByOtherWrap" style="margin-top: 8px;${other ? '' : ' display: none;'}">
+                        <input type="text" class="form-input" id="dmgByOther" value="${other ? this._esc(cur) : ''}" placeholder="Name of person reporting">
+                    </div>
+                </div>`;
+                })()}
                 <div class="form-group">
                     <label class="form-label">Photos</label>
                     <div id="dmgThumbs" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;"></div>
@@ -1130,7 +1142,7 @@ const app = {
             date: document.getElementById('dmgDate').value,
             area: document.getElementById('dmgArea').value.trim(),
             description: document.getElementById('dmgDesc').value.trim(),
-            reportedBy: document.getElementById('dmgBy').value.trim(),
+            reportedBy: (() => { const v = document.getElementById('dmgBySel').value; return v === '__other' ? document.getElementById('dmgByOther').value.trim() : v; })(),
             photos: st.photos,
             repaired: !!document.getElementById('dmgRepaired')?.checked,
         };
