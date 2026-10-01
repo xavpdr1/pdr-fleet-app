@@ -534,9 +534,12 @@ const app = {
         const inCloud = await window.supabase.photoIdsInCloud();
         if (!inCloud) return;
         for (const a of [...this.vehicles, ...this.trailers]) {
-            if (!a.hasPhoto || inCloud.has(a.id)) continue;
-            const photo = await window.photoStorage.loadPhoto(a.id);
-            if (photo) await window.supabase.savePhotoCloud(a.id, photo);
+            const ids = (a.hasPhoto ? [a.id] : []).concat(...(a.damage || []).map(d => d.photos || []));
+            for (const id of ids) {
+                if (inCloud.has(id)) continue;
+                const photo = await window.photoStorage.loadPhoto(id);
+                if (photo) await window.supabase.savePhotoCloud(id, photo);
+            }
         }
     },
 
@@ -837,6 +840,8 @@ const app = {
 
             ${this.registrationCardHTML(asset)}
             ${asset.type === 'trailer' ? '' : `<div id="recallBox">${this.recallCardHTML(asset)}</div>`}
+            ${asset.type === 'trailer' ? '' : this.tripsSectionHTML(asset)}
+            ${this.damageSectionHTML(asset)}
             ${this.maintenanceSectionHTML(asset)}
 
             <div style="display: flex; align-items: center; gap: 14px; background: white; border-radius: 12px; padding: 12px; margin-top: 16px;">
@@ -865,8 +870,290 @@ const app = {
 
         this.showPage('assetDetailPage');
         if (asset.type !== 'trailer') this.loadRecallsInto(asset);
+        this.fillPhotoThumbs(document.getElementById('assetDetailContent'));
         const mini = document.getElementById('assetQrMini');
         if (mini && window.QRCode) new QRCode(mini, { text: this.assetLink(asset.id), width: 84, height: 84, correctLevel: QRCode.CorrectLevel.M });
+    },
+
+    // ===== Check-out / check-in: mileage and fuel (vehicles) =====
+    FUEL_LEVELS: ['Empty', '1/8', '1/4', '3/8', '1/2', '5/8', '3/4', '7/8', 'Full'],
+
+    _esc(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); },
+
+    openTrip(assetId, mode, personName) {
+        const a = this.findAsset(assetId); if (!a) return;
+        this._trip = { assetId, mode, personName };
+        const use = this.currentUsage[assetId] || {};
+        const fuelOpts = sel => this.FUEL_LEVELS.map(f => `<option${f === sel ? ' selected' : ''}>${f}</option>`).join('');
+        const last = (this.usageLogs[assetId] || []).filter(l => l.type === 'usage' && l.endFuel).slice(-1)[0];
+        const out = mode === 'out';
+        this.openInfoWindow(`${out ? 'Check out' : 'Check in'} · ${a.name}`, `
+            <form id="tripForm" onsubmit="app.submitTrip(event)">
+                <div style="background: #f3f4f6; border-radius: 8px; padding: 10px 12px; font-size: 14px; margin-bottom: 14px;">
+                    ${out ? `Driver: <b>${this._esc(personName)}</b>` : `Driver: <b>${this._esc(use.userName || '')}</b> · out ${use.startMileage ? Number(use.startMileage).toLocaleString() + ' mi' : ''}${use.startFuel ? ' · ' + use.startFuel + ' tank' : ''}`}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mileage ${out ? 'out' : 'in'} (odometer)</label>
+                    <input type="number" inputmode="numeric" class="form-input" id="tripMiles" required min="${out ? 0 : (use.startMileage || 0)}" value="${out ? (a.mileage || '') : ''}" placeholder="${out ? '' : 'Current odometer'}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Gas ${out ? 'out' : 'in'} (tank level)</label>
+                    <select class="form-input" id="tripFuel" required>${fuelOpts(out ? (last ? last.endFuel : 'Full') : '')}</select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes (optional)</label>
+                    <input type="text" class="form-input" id="tripNotes" placeholder="${out ? 'Where it is going, job, etc.' : 'Anything to note'}">
+                </div>
+                ${out ? '' : `
+                <label style="display: flex; gap: 10px; align-items: center; font-size: 15px; margin: 4px 0 14px;">
+                    <input type="checkbox" id="tripDamage" style="width: 22px; height: 22px;"> Report new damage after saving
+                </label>`}
+                <div class="error" id="tripError" style="color: #b91c1c; font-weight: 600; margin-bottom: 8px; display: none;"></div>
+                <button type="submit" class="form-submit-btn">${out ? 'Check out' : 'Check in'}</button>
+            </form>`);
+    },
+
+    submitTrip(event) {
+        event.preventDefault();
+        const t = this._trip; if (!t) return;
+        const a = this.findAsset(t.assetId); if (!a) return;
+        const miles = parseInt(document.getElementById('tripMiles').value);
+        const fuel = document.getElementById('tripFuel').value;
+        const notes = document.getElementById('tripNotes').value.trim();
+        const err = document.getElementById('tripError');
+        if (!this.usageLogs[a.id]) this.usageLogs[a.id] = [];
+        if (t.mode === 'out') {
+            const now = new Date().toISOString();
+            this.currentUsage[a.id] = { userName: t.personName, startTime: now, startMileage: miles, startFuel: fuel, location: null };
+            this.usageLogs[a.id].push({ id: 'trip-' + Date.now().toString(36), type: 'usage', userName: t.personName, startTime: now, startMileage: miles, startFuel: fuel, notes });
+            a.status = 'in-use';
+            if (miles > (a.mileage || 0)) a.mileage = miles;
+        } else {
+            const use = this.currentUsage[a.id] || {};
+            if (use.startMileage && miles < use.startMileage) {
+                err.textContent = `Mileage in can't be lower than mileage out (${Number(use.startMileage).toLocaleString()}).`; err.style.display = 'block'; return;
+            }
+            const now = new Date().toISOString();
+            const log = [...this.usageLogs[a.id]].reverse().find(l => l.type === 'usage' && !l.endTime);
+            const entry = log || { id: 'trip-' + Date.now().toString(36), type: 'usage', userName: use.userName, startTime: use.startTime, startMileage: use.startMileage, startFuel: use.startFuel };
+            if (!log) this.usageLogs[a.id].push(entry);
+            Object.assign(entry, { endTime: now, endMileage: miles, endFuel: fuel, endNotes: notes, distance: entry.startMileage ? miles - entry.startMileage : null });
+            delete this.currentUsage[a.id];
+            a.status = 'available';
+            if (miles > (a.mileage || 0)) a.mileage = miles;
+        }
+        const wantDamage = t.mode === 'in' && document.getElementById('tripDamage')?.checked;
+        const driver = t.mode === 'in' ? ((this.usageLogs[a.id] || []).filter(l => l.type === 'usage').slice(-1)[0] || {}).userName : t.personName;
+        this._trip = null;
+        this.saveData();
+        this.closeInfoWindow();
+        this.renderFleetList();
+        if (document.getElementById('assetDetailPage').classList.contains('active')) this.showAssetDetail(a.id);
+        if (wantDamage) this.openDamage(a.id, null, 'new', driver);
+    },
+
+    tripsSectionHTML(asset) {
+        const trips = (this.usageLogs[asset.id] || []).filter(l => l.type === 'usage' && (l.startMileage || l.endMileage || l.startFuel))
+            .sort((x, y) => String(y.startTime).localeCompare(String(x.startTime)));
+        const when = t => t ? new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+        const mi = v => v || v === 0 ? Number(v).toLocaleString() : '—';
+        const use = this.currentUsage[asset.id];
+        return `
+            <div style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-weight: 600; color: #1F4E79; font-size: 14px;"><i class="fas fa-gas-pump"></i> Mileage &amp; Gas</div>
+                    ${use ? `<button onclick="app.endUsage('${asset.id}')" style="white-space: nowrap; padding: 8px 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 13px;">Check in</button>` : ''}
+                </div>
+                ${trips.length ? trips.slice(0, 15).map(l => `
+                    <div style="padding: 9px 0; border-top: 1px solid #f3f4f6; font-size: 13px;">
+                        <div style="display: flex; justify-content: space-between; gap: 8px;">
+                            <b style="color: #1f2937;">${this._esc(l.userName || '')}</b>
+                            <span style="color: #6b7280; white-space: nowrap;">${when(l.startTime)}</span>
+                        </div>
+                        <div style="color: #374151; margin-top: 3px;">Out ${mi(l.startMileage)} mi · gas ${l.startFuel || '—'}</div>
+                        <div style="color: #374151;">${l.endTime ? `In ${mi(l.endMileage)} mi · gas ${l.endFuel || '—'}${l.distance != null ? ` · <b>${mi(l.distance)} mi driven</b>` : ''}` : '<span style="color: #c2410c; font-weight: 600;">Still out</span>'}</div>
+                    </div>`).join('') : '<div style="font-size: 13px; color: #6b7280;">No trips yet. Tap USE on the fleet list to check this vehicle out.</div>'}
+            </div>`;
+    },
+
+    // ===== Damage reports (existing / new) with photos =====
+    damageSectionHTML(asset) {
+        const list = [...(asset.damage || [])].sort((x, y) => String(y.date).localeCompare(String(x.date)) || String(y.createdAt).localeCompare(String(x.createdAt)));
+        const fmt = d => d ? new Date(d + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        return `
+            <div style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-weight: 600; color: #1F4E79; font-size: 14px;"><i class="fas fa-car-crash"></i> Damage</div>
+                    <button onclick="app.openDamage('${asset.id}')" style="white-space: nowrap; padding: 8px 12px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 13px;">+ Report damage</button>
+                </div>
+                ${list.length ? list.map(d => `
+                    <div onclick="app.openDamage('${asset.id}', '${d.id}')" style="padding: 10px 0; border-top: 1px solid #f3f4f6; cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; gap: 8px; align-items: center;">
+                            <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; ${d.kind === 'new' ? 'background:#fef2f2;color:#b91c1c;' : 'background:#f3f4f6;color:#4b5563;'}">${d.kind === 'new' ? 'New damage' : 'Existing damage'}</span>
+                            <span style="font-size: 12px; color: #6b7280; white-space: nowrap;">${fmt(d.date)}</span>
+                        </div>
+                        ${d.area ? `<div style="font-weight: 600; font-size: 14px; color: #1f2937; margin-top: 4px;">${this._esc(d.area)}</div>` : ''}
+                        ${d.description ? `<div style="font-size: 13px; color: #374151; margin-top: 2px; overflow-wrap: anywhere;">${this._esc(d.description)}</div>` : ''}
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${d.reportedBy ? 'Reported by ' + this._esc(d.reportedBy) : ''}${d.repaired ? ' · <span style="color:#047857;font-weight:600;">Repaired</span>' : ''}</div>
+                        ${(d.photos || []).length ? `<div style="display: flex; gap: 6px; margin-top: 6px; overflow-x: auto;">${d.photos.map(pid => `<img data-photo-id="${pid}" alt="" style="width: 64px; height: 64px; object-fit: cover; border-radius: 6px; background: #e5e7eb; flex: 0 0 64px;">`).join('')}</div>` : ''}
+                    </div>`).join('') : '<div style="font-size: 13px; color: #6b7280;">No damage reported.</div>'}
+            </div>`;
+    },
+
+    async fillPhotoThumbs(root) {
+        if (!root) return;
+        for (const img of root.querySelectorAll('img[data-photo-id]')) {
+            if (img.src) continue;
+            const data = await this.getPhoto(img.dataset.photoId);
+            if (data) { img.src = data; img.onclick = ev => { ev.stopPropagation(); this.openInfoWindow('Photo', `<img src="${data}" style="width: 100%; border-radius: 8px;">`); }; }
+        }
+    },
+
+    openDamage(assetId, damageId, kind, reporter) {
+        const a = this.findAsset(assetId); if (!a) return;
+        const d = damageId ? (a.damage || []).find(x => x.id === damageId) : null;
+        this._dmg = { assetId, id: d ? d.id : null, photos: d ? [...(d.photos || [])] : [], newPhotos: {} };
+        const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+        let me = ''; try { me = localStorage.getItem('colibriTechName') || ''; } catch (e) {}
+        const k = d ? d.kind : (kind || 'existing');
+        this.openInfoWindow(`${d ? 'Damage report' : 'Report damage'} · ${a.name}`, `
+            <form id="damageForm" onsubmit="app.submitDamage(event)">
+                <div class="form-group">
+                    <label class="form-label">Type</label>
+                    <select class="form-input" id="dmgKind">
+                        <option value="existing"${k === 'existing' ? ' selected' : ''}>Existing damage (was already there)</option>
+                        <option value="new"${k === 'new' ? ' selected' : ''}>New damage (just happened)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date it happened / was found</label>
+                    <input type="date" class="form-input" id="dmgDate" required value="${d ? d.date : today}" max="${today}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Where on the ${a.type === 'trailer' ? 'trailer' : 'vehicle'}</label>
+                    <input type="text" class="form-input" id="dmgArea" value="${this._esc(d?.area || '')}" placeholder="e.g. Rear bumper, driver door">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">What happened / description</label>
+                    <textarea class="form-input" id="dmgDesc" rows="3" placeholder="Size, how it happened, anything useful">${this._esc(d?.description || '')}</textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Reported by</label>
+                    <input type="text" class="form-input" id="dmgBy" list="dmgPeople" value="${this._esc(d ? d.reportedBy : (reporter || this.currentUsage[assetId]?.userName || ''))}">
+                    <datalist id="dmgPeople">${this.people.map(p => `<option value="${this._esc(p.name)}">`).join('')}</datalist>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Photos</label>
+                    <div id="dmgThumbs" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;"></div>
+                    <label style="display: block; text-align: center; padding: 14px; border: 2px dashed #93c5fd; border-radius: 10px; color: #2E75B6; font-weight: 600; cursor: pointer;">
+                        <i class="fas fa-camera"></i> Add photos
+                        <input type="file" accept="image/*" multiple onchange="app.addDamagePhotos(this.files); this.value='';" style="display: none;">
+                    </label>
+                </div>
+                ${d ? `<label style="display: flex; gap: 10px; align-items: center; font-size: 15px; margin-bottom: 14px;"><input type="checkbox" id="dmgRepaired" style="width: 22px; height: 22px;"${d.repaired ? ' checked' : ''}> Repaired</label>` : ''}
+                <button type="submit" class="form-submit-btn" id="dmgSave">Save</button>
+                ${d ? `<button type="button" onclick="app.deleteDamage()" style="width: 100%; margin-top: 10px; padding: 12px; background: none; border: 1px solid #ef4444; color: #ef4444; border-radius: 8px; font-weight: 600;">Delete this report</button>` : ''}
+            </form>`);
+        this.renderDamageThumbs();
+    },
+
+    async renderDamageThumbs() {
+        const box = document.getElementById('dmgThumbs'); if (!box || !this._dmg) return;
+        box.innerHTML = this._dmg.photos.map(pid => `
+            <div style="position: relative; width: 76px; height: 76px;">
+                <img data-photo-id="${pid}" alt="" style="width: 76px; height: 76px; object-fit: cover; border-radius: 8px; background: #e5e7eb;">
+                <button type="button" onclick="app.removeDamagePhoto('${pid}')" style="position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; border-radius: 50%; border: none; background: #111827; color: white; font-size: 14px; line-height: 24px; padding: 0;">×</button>
+            </div>`).join('');
+        for (const img of box.querySelectorAll('img[data-photo-id]')) {
+            const pid = img.dataset.photoId;
+            img.src = this._dmg.newPhotos[pid] || await this.getPhoto(pid) || '';
+        }
+    },
+
+    _compressImage(file, maxSide = 1280, quality = 0.7) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = reject;
+            reader.onload = () => {
+                const img = new Image();
+                img.onerror = reject;
+                img.onload = () => {
+                    const r = Math.min(1, maxSide / Math.max(img.width, img.height));
+                    const c = document.createElement('canvas');
+                    c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
+                    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                    resolve(c.toDataURL('image/jpeg', quality));
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    },
+
+    async addDamagePhotos(files) {
+        if (!this._dmg) return;
+        const btn = document.getElementById('dmgSave');
+        if (btn) { btn.disabled = true; btn.textContent = 'Adding photos…'; }
+        for (const f of files) {
+            try {
+                const data = await this._compressImage(f);
+                const pid = 'dmg-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+                this._dmg.newPhotos[pid] = data;
+                this._dmg.photos.push(pid);
+            } catch (e) { console.warn('Photo skipped', e); }
+        }
+        if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+        this.renderDamageThumbs();
+    },
+
+    removeDamagePhoto(pid) {
+        if (!this._dmg) return;
+        this._dmg.photos = this._dmg.photos.filter(p => p !== pid);
+        delete this._dmg.newPhotos[pid];
+        this.renderDamageThumbs();
+    },
+
+    async submitDamage(event) {
+        event.preventDefault();
+        const st = this._dmg; if (!st) return;
+        const a = this.findAsset(st.assetId); if (!a) return;
+        const btn = document.getElementById('dmgSave'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+        // photos: keep on this phone and share through the cloud
+        for (const [pid, data] of Object.entries(st.newPhotos)) {
+            if (!st.photos.includes(pid)) continue;
+            if (window.photoStorage) await window.photoStorage.savePhoto(pid, data);
+            if (window.supabase && window.supabase.client) window.supabase.savePhotoCloud(pid, data);
+        }
+        const entry = {
+            id: st.id || 'dmg-' + Date.now().toString(36),
+            kind: document.getElementById('dmgKind').value,
+            date: document.getElementById('dmgDate').value,
+            area: document.getElementById('dmgArea').value.trim(),
+            description: document.getElementById('dmgDesc').value.trim(),
+            reportedBy: document.getElementById('dmgBy').value.trim(),
+            photos: st.photos,
+            repaired: !!document.getElementById('dmgRepaired')?.checked,
+        };
+        const list = [...(a.damage || [])];
+        const i = list.findIndex(x => x.id === entry.id);
+        if (i >= 0) list[i] = { ...list[i], ...entry, updatedAt: new Date().toISOString() };
+        else list.push({ ...entry, createdAt: new Date().toISOString() });
+        a.damage = list;
+        this._dmg = null;
+        this.saveData();
+        this.closeInfoWindow();
+        this.showAssetDetail(a.id);
+    },
+
+    deleteDamage() {
+        const st = this._dmg; if (!st || !st.id) return;
+        if (!confirm('Delete this damage report?')) return;
+        const a = this.findAsset(st.assetId); if (!a) return;
+        a.damage = (a.damage || []).filter(x => x.id !== st.id);
+        this._dmg = null;
+        this.saveData();
+        this.closeInfoWindow();
+        this.showAssetDetail(a.id);
     },
 
     // ===== Registration status =====
@@ -1531,9 +1818,10 @@ const app = {
         }
     },
 
-    logUsageWithPerson(assetId, personName) {
+    logUsageWithPerson(assetId, personName, confirmed) {
         const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
         if (!asset) return;
+        if (asset.type !== 'trailer' && !confirmed) { this.openTrip(assetId, 'out', personName); return; }
 
         // Get location if it's a trailer (from input field if available)
         let location = '';
@@ -1621,9 +1909,10 @@ const app = {
     },
 
     // End usage for an asset
-    endUsage(assetId) {
+    endUsage(assetId, confirmed) {
         const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
         if (!asset || !this.currentUsage[assetId]) return;
+        if (asset.type !== 'trailer' && !confirmed) { this.openTrip(assetId, 'in'); return; }
 
         const usage = this.currentUsage[assetId];
         const endTime = new Date();
