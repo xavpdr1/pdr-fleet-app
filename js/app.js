@@ -629,7 +629,7 @@ const app = {
     setActiveNav(navId) {
         document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
         const navItems = document.querySelectorAll('.nav-item');
-        const navMap = { 'fleet': 0, 'qr': 1, 'settings': 2 };
+        const navMap = { 'fleet': 0, 'settings': 1 };
         if (navMap[navId] !== undefined) {
             navItems[navMap[navId]].classList.add('active');
         }
@@ -826,6 +826,8 @@ const app = {
                 </div>
             </div>
 
+            ${this.maintenanceSectionHTML(asset)}
+
             <div style="display: flex; align-items: center; gap: 14px; background: white; border-radius: 12px; padding: 12px; margin-top: 16px;">
                 <div id="assetQrMini" style="width: 84px; height: 84px; flex: 0 0 84px;"></div>
                 <div style="font-size: 13px; color: #374151; line-height: 1.5;">
@@ -853,6 +855,112 @@ const app = {
         this.showPage('assetDetailPage');
         const mini = document.getElementById('assetQrMini');
         if (mini && window.QRCode) new QRCode(mini, { text: this.assetLink(asset.id), width: 84, height: 84, correctLevel: QRCode.CorrectLevel.M });
+    },
+
+    // ===== Maintenance log for one vehicle / trailer =====
+    maintenanceEntries(assetId) {
+        return (this.usageLogs[assetId] || [])
+            .filter(l => l.type === 'maintenance')
+            .map(l => ({ ...l, _date: l.date || (l.timestamp || '').slice(0, 10) }))
+            .sort((a, b) => String(b._date).localeCompare(String(a._date)) || String(b.timestamp || '').localeCompare(String(a.timestamp || '')));
+    },
+
+    maintenanceSectionHTML(asset) {
+        const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const fmt = d => { if (!d) return ''; const [y, m, dd] = d.split('-'); return `${m}/${dd}/${y}`; };
+        const list = this.maintenanceEntries(asset.id);
+        const total = list.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+        return `
+            <div style="background: white; border-radius: 12px; padding: 16px; margin-top: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-weight: 600; color: #1F4E79; font-size: 14px;"><i class="fas fa-wrench"></i> Maintenance Log</div>
+                    <button onclick="app.openMaintLog('${asset.id}')" style="padding: 8px 12px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer;">+ Log maintenance</button>
+                </div>
+                ${list.length ? `
+                    <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">${list.length} entr${list.length === 1 ? 'y' : 'ies'}${total ? ` · $${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} total` : ''} · tap one to edit</div>
+                    ${list.map(l => `
+                        <div onclick="app.openMaintLog('${asset.id}', '${esc(l.id)}')" style="padding: 10px 0; border-top: 1px solid #f3f4f6; cursor: pointer;">
+                            <div style="display: flex; justify-content: space-between; gap: 8px;">
+                                <span style="font-weight: 600; color: #1f2937; font-size: 14px;">${esc(l.maintenanceType || 'Maintenance')}</span>
+                                <span style="color: #6b7280; font-size: 13px; white-space: nowrap;">${fmt(l._date)}</span>
+                            </div>
+                            ${l.description ? `<div style="font-size: 13px; color: #374151; margin-top: 2px;">${esc(l.description)}</div>` : ''}
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${[l.doneBy && 'By ' + esc(l.doneBy), l.mileage && Number(l.mileage).toLocaleString() + ' mi', parseFloat(l.cost) ? '$' + parseFloat(l.cost).toFixed(2) : ''].filter(Boolean).join(' · ')}</div>
+                        </div>`).join('')}
+                ` : '<div style="font-size: 13px; color: #6b7280;">No maintenance logged yet.</div>'}
+            </div>`;
+    },
+
+    openMaintLog(assetId, logId) {
+        const asset = this.findAsset(assetId);
+        if (!asset) return;
+        this._maintAssetId = assetId;
+        this._maintLogId = logId || null;
+        if (!(this.usageLogs[assetId] || []).every(l => l.id) ) {
+            // older entries had no id: give them one so they can be edited
+            (this.usageLogs[assetId] || []).forEach((l, i) => { if (!l.id) l.id = 'log-' + Date.now().toString(36) + '-' + i; });
+        }
+        const entry = logId ? (this.usageLogs[assetId] || []).find(l => l.id === logId) : null;
+        const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+        document.getElementById('maintLogTitle').textContent = `${entry ? 'Edit' : 'Log'} Maintenance · ${asset.name}`;
+        document.getElementById('mlDate').value = entry ? (entry.date || (entry.timestamp || '').slice(0, 10)) : today;
+        document.getElementById('mlType').value = entry?.maintenanceType || 'Oil change';
+        document.getElementById('mlDesc').value = entry?.description || '';
+        document.getElementById('mlMileageGroup').style.display = asset.type === 'trailer' ? 'none' : '';
+        document.getElementById('mlMileage').value = entry ? (entry.mileage || '') : (asset.mileage || '');
+        document.getElementById('mlCost').value = entry?.cost || '';
+        document.getElementById('mlDoneBy').value = entry?.doneBy || '';
+        document.getElementById('mlNext').value = entry ? '' : (asset.nextMaintenance || '');
+        document.getElementById('mlPeople').innerHTML = this.people.map(p => `<option value="${p.name}">`).join('');
+        document.getElementById('mlDelete').style.display = entry ? '' : 'none';
+        document.getElementById('maintLogModal').classList.add('active');
+    },
+
+    closeMaintLog() {
+        document.getElementById('maintLogModal').classList.remove('active');
+    },
+
+    submitMaintLog(event) {
+        event.preventDefault();
+        const asset = this.findAsset(this._maintAssetId);
+        if (!asset) return;
+        if (!this.usageLogs[asset.id]) this.usageLogs[asset.id] = [];
+        const data = {
+            type: 'maintenance',
+            date: document.getElementById('mlDate').value,
+            maintenanceType: document.getElementById('mlType').value,
+            description: document.getElementById('mlDesc').value.trim(),
+            mileage: asset.type === 'trailer' ? null : (parseInt(document.getElementById('mlMileage').value) || null),
+            cost: parseFloat(document.getElementById('mlCost').value) || 0,
+            doneBy: document.getElementById('mlDoneBy').value.trim(),
+        };
+        const existing = this._maintLogId && this.usageLogs[asset.id].find(l => l.id === this._maintLogId);
+        if (existing) Object.assign(existing, data, { editedAt: new Date().toISOString() });
+        else this.usageLogs[asset.id].push({ id: 'log-' + Date.now().toString(36), timestamp: new Date().toISOString(), ...data });
+
+        // keep the unit's service info current
+        const newest = this.maintenanceEntries(asset.id)[0];
+        if (newest) asset.lastMaintenance = newest._date;
+        const next = document.getElementById('mlNext').value;
+        if (next) asset.nextMaintenance = next;
+        if (data.mileage && asset.type !== 'trailer' && data.mileage > (asset.mileage || 0)) asset.mileage = data.mileage;
+
+        this.saveData();
+        this.closeMaintLog();
+        this.showAssetDetail(asset.id);
+        this.renderFleetList();
+    },
+
+    deleteMaintLog() {
+        const asset = this.findAsset(this._maintAssetId);
+        if (!asset || !this._maintLogId) return;
+        if (!confirm('Delete this maintenance entry?')) return;
+        this.usageLogs[asset.id] = (this.usageLogs[asset.id] || []).filter(l => l.id !== this._maintLogId);
+        const newest = this.maintenanceEntries(asset.id)[0];
+        if (newest) asset.lastMaintenance = newest._date;
+        this.saveData();
+        this.closeMaintLog();
+        this.showAssetDetail(asset.id);
     },
 
     // Where a trailer is now, and where it has been

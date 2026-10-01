@@ -911,6 +911,61 @@
         </div>
     </div>
 
+    <!-- Maintenance log entry (add / edit) for one vehicle or trailer -->
+    <div class="qr-form-modal" id="maintLogModal">
+        <div class="qr-form-sheet">
+            <div class="qr-form-header">
+                <h3 id="maintLogTitle">Log Maintenance</h3>
+                <button class="close-form-btn" onclick="app.closeMaintLog()">×</button>
+            </div>
+            <div class="qr-form-content">
+                <form id="maintLogForm" onsubmit="app.submitMaintLog(event)">
+                    <div class="form-group">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-input" id="mlDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Service</label>
+                        <select class="form-input" id="mlType" required>
+                            <option>Oil change</option>
+                            <option>Tires</option>
+                            <option>Brakes</option>
+                            <option>Inspection</option>
+                            <option>Registration / tags</option>
+                            <option>Repair</option>
+                            <option>Lights / electrical</option>
+                            <option>Cleaning</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">What was done</label>
+                        <textarea class="form-input" id="mlDesc" rows="3" placeholder="e.g. Synthetic oil + filter, rotated tires"></textarea>
+                    </div>
+                    <div class="form-group" id="mlMileageGroup">
+                        <label class="form-label">Mileage</label>
+                        <input type="number" class="form-input" id="mlMileage" inputmode="numeric" placeholder="Odometer reading">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Cost ($)</label>
+                        <input type="number" class="form-input" id="mlCost" inputmode="decimal" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Done by</label>
+                        <input type="text" class="form-input" id="mlDoneBy" list="mlPeople" placeholder="Technician or shop">
+                        <datalist id="mlPeople"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Next service due (optional)</label>
+                        <input type="date" class="form-input" id="mlNext">
+                    </div>
+                    <button type="submit" class="form-submit-btn">Save</button>
+                    <button type="button" id="mlDelete" onclick="app.deleteMaintLog()" style="display:none; width:100%; margin-top:10px; padding:12px; background:none; border:1px solid #ef4444; color:#ef4444; border-radius:8px; font-weight:600;">Delete this entry</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- QR Form Modal -->
     <div class="qr-form-modal" id="qrFormModal">
         <div class="qr-form-sheet">
@@ -932,10 +987,6 @@
         <button class="nav-item active" onclick="app.showPage('fleetPage'); app.setActiveNav('fleet')">
             <span class="nav-icon"><i class="fas fa-list"></i></span>
             <span>Fleet</span>
-        </button>
-        <button class="nav-item" onclick="app.showPage('qrPage'); app.setActiveNav('qr')">
-            <span class="nav-icon"><i class="fas fa-qrcode"></i></span>
-            <span>Scan QR</span>
         </button>
         <button class="nav-item" onclick="app.showPage('settingsPage'); app.setActiveNav('settings')">
             <span class="nav-icon"><i class="fas fa-cog"></i></span>
