@@ -492,12 +492,17 @@ const app = {
         if (this._userBusy()) { setTimeout(() => this.refreshCurrentView(), 5000); return; }
         const fleetPage = document.getElementById('fleetPage');
         if (!fleetPage || fleetPage.classList.contains('active')) this.renderFleetList();
+        // a unit's page (e.g. opened by scanning its QR) also shows the latest shared data
+        const detail = document.getElementById('assetDetailPage');
+        if (detail && detail.classList.contains('active') && this.currentVehicle) this.showAssetDetail(this.currentVehicle.id);
+        else this.renderFleetList();
     },
 
     // Don't redraw the list while someone is typing or has a USE menu open
     _userBusy() {
         const el = document.activeElement;
         if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return true;
+        if (document.querySelector('.qr-form-modal.active')) return true;   // a pop-up form/window is open
         return [...document.querySelectorAll('[id^="dropdown-"]')].some(d => d.style.display && d.style.display !== 'none');
     },
 
@@ -745,7 +750,8 @@ const app = {
 
         const detailContent = document.getElementById('assetDetailContent');
         const tracking = this.tracking[asset.id] || {};
-        const statusText = asset.status.replace('-', ' ').toUpperCase();
+        const use = this.currentUsage[asset.id];
+        const statusText = use ? `IN USE · ${use.userName}${use.location ? ' · ' + use.location : ''}` : (asset.status || 'available').replace('-', ' ').toUpperCase();
 
         let specs = '';
         if (asset.type === 'trailer') {
