@@ -354,9 +354,10 @@ function openUnit(n) {
     ${u.comments ? `<div class="row top"><span class="lbl">Comments:</span><span>${esc(u.comments)}</span></div>` : ''}
     <div class="actions"><button class="btn" onclick="openForm('${jsq(n)}')">+ New status sheet</button>
       <button class="btn ghost" onclick="window.print()">Print</button></div>
-    <div class="qr-box"><div class="qr" id="detailQR"></div><div class="qr-url">${esc(link(n))}</div></div>
     <h2>Status sheet history</h2>
-    ${logs.length ? logs.map((l, i) => logHTML(l, i === 0)).join('') : '<p style="color:var(--muted)">No status sheets yet.</p>'}`;
+    ${logs.length ? logs.map((l, i) => logHTML(l, i === 0)).join('') : '<p style="color:var(--muted)">No status sheets yet.</p>'}
+    <h2>QR code for this unit</h2>
+    <div class="qr-box"><div class="qr" id="detailQR"></div><div class="qr-url">${esc(link(n))}</div></div>`;
   if (window.QRCode) new QRCode(document.getElementById('detailQR'), { text: link(n), width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
   show('detail');
 }
