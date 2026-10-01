@@ -1017,7 +1017,7 @@ const app = {
     fleetBadgesHTML(asset) {
         const out = [];
         const n = asset.type === 'trailer' ? 0 : this.openRecallCount(asset);
-        if (n) out.push(`<span style="background:#fef2f2;color:#b91c1c;">⚠ ${n} recall${n === 1 ? '' : 's'} to review</span>`);
+        if (n) out.push(`<span style="background:#fef2f2;color:#b91c1c;">⚠ ${n} recall${n === 1 ? '' : 's'} due</span>`);
         // registration is always shown on the card
         const r = this.registrationInfo(asset);
         const short = r.nice ? new Date(asset.registrationExpiration + 'T12:00:00').toLocaleDateString([], { month: 'short', year: 'numeric' }) : '';
