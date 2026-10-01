@@ -647,8 +647,8 @@ const app = {
     async renderFleetList() {
         const assetList = document.getElementById('assetList');
         const items = this.currentTab === 'vehicles' ? this.vehicles : this.trailers;
-
-        assetList.innerHTML = '';
+        const renderId = (this._renderSeq = (this._renderSeq || 0) + 1);
+        const frag = document.createDocumentFragment();
         
         // Process each item, loading photos asynchronously
         for (const item of items) {
@@ -679,8 +679,8 @@ const app = {
                 : '';
 
             card.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-                    <div style="flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0;" onclick="app.showAssetDetail('${item.id}')">
+                <div class="asset-row" style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                    <div class="asset-main" style="flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0;" onclick="app.showAssetDetail('${item.id}')">
                         <div class="asset-icon">${iconDisplay}</div>
                         <div class="asset-info">
                             <div class="asset-name">${item.name}</div>
@@ -693,7 +693,7 @@ const app = {
                             ${alertBadges}
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px; position: relative;">
+                    <div class="asset-actions" style="display: flex; align-items: center; gap: 8px; position: relative;">
                         ${isInUse ? `
                         <div style="display: flex; gap: 6px;">
                             <button onclick="app.showUsageDetails('${item.id}')" style="padding: 8px 12px; background: #f59e0b; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap;">
@@ -730,8 +730,10 @@ const app = {
                 </div>
             `;
 
-            assetList.appendChild(card);
+            frag.appendChild(card);
         }
+        if (renderId !== this._renderSeq) return;   // a newer redraw started while photos loaded
+        assetList.replaceChildren(frag);
         if (this.currentTab === 'vehicles') this.prefetchRecalls();
     },
 

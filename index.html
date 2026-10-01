@@ -30,7 +30,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-            background: #f8f9fa;
+            background: linear-gradient(135deg, #1F4E79 0%, #2D3847 100%);   /* same as the live app */
             display: flex;
             flex-direction: column;
         }
@@ -741,6 +741,18 @@
             input, select, textarea { font-size: 16px !important; }
         }
         html, body { max-width: 100%; overflow-x: hidden; }
+
+        /* ---- smaller phones (iPhone 15 and similar): buttons go under the details ---- */
+        @media (max-width: 430px) {
+            .asset-row { flex-wrap: wrap !important; }
+            .asset-main { flex: 1 1 100% !important; width: 100%; }
+            .asset-actions { width: 100% !important; justify-content: flex-end !important; margin-top: 10px; }
+        }
+
+        /* unit page sits on the dark background: keep its title and Back link readable */
+        #assetDetailPage > div > button { color: #ffffff !important; }
+        #assetDetailContent > h2 { color: #ffffff !important; }
+        #assetDetailContent > h2 + p { color: #cbd5e1 !important; }
 
         /* ---- iPhone Safari form fixes (date pickers, dropdowns, pop-up sheets) ---- */
         .qr-form-sheet {
