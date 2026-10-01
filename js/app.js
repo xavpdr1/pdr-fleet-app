@@ -489,8 +489,16 @@ const app = {
     },
 
     refreshCurrentView() {
+        if (this._userBusy()) { setTimeout(() => this.refreshCurrentView(), 5000); return; }
         const fleetPage = document.getElementById('fleetPage');
         if (!fleetPage || fleetPage.classList.contains('active')) this.renderFleetList();
+    },
+
+    // Don't redraw the list while someone is typing or has a USE menu open
+    _userBusy() {
+        const el = document.activeElement;
+        if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return true;
+        return [...document.querySelectorAll('[id^="dropdown-"]')].some(d => d.style.display && d.style.display !== 'none');
     },
 
     // Photo: this device first, then the cloud (and keep a copy on the device)
@@ -656,6 +664,10 @@ const app = {
             const statusColor = this.getStatusColor(item.status);
             const isInUse = this.currentUsage[item.id];
             const usageInfo = isInUse ? `<div style="font-size: 12px; color: #f59e0b; font-weight: 600; margin-top: 4px;">⚠️ In use by ${isInUse.userName}${isInUse.location ? ` at ${isInUse.location}` : ''}</div>` : '';
+            const here = (isInUse && isInUse.location) || item.lastLocation;
+            const locationInfo = item.type === 'trailer'
+                ? `<div style="font-size: 12px; color: #374151; margin-top: 4px;"><i class="fas fa-map-marker-alt" style="color: #2E75B6;"></i> ${here ? (isInUse ? '' : 'Last at: ') + here : 'Location not set'}</div>`
+                : '';
 
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
@@ -668,6 +680,7 @@ const app = {
                                 ${secondaryInfo}
                             </div>
                             ${usageInfo}
+                            ${isInUse && isInUse.location ? '' : locationInfo}
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px; position: relative;">
@@ -688,8 +701,10 @@ const app = {
                             <div id="dropdown-${item.id}" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 6px; min-width: 200px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; margin-top: 4px;">
                                 <div style="padding: 8px 0;">
                                     ${item.type === 'trailer' ? `
-                                        <div style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6;">
-                                            <input type="text" id="trailerLocation-${item.id}" placeholder="Location" style="width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px;">
+                                        <div style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6;" onclick="event.stopPropagation()">
+                                            <label for="trailerLocation-${item.id}" style="display: block; font-size: 11px; font-weight: 700; color: #1F4E79; margin-bottom: 4px;"><i class="fas fa-map-marker-alt"></i> Location (where is it going?)</label>
+                                            <input type="text" id="trailerLocation-${item.id}" value="${(item.lastLocation || '').replace(/"/g, '&quot;')}" placeholder="e.g. Lewisville shop, job site address" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
+                                            <div style="font-size: 11px; color: #6b7280; margin-top: 6px;">Then pick who is using it:</div>
                                         </div>
                                     ` : ''}
                                     ${this.people.map(person => `
@@ -777,6 +792,8 @@ const app = {
 
             ${specs}
 
+            ${asset.type === 'trailer' ? this.trailerLocationHTML(asset) : ''}
+
             <div style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                 <div style="font-weight: 600; color: #1F4E79; margin-bottom: 12px; font-size: 14px;">Information</div>
                 <div style="display: grid; gap: 8px; font-size: 14px;">
@@ -836,6 +853,25 @@ const app = {
         this.showPage('assetDetailPage');
         const mini = document.getElementById('assetQrMini');
         if (mini && window.QRCode) new QRCode(mini, { text: this.assetLink(asset.id), width: 84, height: 84, correctLevel: QRCode.CorrectLevel.M });
+    },
+
+    // Where a trailer is now, and where it has been
+    trailerLocationHTML(asset) {
+        const use = this.currentUsage[asset.id];
+        const now = (use && use.location) || asset.lastLocation;
+        const history = (this.usageLogs[asset.id] || []).filter(l => l.location).slice(-5).reverse();
+        const when = t => t ? new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+        return `
+            <div style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-weight: 600; color: #1F4E79; margin-bottom: 10px; font-size: 14px;"><i class="fas fa-map-marker-alt"></i> Location</div>
+                <div style="font-size: 16px; font-weight: 600; color: #1f2937;">${now || 'Not set yet'}</div>
+                <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${use ? `In use by ${use.userName} since ${when(use.startTime)}` : now ? `Last recorded ${when(asset.lastLocationAt)}` : 'Enter a location when you tap USE'}</div>
+                ${history.length ? `
+                    <div style="margin-top: 12px; border-top: 1px solid #f3f4f6; padding-top: 10px; font-size: 13px;">
+                        <div style="color: #6b7280; font-size: 12px; margin-bottom: 6px;">Recent locations</div>
+                        ${history.map(h => `<div style="display: flex; justify-content: space-between; gap: 8px; padding: 4px 0;"><span style="color: #1f2937;">${h.location}</span><span style="color: #6b7280; white-space: nowrap;">${h.userName || ''} · ${when(h.startTime)}</span></div>`).join('')}
+                    </div>` : ''}
+            </div>`;
     },
 
     // ===== QR codes for vehicles & trailers =====
@@ -1183,6 +1219,7 @@ const app = {
 
         // Update asset status to in-use
         asset.status = 'in-use';
+        if (location && location.trim()) { asset.lastLocation = location.trim(); asset.lastLocationAt = new Date().toISOString(); }
 
         // Log to usage logs
         if (!this.usageLogs[assetId]) {
@@ -1227,6 +1264,7 @@ const app = {
 
         // Update asset status to in-use
         asset.status = 'in-use';
+        if (location && location.trim()) { asset.lastLocation = location.trim(); asset.lastLocationAt = new Date().toISOString(); }
 
         // Log to usage logs
         if (!this.usageLogs[assetId]) {
@@ -1637,7 +1675,7 @@ const app = {
             this.loadTrackingData().then(() => {
                 // Refresh fleet list if on fleet page
                 const fleetPage = document.getElementById('fleetPage');
-                if (fleetPage && fleetPage.classList.contains('active')) {
+                if (fleetPage && fleetPage.classList.contains('active') && !this._userBusy()) {
                     this.renderFleetList();
                 }
             });
