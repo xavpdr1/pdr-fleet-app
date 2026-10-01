@@ -369,12 +369,15 @@ const app = {
                 ]);
 
                 if (cloudData && cloudData.people && cloudData.people.length > 0) {
+                    // SAFETY: only take a list from the cloud if the cloud actually has items.
+                    // (Vehicle/trailer uploads were failing, so the cloud lists were empty and
+                    //  used to wipe the data saved on this device.)
                     console.log('✓ Loading data from Supabase cloud...');
                     this.people = cloudData.people;
-                    this.vehicles = cloudData.vehicles || [];
-                    this.trailers = cloudData.trailers || [];
-                    // Also save to localStorage as backup
-                    this.saveToLocalStorage();
+                    if (cloudData.vehicles && cloudData.vehicles.length > 0) this.vehicles = cloudData.vehicles;
+                    if (cloudData.trailers && cloudData.trailers.length > 0) this.trailers = cloudData.trailers;
+                    await this.saveData();
+                    this.renderFleetList();
                 } else {
                     // Cloud empty, sync local data to cloud
                     console.log('ℹ️ Cloud empty, syncing local data...');
