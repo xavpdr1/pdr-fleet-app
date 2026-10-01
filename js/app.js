@@ -957,9 +957,15 @@ const app = {
     },
 
     recallStatusOf(asset, id) { return (asset.recallStatus || {})[id] || null; },
-    openRecallCount(asset) {
+    // "Currently due" = issued in the last 12 months and not yet marked done / doesn't apply
+    _recallIsRecent(r) { return r.date && (Date.now() - new Date(r.date + 'T12:00:00')) / 864e5 <= 365; },
+    dueRecalls(asset) {
         const data = this._recallMem[asset.id];
-        return data && data.recalls ? data.recalls.filter(r => !this.recallStatusOf(asset, r.id)).length : null;
+        return data && data.recalls ? data.recalls.filter(r => this._recallIsRecent(r) && !this.recallStatusOf(asset, r.id)) : null;
+    },
+    openRecallCount(asset) {
+        const due = this.dueRecalls(asset);
+        return due ? due.length : null;
     },
 
     recallCardHTML(asset) {
@@ -971,9 +977,9 @@ const app = {
         const box = inner => `<div style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">${inner}</div>`;
         if (!data) return box(head('') + '<div style="font-size: 13px; color: #6b7280;">Checking NHTSA for recalls…</div>');
         if (data.error) return box(head('') + `<div style="font-size: 13px; color: #6b7280;">${data.error}</div>`);
-        const open = data.recalls.filter(r => !this.recallStatusOf(asset, r.id));
+        const open = this.dueRecalls(asset);
         const [bg, fg] = this._alertColors[open.length ? 'bad' : 'ok'];
-        const pill = `<span style="background: ${bg}; color: ${fg}; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 99px;">${open.length ? open.length + ' to review' : 'All reviewed'}</span>`;
+        const pill = `<span style="background: ${bg}; color: ${fg}; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 99px;">${open.length ? open.length + ' due' : 'None due'}</span>`;
         const fmt = d => d ? new Date(d + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '';
         const row = r => {
             const st = this.recallStatusOf(asset, r.id);
@@ -987,8 +993,8 @@ const app = {
                 </div>`;
         };
         return box(head(pill) + `
-            <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">${data.year} ${data.make} ${data.model} · ${data.recalls.length} recall${data.recalls.length === 1 ? '' : 's'} on file for this model year. Not all may apply to this truck: check the VIN below, then mark each one Repair done or Doesn't apply.</div>
-            ${data.recalls.length ? open.map(row).join('') + data.recalls.filter(r => this.recallStatusOf(asset, r.id)).map(row).join('') : '<div style="font-size: 13px; color: #047857; margin-top: 6px;">No recalls on file for this vehicle.</div>'}
+            <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">${data.year} ${data.make} ${data.model} · recalls issued in the last 12 months that haven't been marked done</div>
+            ${open.length ? open.map(row).join('') : '<div style="font-size: 13px; color: #047857; margin-top: 6px;">No current recalls for this vehicle.</div>'}
             <a href="https://www.nhtsa.gov/recalls?vin=${encodeURIComponent(asset.vin || '')}" target="_blank" rel="noopener" style="display: block; font-size: 12px; color: #2E75B6; margin-top: 10px;">Check which are still open for this exact VIN on NHTSA.gov →</a>`);
     },
 
