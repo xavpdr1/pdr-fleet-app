@@ -176,8 +176,10 @@
         }
 
         .asset-icon {
-            width: 40px;
-            height: 40px;
+            width: 56px;
+            height: 56px;
+            flex: 0 0 56px;
+            overflow: hidden;
             background: #D9E1F2;
             border-radius: 8px;
             display: flex;
@@ -189,6 +191,27 @@
 
         .asset-info {
             flex: 1;
+            min-width: 0;
+        }
+
+        /* ---- printable QR labels ---- */
+        .qr-labels-bar { display: flex; gap: 8px; margin-bottom: 14px; }
+        .qr-labels-bar button { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; }
+        .qr-labels-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+        .qr-label { background: white; border: 1px dashed #9ca3af; border-radius: 10px; padding: 12px; text-align: center; break-inside: avoid; }
+        .qr-label .qr-box { display: flex; justify-content: center; margin-bottom: 8px; }
+        .qr-label .qr-box img, .qr-label .qr-box canvas { width: 140px !important; height: 140px !important; }
+        .qr-label .qr-name { font-weight: 700; font-size: 15px; color: #111827; }
+        .qr-label .qr-sub { font-size: 11px; color: #4b5563; margin-top: 2px; }
+        .qr-labels-section { display: inline-block; background: white; color: #1F4E79; font-weight: 700; margin: 6px 0 10px; font-size: 14px; padding: 6px 12px; border-radius: 99px; }
+        @media print {
+            body.printing-labels > *:not(.main-content) { display: none !important; }
+            body.printing-labels .main-content > .page:not(#qrLabelsPage) { display: none !important; }
+            body.printing-labels #qrLabelsPage { display: block !important; }
+            body.printing-labels .qr-labels-bar { display: none !important; }
+            body.printing-labels { background: white !important; }
+            body.printing-labels .qr-labels-section { padding: 0; }
+            body.printing-labels .qr-labels-grid { grid-template-columns: repeat(3, 1fr); }
         }
 
         .asset-name {
@@ -733,6 +756,20 @@
                     </button>
                 </div>
                 <div class="asset-list" id="assetList"></div>
+                <button onclick="app.showQRLabels()" style="width: 100%; margin-top: 16px; padding: 14px; background: white; color: #2E75B6; border: 1px solid #c7d4e6; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer;">
+                    <i class="fas fa-qrcode"></i> QR codes for all vehicles &amp; trailers
+                </button>
+            </div>
+        </div>
+
+        <!-- Printable QR labels for every vehicle and trailer -->
+        <div class="page" id="qrLabelsPage">
+            <div style="padding: 16px; padding-top: 12px;">
+                <div class="qr-labels-bar">
+                    <button onclick="app.showPage('fleetPage'); app.setActiveNav('fleet')" style="background: white; color: #2E75B6;"><i class="fas fa-arrow-left"></i> Back</button>
+                    <button onclick="app.printQRLabels()" style="background: #2E75B6; color: white;"><i class="fas fa-print"></i> Print labels</button>
+                </div>
+                <div id="qrLabelsContent"></div>
             </div>
         </div>
 

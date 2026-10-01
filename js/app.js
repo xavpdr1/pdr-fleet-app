@@ -445,6 +445,7 @@ const app = {
                 await window.dataStorage.saveAllData(this.people, this.vehicles, this.trailers, this.currentUsage);
             }
             if (localChanged) this.refreshCurrentView();
+            if (this._pendingAssetId) this.openAssetFromLink();
             this.syncPhotos();
             console.log(`✓ Cloud sync done (${toPush.length} uploaded${localChanged ? ', device updated' : ''})`);
         } catch (err) {
@@ -564,6 +565,9 @@ const app = {
         // Render fleet list
         this.renderFleetList();
 
+        // Opened by scanning a vehicle/trailer QR code?
+        this.openAssetFromLink();
+
         // Set up real-time updates
         this.setupAutoUpdates();
     },
@@ -606,8 +610,8 @@ const app = {
 
             const fallbackEmoji = this.currentTab === 'vehicles' ? '🚗' : '🚛';
             const iconDisplay = photoData ?
-                `<div style="width: 56px; height: 56px; flex-shrink: 0; overflow: hidden; border-radius: 8px; background: #e5e7eb; display: flex; align-items: center; justify-content: center;"><img src="${photoData}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover;"></div>`
-                : `<div style="font-size: 28px; display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; flex-shrink: 0; background: #e5e7eb; border-radius: 8px;">${fallbackEmoji}</div>`;
+                `<img src="${photoData}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover; display: block;">`
+                : `<span style="font-size: 28px; line-height: 1;">${fallbackEmoji}</span>`;
             const secondaryInfo = item.type === 'trailer'
                 ? `${item.licensePlate} • ${item.capacity} lbs`
                 : `${item.licensePlate} • ${item.mileage.toLocaleString()} mi`;
@@ -618,7 +622,7 @@ const app = {
 
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-                    <div style="flex: 1;" onclick="app.showAssetDetail('${item.id}')">
+                    <div style="flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0;" onclick="app.showAssetDetail('${item.id}')">
                         <div class="asset-icon">${iconDisplay}</div>
                         <div class="asset-info">
                             <div class="asset-name">${item.name}</div>
@@ -786,6 +790,57 @@ const app = {
         this.showPage('assetDetailPage');
     },
 
+    // ===== QR codes for vehicles & trailers =====
+    // Permanent link printed on each unit's label
+    assetLink(assetId) {
+        return `${window.location.origin}${window.location.pathname}?asset=${encodeURIComponent(assetId)}`;
+    },
+
+    findAsset(assetId) {
+        return this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
+    },
+
+    openAssetFromLink() {
+        const params = new URLSearchParams(window.location.search);
+        const id = this._pendingAssetId || params.get('asset') || params.get('vehicle');
+        if (!id) return;
+        const asset = this.findAsset(id);
+        if (!asset) { this._pendingAssetId = id; return; } // wait for cloud sync
+        this._pendingAssetId = null;
+        history.replaceState(null, '', window.location.pathname);
+        this.currentTab = asset.type === 'trailer' || this.trailers.includes(asset) ? 'trailers' : 'vehicles';
+        this.showAssetDetail(id);
+    },
+
+    showQRLabels() {
+        const label = a => `
+            <div class="qr-label">
+                <div class="qr-box" data-qr="${this.assetLink(a.id)}"></div>
+                <div class="qr-name">${a.name || a.id}</div>
+                <div class="qr-sub">${[a.licensePlate, a.appletag].filter(Boolean).join(' • ')}</div>
+                <div class="qr-sub">Scan for details &amp; logs</div>
+            </div>`;
+        const section = (title, list) => list.length ? `
+            <div class="qr-labels-section">${title} (${list.length})</div>
+            <div class="qr-labels-grid" style="margin-bottom: 18px;">${list.map(label).join('')}</div>` : '';
+        const el = document.getElementById('qrLabelsContent');
+        el.innerHTML = section('Vehicles', this.vehicles) + section('Trailers', this.trailers)
+            || '<div style="color: white;">No vehicles or trailers yet.</div>';
+        el.querySelectorAll('[data-qr]').forEach(box => {
+            new QRCode(box, { text: box.dataset.qr, width: 280, height: 280, correctLevel: QRCode.CorrectLevel.M, colorDark: '#000000', colorLight: '#ffffff' });
+        });
+        this.showPage('qrLabelsPage');
+        window.scrollTo(0, 0);
+    },
+
+    printQRLabels() {
+        document.body.classList.add('printing-labels');
+        const done = () => { document.body.classList.remove('printing-labels'); window.removeEventListener('afterprint', done); };
+        window.addEventListener('afterprint', done);
+        setTimeout(() => window.print(), 50);
+        setTimeout(done, 60000);
+    },
+
     // Open QR code for current asset
     openAssetQR() {
         if (!this.currentVehicle) return;
@@ -793,7 +848,7 @@ const app = {
         const qrContainer = document.getElementById('qrCodeDisplay');
         qrContainer.innerHTML = '';
 
-        const qrUrl = `${window.location.href}?asset=${this.currentVehicle.id}`;
+        const qrUrl = this.assetLink(this.currentVehicle.id);
         new QRCode(qrContainer, {
             text: qrUrl,
             width: 250,
@@ -1661,7 +1716,7 @@ const app = {
         setTimeout(() => {
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = '';
-            const qrUrl = `${window.location.href}?vehicle=${vehicle.id}&appletag=${vehicle.appletag}`;
+            const qrUrl = this.assetLink(vehicle.id);
             new QRCode(qrContainer, {
                 text: qrUrl,
                 width: 200,
@@ -1692,7 +1747,7 @@ const app = {
 
         // Generate QR code
         qrContainer.innerHTML = '';
-        const qrUrl = `${window.location.href}?vehicle=${this.currentVehicle.id}&appletag=${this.currentVehicle.appletag}`;
+        const qrUrl = this.assetLink(this.currentVehicle.id);
         new QRCode(qrContainer, {
             text: qrUrl,
             width: 300,
@@ -2559,29 +2614,16 @@ const app = {
     },
 
     debugLocalStorage() {
-        const savedData = localStorage.getItem('pdrFleetAppData');
-        if (savedData) {
-            const data = JSON.parse(savedData);
-            const peopleCount = data.people ? data.people.length : 0;
-            const vehicleCount = data.vehicles ? data.vehicles.length : 0;
-            const trailerCount = data.trailers ? data.trailers.length : 0;
-            return `
-                <div style="background: #f0f0f0; padding: 16px; border-radius: 8px; margin: 16px 0; font-family: monospace; font-size: 12px;">
-                    <div style="color: #333; margin-bottom: 8px;"><strong>📦 localStorage Status:</strong></div>
-                    <div style="color: #666;">✓ ${peopleCount} team members saved</div>
-                    <div style="color: #666;">✓ ${vehicleCount} vehicles saved</div>
-                    <div style="color: #666;">✓ ${trailerCount} trailers saved</div>
-                    <div style="color: #999; margin-top: 8px; font-size: 11px;">Last saved: ${data.lastSaved || 'unknown'}</div>
-                </div>
-            `;
-        } else {
-            return `
-                <div style="background: #ffe0e0; padding: 16px; border-radius: 8px; margin: 16px 0; font-family: monospace; font-size: 12px;">
-                    <div style="color: #d00;"><strong>❌ No data in localStorage</strong></div>
-                    <div style="color: #999; margin-top: 8px; font-size: 11px;">Your changes may not be saving</div>
-                </div>
-            `;
-        }
+        const cloud = this._cloudReady ? '✓ Synced with the cloud' : '… Cloud sync not confirmed yet (data is saved on this device)';
+        return `
+            <div style="background: #f0f0f0; padding: 16px; border-radius: 8px; margin: 16px 0; font-family: monospace; font-size: 12px;">
+                <div style="color: #333; margin-bottom: 8px;"><strong>📦 Saved data</strong></div>
+                <div style="color: #666;">✓ ${this.people.length} team members</div>
+                <div style="color: #666;">✓ ${this.vehicles.length} vehicles</div>
+                <div style="color: #666;">✓ ${this.trailers.length} trailers</div>
+                <div style="color: #999; margin-top: 8px; font-size: 11px;">${cloud}</div>
+            </div>
+        `;
     },
 
     renderAppSettings() {
