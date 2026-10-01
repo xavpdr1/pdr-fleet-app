@@ -1,849 +1,416 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Colibri Maintenance Tracker</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-    <style>
-        /* Design system: Professional maintenance tracking for field technicians */
-        :root {
-            --bg: #fafbfc;
-            --bg-secondary: #ffffff;
-            --fg: #1a2332;
-            --fg-secondary: #627892;
-            --border: #d8e0ea;
-            --accent: #2563eb;
-            --accent-light: #dbeafe;
-            --success: #059669;
-            --warning: #d97706;
-            --error: #dc2626;
-            --font-display: 'Inter', sans-serif;
-            --font-body: 'Inter', sans-serif;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Colibri Status Sheet</title>
+<style>
+  :root {
+    --bg: #eef1f5;
+    --paper: #ffffff;
+    --fg: #1a1f2b;
+    --muted: #5f6b7a;
+    --line: #c9d1dc;
+    --head: #2b65a0;
+    --accent: #2b5ea7;
+    --yes: #13814f;
+    --yes-bg: #e3f4ea;
+    --no: #c0352b;
+    --no-bg: #fbe6e4;
+    --warn: #b86e00;
+    --warn-bg: #fff1d9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10141b; --paper: #1a202a; --fg: #eef2f7; --muted: #9aa6b5; --line: #2f3846;
+      --head: #6fa6e0; --accent: #5b93d6; --yes: #3ccf87; --yes-bg: #143326; --no: #ff7b70; --no-bg: #3a1a18;
+      --warn: #f2b24d; --warn-bg: #3a2b10; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10141b; --paper: #1a202a; --fg: #eef2f7; --muted: #9aa6b5; --line: #2f3846;
+    --head: #6fa6e0; --accent: #5b93d6; --yes: #3ccf87; --yes-bg: #143326; --no: #ff7b70; --no-bg: #3a1a18;
+    --warn: #f2b24d; --warn-bg: #3a2b10; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: Arial, Helvetica, sans-serif; line-height: 1.45; padding: 0 12px 40px; }
+  .wrap { max-width: 720px; margin: 0 auto; }
 
-        @media (prefers-color-scheme: dark) {
-            :root:not([data-theme="light"]) {
-                --bg: #0f1419;
-                --bg-secondary: #1a1f2e;
-                --fg: #f1f5f9;
-                --fg-secondary: #a0afc0;
-                --border: #2d3748;
-                --accent: #3b82f6;
-                --accent-light: #1e40af;
-                --success: #10b981;
-                --warning: #f59e0b;
-                --error: #ef4444;
-                color-scheme: dark;
-            }
-        }
+  .topbar { display: flex; gap: 6px; padding: 12px 0; position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  .topbar button { flex: 1; padding: 10px 8px; border: 1px solid var(--line); background: var(--paper); color: var(--fg); border-radius: 8px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .topbar button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-        :root[data-theme="dark"] {
-            --bg: #0f1419;
-            --bg-secondary: #1a1f2e;
-            --fg: #f1f5f9;
-            --fg-secondary: #a0afc0;
-            --border: #2d3748;
-            --accent: #3b82f6;
-            --accent-light: #1e40af;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --error: #ef4444;
-            color-scheme: dark;
-        }
+  .sheet { background: var(--paper); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 22px 20px 26px; }
+  .sheet-head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+  .logo { width: 110px; height: 40px; overflow: hidden; background: #fff; border-radius: 4px; }
+  .logo img { width: 110px; display: block; }
+  .sheet h1 { text-align: center; color: var(--head); font-weight: 400; font-size: 26px; margin: 18px 0 10px; padding-bottom: 14px; border-bottom: 1px solid var(--fg); }
+  .sheet h2 { color: var(--head); font-weight: 400; font-size: 20px; margin: 22px 0 8px; }
 
-        * {
-            box-sizing: border-box;
-        }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; align-items: center; padding: 6px 0; }
+  .row > label, .row > .lbl { font-size: 15px; }
+  .row.top { align-items: start; }
+  .lbl em { color: var(--muted); font-style: normal; font-size: 13px; }
+  input[type=text], input[type=date], textarea {
+    width: 100%; font: inherit; font-size: 16px; color: var(--fg); background: transparent;
+    border: none; border-bottom: 1px solid var(--muted); padding: 6px 2px; border-radius: 0;
+  }
+  textarea { min-height: 44px; resize: vertical; }
+  input:focus, textarea:focus { outline: none; border-bottom: 2px solid var(--accent); }
+  input[readonly] { color: var(--fg); font-weight: 700; border-bottom-style: dotted; }
 
-        body {
-            background: var(--bg);
-            color: var(--fg);
-            font-family: var(--font-body);
-            line-height: 1.6;
-            padding: 0 16px;
-            margin: 0;
-        }
+  .yn { display: flex; gap: 8px; }
+  .yn label { flex: 1; max-width: 90px; position: relative; }
+  .yn input { position: absolute; opacity: 0; pointer-events: none; }
+  .yn span { display: block; text-align: center; padding: 8px 0; border: 1.5px solid var(--line); border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; user-select: none; }
+  .yn input:checked + span.y { background: var(--yes-bg); border-color: var(--yes); color: var(--yes); }
+  .yn input:checked + span.n { background: var(--no-bg); border-color: var(--no); color: var(--no); }
+  .yn input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .item-note { display: none; margin-top: 6px; }
+  .item-note.show { display: block; }
+  .note-toggle { background: none; border: none; color: var(--accent); font: inherit; font-size: 13px; padding: 4px 0 0; cursor: pointer; text-align: left; }
+  .missing .yn span { border-color: var(--warn); background: var(--warn-bg); }
 
-        html, body {
-            height: 100%;
-        }
+  .sig-wrap { border-bottom: 1px solid var(--muted); position: relative; background: #fff; border-radius: 4px 4px 0 0; }
+  #sigPad { width: 100%; height: 110px; display: block; touch-action: none; cursor: crosshair; }
+  .sig-clear { position: absolute; right: 4px; top: 2px; background: none; border: none; color: #2b5ea7; font: inherit; font-size: 13px; cursor: pointer; }
 
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
+  .btn { display: inline-block; padding: 12px 18px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; text-decoration: none; }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .btn.block { width: 100%; margin-top: 24px; padding: 15px; font-size: 16px; }
+  .error { color: var(--no); font-size: 14px; margin-top: 10px; display: none; }
 
-        /* Header */
-        .header {
-            padding: 20px 0;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 20px;
-        }
+  .units { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .unit { background: var(--paper); border-radius: 10px; padding: 16px; cursor: pointer; border: 1px solid var(--line); }
+  .unit h3 { margin: 0 0 4px; font-size: 18px; }
+  .unit p { margin: 0; color: var(--muted); font-size: 14px; }
+  .pill { display: inline-block; margin-top: 10px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+  .pill.ok { background: var(--yes-bg); color: var(--yes); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.bad { background: var(--no-bg); color: var(--no); }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; }
 
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+  .log { border: 1px solid var(--line); border-radius: 8px; margin-top: 10px; overflow: hidden; }
+  .log summary { padding: 12px 14px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; list-style: none; }
+  .log summary::-webkit-details-marker { display: none; }
+  .log summary b { font-size: 15px; }
+  .log summary small { color: var(--muted); }
+  .log .body { padding: 4px 14px 14px; border-top: 1px solid var(--line); font-size: 14px; }
+  .log .body h4 { color: var(--head); font-weight: 400; font-size: 16px; margin: 14px 0 4px; }
+  .kv { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 3px 0; border-bottom: 1px dotted var(--line); }
+  .kv .note { grid-column: 1 / -1; color: var(--muted); font-style: italic; }
+  .tag-y { color: var(--yes); font-weight: 700; }
+  .tag-n { color: var(--no); font-weight: 700; }
+  .cmt { margin: 6px 0 0; white-space: pre-wrap; }
+  .cmt::before { content: "Comments: "; color: var(--muted); }
+  .cmt:empty { display: none; }
+  .sig-img { max-width: 220px; max-height: 80px; background: #fff; border-radius: 4px; margin-top: 6px; }
 
-        .logo {
-            font-size: 28px;
-        }
+  .qr-box { text-align: center; margin: 18px 0 6px; }
+  .qr-box .qr { display: inline-block; background: #fff; padding: 12px; border-radius: 8px; }
+  .qr-url { font-size: 11px; color: var(--muted); word-break: break-all; margin-top: 6px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 
-        /* Navigation Tabs */
-        .nav-tabs {
-            display: flex;
-            gap: 0;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 20px;
-            position: sticky;
-            top: env(safe-area-inset-top, 0px);
-            background: var(--bg);
-            z-index: 10;
-        }
+  .page { display: none; }
+  .page.active { display: block; }
 
-        .nav-tabs button {
-            flex: 1;
-            padding: 12px 16px;
-            background: none;
-            border: none;
-            border-bottom: 3px solid transparent;
-            color: var(--fg-secondary);
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .nav-tabs button.active {
-            color: var(--accent);
-            border-bottom-color: var(--accent);
-        }
-
-        .nav-tabs button:hover {
-            color: var(--fg);
-        }
-
-        /* Pages */
-        .page {
-            display: none;
-        }
-
-        .page.active {
-            display: block;
-        }
-
-        /* Dashboard Grid */
-        .units-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-
-        .unit-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .unit-card:hover {
-            border-color: var(--accent);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .unit-card h3 {
-            margin: 0 0 8px;
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .unit-card p {
-            margin: 4px 0;
-            font-size: 13px;
-            color: var(--fg-secondary);
-        }
-
-        .unit-status {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 8px;
-        }
-
-        .status-good {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--success);
-        }
-
-        .status-warning {
-            background: rgba(217, 119, 6, 0.1);
-            color: var(--warning);
-        }
-
-        .status-overdue {
-            background: rgba(220, 38, 38, 0.1);
-            color: var(--error);
-        }
-
-        /* Form */
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 14px;
-            background: var(--bg-secondary);
-            color: var(--fg);
-            transition: border-color 0.2s;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-light);
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        /* Checkbox group */
-        .checkbox-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 400;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .checkbox-label input {
-            width: auto;
-            cursor: pointer;
-        }
-
-        /* Buttons */
-        .button {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .button-primary {
-            background: var(--accent);
-            color: white;
-            width: 100%;
-        }
-
-        .button-primary:hover {
-            background: #1d4ed8;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-        }
-
-        .button-secondary {
-            background: var(--bg-secondary);
-            color: var(--fg);
-            border: 1px solid var(--border);
-        }
-
-        .button-secondary:hover {
-            background: var(--border);
-        }
-
-        .button-small {
-            padding: 8px 12px;
-            font-size: 12px;
-        }
-
-        /* Log entry */
-        .log-entry {
-            background: var(--bg-secondary);
-            border-left: 4px solid var(--accent);
-            padding: 12px 16px;
-            margin-bottom: 12px;
-            border-radius: 4px;
-        }
-
-        .log-entry .date {
-            font-size: 12px;
-            color: var(--fg-secondary);
-            margin-bottom: 6px;
-            font-weight: 600;
-        }
-
-        .log-entry .person {
-            font-size: 13px;
-            color: var(--fg-secondary);
-            margin-top: 6px;
-        }
-
-        /* QR Code Section */
-        .qr-section {
-            text-align: center;
-            padding: 20px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .qr-section canvas {
-            max-width: 200px;
-            margin: 12px auto;
-            display: block;
-        }
-
-        .qr-code-url {
-            font-family: monospace;
-            font-size: 12px;
-            background: var(--bg);
-            padding: 8px;
-            border-radius: 4px;
-            word-break: break-all;
-            margin-top: 12px;
-            color: var(--fg-secondary);
-        }
-
-        /* Empty state */
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--fg-secondary);
-        }
-
-        .empty-state p {
-            margin: 12px 0;
-        }
-
-        /* Alerts */
-        .alert {
-            padding: 12px 16px;
-            border-radius: 6px;
-            margin-bottom: 16px;
-            font-size: 14px;
-        }
-
-        .alert-success {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--success);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .alert-info {
-            background: rgba(59, 130, 246, 0.1);
-            color: var(--accent);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-        }
-
-        /* Utility */
-        [hidden] {
-            display: none !important;
-        }
-
-        .back-button {
-            background: none;
-            border: none;
-            color: var(--accent);
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            padding: 0;
-        }
-
-        .back-button:hover {
-            text-decoration: underline;
-        }
-
-        .text-right {
-            text-align: right;
-        }
-
-        .mt-4 {
-            margin-top: 16px;
-        }
-    </style>
+  @media (max-width: 520px) {
+    .row { grid-template-columns: 1fr; gap: 4px; }
+    .yn label { max-width: none; }
+    .sheet { padding: 18px 14px 22px; }
+  }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .topbar, .actions, .btn { display: none !important; }
+    .sheet { box-shadow: none; }
+    details.log { break-inside: avoid; }
+  }
+</style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>
-                <span class="logo">🔧</span>
-                <span>Colibri Tracker</span>
-            </h1>
-        </div>
+<div class="wrap">
+  <div class="topbar">
+    <button data-nav="dashboard" class="active">Units</button>
+    <button data-nav="add">Add Unit</button>
+  </div>
 
-        <!-- Navigation Tabs -->
-        <div class="nav-tabs">
-            <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
-            <button class="nav-tab" data-tab="log-maintenance">Log Work</button>
-            <button class="nav-tab" data-tab="add-unit">Add Unit</button>
-        </div>
+  <section id="dashboard" class="page active"><div id="units" class="units"></div></section>
+  <section id="detail" class="page"><div class="sheet" id="detailBody"></div></section>
+  <section id="form" class="page"><div class="sheet" id="formBody"></div></section>
 
-        <!-- Dashboard Page -->
-        <div id="dashboard" class="page active">
-            <div id="unitsContainer" class="units-grid">
-                <div class="empty-state">
-                    <p>No Colibri units registered yet.</p>
-                    <p>Go to "Add Unit" to get started.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Unit Detail Page -->
-        <div id="unit-detail" class="page">
-            <button class="back-button" onclick="showPage('dashboard')">← Back to Dashboard</button>
-            <div id="unitDetailContent"></div>
-        </div>
-
-        <!-- Log Maintenance Page -->
-        <div id="log-maintenance" class="page">
-            <div id="maintenanceFormContainer"></div>
-        </div>
-
-        <!-- Add Unit Page -->
-        <div id="add-unit" class="page">
-            <form id="addUnitForm">
-                <div class="form-group">
-                    <label>Colibri Number *</label>
-                    <input type="text" id="unitNumber" placeholder="e.g., XL03" required>
-                </div>
-
-                <div class="form-group">
-                    <label>Location *</label>
-                    <input type="text" id="unitLocation" placeholder="e.g., Lewisville" required>
-                </div>
-
-                <div class="form-group">
-                    <label>Notes</label>
-                    <textarea id="unitNotes" placeholder="Optional notes about this unit"></textarea>
-                </div>
-
-                <button type="submit" class="button button-primary">Create Unit & Generate QR</button>
-            </form>
-
-            <div id="qrResult" hidden class="mt-4">
-                <div class="qr-section">
-                    <p style="font-size: 14px; margin: 0 0 12px; color: var(--fg-secondary);">
-                        Print and attach this QR code to the scanner unit
-                    </p>
-                    <div id="qrCanvas" style="display:inline-block;background:#fff;padding:12px;border-radius:8px;"></div>
-                    <div class="qr-code-url" id="qrUrl"></div>
-                    <button type="button" class="button button-secondary button-small mt-4" onclick="copyQRUrl()">
-                        Copy Link
-                    </button>
-                </div>
-            </div>
-        </div>
+  <section id="add" class="page">
+    <div class="sheet">
+      <div class="sheet-head"><span>PDR-Team Inc.</span><div class="logo"><img src="logo.png" alt="PDR Team"></div></div>
+      <h1>Register Colibri</h1>
+      <form id="addForm">
+        <div class="row"><label for="newNumber">Colibri number:</label><input type="text" id="newNumber" placeholder="e.g. XL03" required></div>
+        <div class="row"><label for="newLocation">Location:</label><input type="text" id="newLocation" placeholder="e.g. Lewisville"></div>
+        <div class="row top"><label for="newComments">Comments:</label><textarea id="newComments"></textarea></div>
+        <button class="btn block" type="submit">Create unit &amp; QR code</button>
+      </form>
     </div>
+  </section>
+</div>
 
-    <!-- QR Code Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.4.4/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const SW_ITEMS = [
+  ['testScan',  'Test scan done', '(1-3 clean scans)'],
+  ['roomCal',   'Room calibration done', '(intr. if necessary)'],
+  ['swTested',  'SW thoroughly tested on this scanner', ''],
+  ['pdfTested', 'PDF generation tested', '(all matrixes)'],
+];
+const MAINT_ITEMS = [
+  ['accessories', 'Accessories checked', '(boxes)'],
+  ['camera',      'Camera cleaned', '(with camera cleaner)'],
+  ['interior',    'Interior sheet cleaned', ''],
+  ['dustCover',   'Dust cover cleaned', '(in and outside)'],
+  ['electronics', 'Electronics cleaned inside', '(if necessary)'],
+  ['cabinet',     'Control cabinet cleaned', ''],
+];
 
-    <script>
-        // State
-        const db = {
-            units: [],
-            logs: []
-        };
+const state = { units: [], logs: [] };
+let idb;
 
-        const urlParams = new URLSearchParams(window.location.hash.substring(1));
-        const unitFromUrl = urlParams.get('unit');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const jsq = s => esc(String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const fmtDate = s => { if (!s) return ''; const [y, m, d] = s.slice(0, 10).split('-'); return `${m}/${d}/${y}`; };
 
-        // IndexedDB Setup
-        let indexedDB_instance = null;
+/* ---------- storage (IndexedDB, on this device) ---------- */
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('ColibriTracker', 1);
+    r.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('units')) d.createObjectStore('units', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('logs')) d.createObjectStore('logs', { keyPath: 'id', autoIncrement: true }).createIndex('unitNumber', 'unitNumber');
+    };
+    r.onsuccess = () => { idb = r.result; res(); };
+    r.onerror = () => rej(r.error);
+  });
+}
+const tx = (store, mode, fn) => new Promise((res, rej) => {
+  const t = idb.transaction(store, mode); const req = fn(t.objectStore(store));
+  t.oncomplete = () => res(req && req.result); t.onerror = () => rej(t.error);
+});
+const putUnit = u => tx('units', 'readwrite', s => s.put(u));
+const addLog = l => tx('logs', 'readwrite', s => s.add(l));
+async function load() {
+  state.units = await tx('units', 'readonly', s => s.getAll()) || [];
+  state.logs = await tx('logs', 'readonly', s => s.getAll()) || [];
+}
+const unitLogs = n => state.logs.filter(l => l.unitNumber === n)
+  .sort((a, b) => String(b.createdAt || b.date).localeCompare(String(a.createdAt || a.date)));
 
-        async function initIndexedDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open('ColibriTracker', 1);
+/* ---------- navigation ---------- */
+function show(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === id));
+  document.querySelectorAll('.topbar button').forEach(b => b.classList.toggle('active', b.dataset.nav === id));
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('.topbar button').forEach(b => b.onclick = () => {
+  history.replaceState(null, '', location.pathname);
+  if (b.dataset.nav === 'dashboard') renderDashboard();
+  show(b.dataset.nav);
+});
 
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    indexedDB_instance = request.result;
-                    resolve();
-                };
+/* ---------- dashboard ---------- */
+function renderDashboard() {
+  const el = document.getElementById('units');
+  if (!state.units.length) { el.innerHTML = '<div class="empty">No units yet. Tap “Add Unit”.</div>'; return; }
+  el.innerHTML = state.units.map(u => {
+    const logs = unitLogs(u.number), last = logs.find(l => l.sw);
+    let pill = '<span class="pill warn">No status sheet yet</span>';
+    if (last) {
+      const days = Math.floor((Date.now() - new Date(last.date)) / 864e5);
+      const open = [...Object.values(last.sw), ...Object.values(last.maint).map(m => m.value)].includes('no');
+      pill = days > 30 ? `<span class="pill bad">Last: ${days} days ago</span>`
+           : open ? `<span class="pill warn">Open items · ${fmtDate(last.date)}</span>`
+           : `<span class="pill ok">OK · ${fmtDate(last.date)}</span>`;
+    }
+    return `<div class="unit" onclick="openUnit('${jsq(u.number)}')">
+      <h3>${esc(u.number)}</h3><p>${esc(u.location || '—')}</p>${pill}
+      <p style="margin-top:8px;font-size:12px">${logs.length} sheet${logs.length === 1 ? '' : 's'}</p></div>`;
+  }).join('');
+}
 
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains('units')) {
-                        db.createObjectStore('units', { keyPath: 'id' });
-                    }
-                    if (!db.objectStoreNames.contains('logs')) {
-                        const logStore = db.createObjectStore('logs', { keyPath: 'id', autoIncrement: true });
-                        logStore.createIndex('unitNumber', 'unitNumber', { unique: false });
-                    }
-                };
-            });
-        }
+/* ---------- unit detail ---------- */
+const link = n => `${location.origin}${location.pathname}#unit=${encodeURIComponent(n)}`;
+const ynTag = v => v === 'yes' ? '<span class="tag-y">YES</span>' : v === 'no' ? '<span class="tag-n">NO</span>' : '<span>—</span>';
 
-        async function saveUnits() {
-            if (!indexedDB_instance) return;
-            for (const unit of db.units) {
-                await new Promise((resolve, reject) => {
-                    const tx = indexedDB_instance.transaction(['units'], 'readwrite');
-                    const store = tx.objectStore('units');
-                    const request = store.put(unit);
-                    request.onerror = () => reject(request.error);
-                    request.onsuccess = () => resolve();
-                });
-            }
-        }
+function logHTML(l, open) {
+  if (!l.sw) {
+    return `<details class="log"><summary><b>${new Date(l.date).toLocaleDateString()}</b><small>${esc(l.technician || '')} · test entry (old format)</small></summary>
+      <div class="body"><p class="cmt">${esc(l.comments || '')}</p></div></details>`;
+  }
+  const noCount = [...Object.values(l.sw), ...Object.values(l.maint).map(m => m.value)].filter(v => v === 'no').length;
+  return `<details class="log"${open ? ' open' : ''}>
+    <summary><b>${fmtDate(l.date)} · ${esc(l.name)}</b><small>${noCount ? `<span class="tag-n">${noCount} × no</span>` : '<span class="tag-y">all yes</span>'} · SW ${esc(l.swVersion || '—')}</small></summary>
+    <div class="body">
+      <h4>Colibri information</h4>
+      <div class="kv"><span>Location</span><span>${esc(l.location || '—')}</span></div>
+      <p class="cmt">${esc(l.infoComments)}</p>
+      <h4>Software (SW)</h4>
+      <div class="kv"><span>Installed software version</span><span>${esc(l.swVersion || '—')}</span></div>
+      ${SW_ITEMS.map(([k, t]) => `<div class="kv"><span>${t}</span>${ynTag(l.sw[k])}</div>`).join('')}
+      <p class="cmt">${esc(l.swComments)}</p>
+      <h4>Maintenance</h4>
+      ${MAINT_ITEMS.map(([k, t]) => { const m = l.maint[k] || {}; return `<div class="kv"><span>${t}</span>${ynTag(m.value)}${m.note ? `<span class="note">${esc(m.note)}</span>` : ''}</div>`; }).join('')}
+      <p class="cmt">${esc(l.maintComments)}</p>
+      <h4>Approval</h4>
+      <div class="kv"><span>Name</span><span>${esc(l.name)}</span></div>
+      <div class="kv"><span>Date</span><span>${fmtDate(l.date)}</span></div>
+      ${l.signature ? `<img class="sig-img" src="${l.signature}" alt="Signature">` : ''}
+    </div></details>`;
+}
 
-        async function addLog(log) {
-            if (!indexedDB_instance) return;
-            return new Promise((resolve, reject) => {
-                const tx = indexedDB_instance.transaction(['logs'], 'readwrite');
-                const store = tx.objectStore('logs');
-                const request = store.add(log);
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    db.logs.push({ ...log, id: request.result });
-                    resolve();
-                };
-            });
-        }
+function openUnit(n) {
+  const u = state.units.find(x => x.number === n); if (!u) return;
+  const logs = unitLogs(n);
+  document.getElementById('detailBody').innerHTML = `
+    <div class="sheet-head"><span>PDR-Team Inc.</span><div class="logo"><img src="logo.png" alt="PDR Team"></div></div>
+    <h1>${esc(u.number)}</h1>
+    <div class="row"><span class="lbl">Location:</span><span>${esc(u.location || '—')}</span></div>
+    ${u.comments ? `<div class="row top"><span class="lbl">Comments:</span><span>${esc(u.comments)}</span></div>` : ''}
+    <div class="actions"><button class="btn" onclick="openForm('${jsq(n)}')">+ New status sheet</button>
+      <button class="btn ghost" onclick="window.print()">Print</button></div>
+    <div class="qr-box"><div class="qr" id="detailQR"></div><div class="qr-url">${esc(link(n))}</div></div>
+    <h2>Status sheet history</h2>
+    ${logs.length ? logs.map((l, i) => logHTML(l, i === 0)).join('') : '<p style="color:var(--muted)">No status sheets yet.</p>'}`;
+  if (window.QRCode) new QRCode(document.getElementById('detailQR'), { text: link(n), width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+  show('detail');
+}
 
-        async function loadData() {
-            if (!indexedDB_instance) return;
+/* ---------- status sheet form ---------- */
+function ynRow(group, key, title, hint, withNote) {
+  return `<div class="row" data-item="${group}.${key}">
+    <span class="lbl">${title}${hint ? ` <em>${hint}</em>` : ''}:</span>
+    <div><div class="yn">
+      <label><input type="radio" name="${group}.${key}" value="yes"><span class="y">yes</span></label>
+      <label><input type="radio" name="${group}.${key}" value="no"><span class="n">no</span></label>
+    </div>${withNote ? `<button type="button" class="note-toggle" onclick="const i=this.nextElementSibling;i.classList.add('show');i.focus();this.remove()">+ add note</button>
+      <input type="text" class="item-note" name="${group}.${key}.note" placeholder="Note for this item">` : ''}</div>
+  </div>`;
+}
 
-            // Load units
-            await new Promise((resolve, reject) => {
-                const tx = indexedDB_instance.transaction(['units'], 'readonly');
-                const store = tx.objectStore('units');
-                const request = store.getAll();
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    db.units = request.result;
-                    resolve();
-                };
-            });
+function openForm(n) {
+  let u = state.units.find(x => x.number === n);
+  if (!u) { u = { id: n, number: n, location: '', comments: '', createdAt: new Date().toISOString() }; state.units.push(u); putUnit(u); }
+  const last = unitLogs(n).find(l => l.sw);
+  document.getElementById('formBody').innerHTML = `
+    <div class="sheet-head"><span>PDR-Team Inc.</span><div class="logo"><img src="logo.png" alt="PDR Team"></div></div>
+    <h1>Colibri Status Sheet</h1>
+    <form id="sheetForm" novalidate>
+      <h2>Colibri information</h2>
+      <div class="row"><label>Colibri number:</label><input type="text" value="${esc(u.number)}" readonly></div>
+      <div class="row"><label for="f_location">Location:</label><input type="text" id="f_location" value="${esc(u.location)}"></div>
+      <div class="row top"><label for="f_infoComments">Comments:</label><textarea id="f_infoComments"></textarea></div>
 
-            // Load logs
-            await new Promise((resolve, reject) => {
-                const tx = indexedDB_instance.transaction(['logs'], 'readonly');
-                const store = tx.objectStore('logs');
-                const request = store.getAll();
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    db.logs = request.result;
-                    resolve();
-                };
-            });
+      <h2>Software (SW)</h2>
+      <div class="row"><label for="f_swVersion">Installed software version:</label><input type="text" id="f_swVersion" value="${esc(last?.swVersion || '')}" placeholder="e.g. Release-2025-07"></div>
+      ${SW_ITEMS.map(([k, t, h]) => ynRow('sw', k, t, h, false)).join('')}
+      <div class="row top"><label for="f_swComments">Comments:</label><textarea id="f_swComments"></textarea></div>
 
-            renderDashboard();
-        }
+      <h2>Maintenance</h2>
+      ${MAINT_ITEMS.map(([k, t, h]) => ynRow('maint', k, t, h, true)).join('')}
+      <div class="row top"><label for="f_maintComments">Comments:</label><textarea id="f_maintComments"></textarea></div>
 
-        // UI Functions
-        function showPage(pageId) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById(pageId).classList.add('active');
+      <h2>Approval</h2>
+      <div class="row"><label for="f_name">Name:</label><input type="text" id="f_name" autocomplete="name"></div>
+      <div class="row"><label for="f_date">Date:</label><input type="date" id="f_date" value="${today()}"></div>
+      <div class="row top"><span class="lbl">Signature:</span>
+        <div class="sig-wrap"><canvas id="sigPad"></canvas><button type="button" class="sig-clear" id="sigClear">clear</button></div></div>
 
-            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-            document.querySelector(`[data-tab="${pageId}"]`)?.classList.add('active');
+      <div class="error" id="formError"></div>
+      <button class="btn block" type="submit">Save status sheet</button>
+      <button class="btn ghost block" type="button" style="margin-top:10px" onclick="openUnit('${jsq(n)}')">Cancel</button>
+    </form>`;
+  try { const nm = localStorage.getItem('colibriTechName'); if (nm) document.getElementById('f_name').value = nm; } catch (e) {}
+  show('form');
+  const sig = setupSignature();
 
-            window.location.hash = '';
-        }
+  document.getElementById('sheetForm').onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target, err = document.getElementById('formError');
+    const val = name => f.querySelector(`input[name="${name}"]:checked`)?.value || null;
+    const missing = [];
+    f.querySelectorAll('[data-item]').forEach(r => {
+      const has = !!val(r.dataset.item); r.classList.toggle('missing', !has); if (!has) missing.push(r);
+    });
+    const name = document.getElementById('f_name').value.trim();
+    const msgs = [];
+    if (missing.length) msgs.push(`Answer yes/no for ${missing.length} item${missing.length > 1 ? 's' : ''} (highlighted).`);
+    if (!name) msgs.push('Enter your name.');
+    if (sig.isEmpty()) msgs.push('Sign the sheet.');
+    if (msgs.length) { err.textContent = msgs.join(' '); err.style.display = 'block'; (missing[0] || err).scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
 
-        function renderDashboard() {
-            const container = document.getElementById('unitsContainer');
+    const loc = document.getElementById('f_location').value.trim();
+    const log = {
+      unitNumber: u.number,
+      createdAt: new Date().toISOString(),
+      date: document.getElementById('f_date').value || today(),
+      location: loc,
+      infoComments: document.getElementById('f_infoComments').value.trim(),
+      swVersion: document.getElementById('f_swVersion').value.trim(),
+      sw: Object.fromEntries(SW_ITEMS.map(([k]) => [k, val('sw.' + k)])),
+      swComments: document.getElementById('f_swComments').value.trim(),
+      maint: Object.fromEntries(MAINT_ITEMS.map(([k]) => [k, { value: val('maint.' + k), note: (f.querySelector(`input[name="maint.${k}.note"]`)?.value || '').trim() }])),
+      maintComments: document.getElementById('f_maintComments').value.trim(),
+      name,
+      signature: sig.toDataURL(),
+    };
+    await addLog(log);
+    if (loc !== u.location) { u.location = loc; await putUnit(u); }
+    try { localStorage.setItem('colibriTechName', name); } catch (e) {}
+    await load();
+    history.replaceState(null, '', location.pathname);
+    openUnit(u.number);
+  };
+}
 
-            if (db.units.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <p>No Colibri units registered yet.</p>
-                        <p>Go to "Add Unit" to get started.</p>
-                    </div>
-                `;
-                return;
-            }
+function setupSignature() {
+  const c = document.getElementById('sigPad'), ctx = c.getContext('2d');
+  let drawing = false, empty = true;
+  const r0 = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  c.width = r0.width * dpr; c.height = r0.height * dpr; ctx.scale(dpr, dpr);
+  ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
+  const pos = e => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  c.onpointerdown = e => { drawing = true; empty = false; c.setPointerCapture(e.pointerId); ctx.beginPath(); ctx.moveTo(...pos(e)); };
+  c.onpointermove = e => { if (!drawing) return; ctx.lineTo(...pos(e)); ctx.stroke(); };
+  c.onpointerup = c.onpointercancel = () => { drawing = false; };
+  document.getElementById('sigClear').onclick = () => { ctx.clearRect(0, 0, c.width, c.height); empty = true; };
+  return {
+    isEmpty: () => empty,
+    toDataURL: () => {
+      const o = document.createElement('canvas'); o.width = c.width / 2; o.height = c.height / 2;
+      const x = o.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, o.width, o.height); x.drawImage(c, 0, 0, o.width, o.height);
+      return o.toDataURL('image/png');
+    }
+  };
+}
 
-            container.innerHTML = db.units.map(unit => {
-                const logs = db.logs.filter(log => log.unitNumber === unit.number);
-                const lastLog = logs[logs.length - 1];
-                const daysSinceLastLog = lastLog ? Math.floor((Date.now() - new Date(lastLog.date)) / (1000 * 60 * 60 * 24)) : null;
+/* ---------- add unit ---------- */
+document.getElementById('addForm').onsubmit = async e => {
+  e.preventDefault();
+  const number = document.getElementById('newNumber').value.trim();
+  if (!number) return;
+  const existing = state.units.find(u => u.number.toLowerCase() === number.toLowerCase());
+  if (existing) { openUnit(existing.number); return; }
+  const u = { id: number, number, location: document.getElementById('newLocation').value.trim(), comments: document.getElementById('newComments').value.trim(), createdAt: new Date().toISOString() };
+  await putUnit(u); state.units.push(u); e.target.reset();
+  openUnit(number);
+};
 
-                let statusClass = 'status-good';
-                let statusText = 'Up to date';
-                if (daysSinceLastLog === null) {
-                    statusClass = 'status-warning';
-                    statusText = 'No logs';
-                } else if (daysSinceLastLog > 30) {
-                    statusClass = 'status-overdue';
-                    statusText = `Last: ${daysSinceLastLog} days ago`;
-                } else if (daysSinceLastLog > 0) {
-                    statusText = `Last: ${daysSinceLastLog} days ago`;
-                }
-
-                return `
-                    <div class="unit-card" onclick="showUnitDetail('${unit.number}')">
-                        <h3>${unit.number}</h3>
-                        <p>${unit.location}</p>
-                        <div class="unit-status ${statusClass}">${statusText}</div>
-                        <p style="font-size: 12px; margin-top: 12px; color: var(--fg-secondary);">${logs.length} maintenance log${logs.length !== 1 ? 's' : ''}</p>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function showUnitDetail(unitNumber) {
-            const unit = db.units.find(u => u.number === unitNumber);
-            const logs = db.logs.filter(log => log.unitNumber === unitNumber).sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            const content = `
-                <h2>${unit.number}</h2>
-                <p style="color: var(--fg-secondary); margin: 0 0 20px 0;">${unit.location}</p>
-
-                <div style="margin-bottom: 20px;">
-                    <button class="button button-primary" onclick="showMaintenanceForm('${unit.number}')">
-                        Log Maintenance Work
-                    </button>
-                </div>
-
-                <div class="qr-section" style="text-align:center;margin-bottom:20px;">
-                    <div id="detailQR" style="display:inline-block;background:#fff;padding:12px;border-radius:8px;"></div>
-                    <div class="qr-code-url" id="detailQRUrl"></div>
-                    <button type="button" class="button button-secondary button-small mt-4" onclick="window.print()">Print QR</button>
-                </div>
-
-                <h3 style="margin-top: 20px; font-size: 16px;">Maintenance History</h3>
-                ${logs.length === 0 ? '<p style="color: var(--fg-secondary);">No maintenance logs yet.</p>' : ''}
-                ${logs.map(log => `
-                    <div class="log-entry">
-                        <div class="date">${new Date(log.date).toLocaleString()}</div>
-                        <div style="font-size: 14px;">
-                            ${log.sections.map(s => `<strong>${s.name}:</strong> ${Object.entries(s.items).filter(([k, v]) => v).map(([k]) => k).join(', ')}`).join('<br>')}
-                        </div>
-                        <div class="person">By: ${log.technician || '(not recorded)'}</div>
-                    </div>
-                `).join('')}
-            `;
-
-            document.getElementById('unitDetailContent').innerHTML = content;
-            renderQR(unit.number, 'detailQR', 'detailQRUrl');
-            showPage('unit-detail');
-        }
-
-        function showMaintenanceForm(unitNumber) {
-            let unit = db.units.find(u => u.number === unitNumber);
-            if (!unit) {
-                // Unit scanned on a device that hasn't seen it yet: register it automatically
-                unit = { id: unitNumber, number: unitNumber, location: '', notes: '', createdAt: new Date().toISOString() };
-                db.units.push(unit);
-                saveUnits().then(renderDashboard);
-            }
-            const sections = [
-                {
-                    name: 'Software (SW)',
-                    items: {
-                        'Test scan (1-3 clean)': false,
-                        'Room calibration': false,
-                        'SW thoroughly tested': false,
-                        'PDF generation tested': false
-                    }
-                },
-                {
-                    name: 'Maintenance',
-                    items: {
-                        'Accessories checked': false,
-                        'Camera cleaned': false,
-                        'Interior sheet cleaned': false,
-                        'Dust cover cleaned': false,
-                        'Electronics cleaned': false,
-                        'Control cabinet cleaned': false
-                    }
-                }
-            ];
-
-            let formHTML = `
-                <button class="back-button" onclick="showPage('dashboard')">← Back</button>
-                <h2>${unit.number} - Log Maintenance</h2>
-                <p style="color: var(--fg-secondary); margin: 0 0 20px 0;">${unit.location}</p>
-
-                <form id="maintenanceForm">
-                    ${sections.map((section, sIdx) => `
-                        <div style="margin-bottom: 24px;">
-                            <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--accent);">${section.name}</h3>
-                            <div class="checkbox-group">
-                                ${Object.keys(section.items).map((item, iIdx) => `
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" name="section_${sIdx}_item_${iIdx}">
-                                        <span>${item}</span>
-                                    </label>
-                                `).join('')}
-                            </div>
-                        </div>
-                    `).join('')}
-
-                    <div class="form-group">
-                        <label>Technician Name</label>
-                        <input type="text" id="technicianName" placeholder="Your name">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Comments</label>
-                        <textarea id="maintenanceComments" placeholder="Any notes about this maintenance session"></textarea>
-                    </div>
-
-                    <button type="submit" class="button button-primary">Save Maintenance Log</button>
-                </form>
-            `;
-
-            document.getElementById('maintenanceFormContainer').innerHTML = formHTML;
-
-            document.getElementById('maintenanceForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-
-                const log = {
-                    unitNumber: unit.number,
-                    date: new Date().toISOString(),
-                    technician: document.getElementById('technicianName').value,
-                    comments: document.getElementById('maintenanceComments').value,
-                    sections: sections.map((section, sIdx) => ({
-                        name: section.name,
-                        items: Object.keys(section.items).reduce((acc, item, iIdx) => {
-                            acc[item] = document.querySelector(`input[name="section_${sIdx}_item_${iIdx}"]`).checked;
-                            return acc;
-                        }, {})
-                    }))
-                };
-
-                await addLog(log);
-                await loadData();
-
-                showUnitDetail(unit.number);
-            });
-
-            showPage('log-maintenance');
-        }
-
-        // Add Unit Handler
-        document.getElementById('addUnitForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const number = document.getElementById('unitNumber').value.toUpperCase();
-            const location = document.getElementById('unitLocation').value;
-            const notes = document.getElementById('unitNotes').value;
-
-            if (db.units.find(u => u.number === number)) {
-                alert('Unit already exists!');
-                return;
-            }
-
-            const unit = {
-                id: number,
-                number,
-                location,
-                notes,
-                createdAt: new Date().toISOString()
-            };
-
-            db.units.push(unit);
-            await saveUnits();
-
-            // Generate QR Code
-            renderQR(number, 'qrCanvas', 'qrUrl');
-            document.getElementById('qrResult').hidden = false;
-
-            // Reset form
-            document.getElementById('addUnitForm').reset();
-        });
-
-        function unitLink(number) {
-            return `${window.location.origin}${window.location.pathname}#unit=${encodeURIComponent(number)}`;
-        }
-
-        function renderQR(number, boxId, urlId) {
-            const url = unitLink(number);
-            const box = document.getElementById(boxId);
-            box.innerHTML = '';
-            new QRCode(box, { text: url, width: 220, height: 220, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-            if (urlId) document.getElementById(urlId).textContent = url;
-        }
-
-        function copyQRUrl() {
-            const url = document.getElementById('qrUrl').textContent;
-            navigator.clipboard.writeText(url).then(() => {
-                alert('QR code link copied to clipboard!');
-            }).catch(() => {
-                const range = document.createRange();
-                range.selectNodeContents(document.getElementById('qrUrl'));
-                window.getSelection().addRange(range);
-                alert('QR code link selected. Copy it manually if needed.');
-            });
-        }
-
-        // Tab Navigation
-        document.querySelectorAll('.nav-tab').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                showPage(e.target.dataset.tab);
-            });
-        });
-
-        // Initialize
-        async function init() {
-            await initIndexedDB();
-            await loadData();
-
-            // Pre-populate Colibri 19 if no units exist
-            if (db.units.length === 0) {
-                const colibri19 = {
-                    id: 'colibri-19',
-                    number: 'Colibri 19',
-                    location: 'Main Location',
-                    notes: 'Initial test unit',
-                    createdAt: new Date().toISOString()
-                };
-                db.units.push(colibri19);
-                await saveUnits();
-                renderDashboard();
-            }
-
-            // Check if accessed via QR code
-            if (unitFromUrl) {
-                showMaintenanceForm(unitFromUrl);
-            }
-        }
-
-        init();
-    </script>
+/* ---------- start ---------- */
+(async () => {
+  await openDB();
+  await load();
+  if (!state.units.length) { const u = { id: 'Colibri 19', number: 'Colibri 19', location: '', comments: '', createdAt: new Date().toISOString() }; await putUnit(u); state.units.push(u); }
+  renderDashboard();
+  const n = new URLSearchParams(location.hash.slice(1)).get('unit');
+  if (n) openForm(n);
+})();
+</script>
 </body>
 </html>
