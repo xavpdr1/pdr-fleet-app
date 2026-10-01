@@ -664,7 +664,7 @@ const app = {
             const statusColor = this.getStatusColor(item.status);
             const isInUse = this.currentUsage[item.id];
             const usageInfo = isInUse ? `<div style="font-size: 12px; color: #f59e0b; font-weight: 600; margin-top: 4px;">⚠️ In use by ${isInUse.userName}${isInUse.location ? ` at ${isInUse.location}` : ''}</div>` : '';
-            const alertBadges = item.type === 'trailer' ? '' : this.fleetBadgesHTML(item);
+            const alertBadges = this.fleetBadgesHTML(item);
             const here = (isInUse && isInUse.location) || item.lastLocation;
             const locationInfo = item.type === 'trailer'
                 ? `<div style="font-size: 12px; color: #374151; margin-top: 4px;"><i class="fas fa-map-marker-alt" style="color: #2E75B6;"></i> ${here ? (isInUse ? '' : 'Last at: ') + here : 'Location not set'}</div>`
@@ -829,7 +829,7 @@ const app = {
                 </div>
             </div>
 
-            ${asset.type === 'trailer' ? '' : this.registrationCardHTML(asset)}
+            ${this.registrationCardHTML(asset)}
             ${asset.type === 'trailer' ? '' : `<div id="recallBox">${this.recallCardHTML(asset)}</div>`}
             ${this.maintenanceSectionHTML(asset)}
 
@@ -867,10 +867,11 @@ const app = {
     registrationInfo(asset) {
         const d = asset.registrationExpiration;
         if (!d) return { level: 'none', label: 'Not set', detail: 'Add the expiration date with Edit.' };
-        const days = Math.ceil((new Date(d + 'T23:59:59') - new Date()) / 864e5);
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const days = Math.round((new Date(d + 'T00:00:00') - today) / 864e5);   // 0 = expires today
         const nice = new Date(d + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
         if (days < 0) return { level: 'bad', label: 'Expired', detail: `Expired ${nice} (${-days} day${days === -1 ? '' : 's'} ago)`, days, nice };
-        if (days <= 30) return { level: 'warn', label: 'Expires soon', detail: `Expires ${nice} (${days} day${days === 1 ? '' : 's'} left)`, days, nice };
+        if (days <= 30) return { level: 'warn', label: days === 0 ? 'Expires today' : 'Expires soon', detail: days === 0 ? `Expires today (${nice})` : `Expires ${nice} (${days} day${days === 1 ? '' : 's'} left)`, days, nice };
         return { level: 'ok', label: 'Current', detail: `Valid until ${nice}`, days, nice };
     },
 
@@ -1009,12 +1010,15 @@ const app = {
 
     fleetBadgesHTML(asset) {
         const out = [];
-        const n = this.openRecallCount(asset);
+        const n = asset.type === 'trailer' ? 0 : this.openRecallCount(asset);
         if (n) out.push(`<span style="background:#fef2f2;color:#b91c1c;">⚠ ${n} recall${n === 1 ? '' : 's'} to review</span>`);
+        // registration is always shown on the card
         const r = this.registrationInfo(asset);
-        if (r.level === 'bad') out.push(`<span style="background:#fef2f2;color:#b91c1c;">Registration expired</span>`);
-        else if (r.level === 'warn') out.push(`<span style="background:#fff7ed;color:#c2410c;">Registration due in ${r.days}d</span>`);
-        if (!out.length) return '';
+        const short = r.nice ? new Date(asset.registrationExpiration + 'T12:00:00').toLocaleDateString([], { month: 'short', year: 'numeric' }) : '';
+        if (r.level === 'bad') out.push(`<span style="background:#fef2f2;color:#b91c1c;">Reg. expired ${short}</span>`);
+        else if (r.level === 'warn') out.push(`<span style="background:#fff7ed;color:#c2410c;">${r.days === 0 ? 'Reg. due today' : `Reg. due in ${r.days}d`}</span>`);
+        else if (r.level === 'ok') out.push(`<span style="background:#ecfdf5;color:#047857;">Reg. valid to ${short}</span>`);
+        else out.push(`<span style="background:#f3f4f6;color:#4b5563;">Reg. date not set</span>`);
         return `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${out.map(b => b.replace('<span style="', '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;')).join('')}</div>`;
     },
 
