@@ -90,6 +90,10 @@
   .pill.bad { background: var(--no-bg); color: var(--no); }
   .sync { font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; }
   .sync:empty { display: none; }
+  .badge { background: var(--warn-bg); color: var(--warn); border-radius: 99px; padding: 1px 8px; font-size: 11px; font-weight: 700; }
+  .edited { color: var(--muted); font-size: 12px; font-style: italic; margin: 8px 0 0; }
+  .btn.small { padding: 8px 14px; font-size: 14px; margin-top: 12px; }
+  .intro { text-align: center; color: var(--muted); font-size: 14px; margin: -4px 0 0; }
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--yes); color: #fff; padding: 12px 20px; border-radius: 10px; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,.2); z-index: 20; }
   .sync.ok { background: var(--yes-bg); color: var(--yes); }
   .sync.local { background: var(--warn-bg); color: var(--warn); }
@@ -251,10 +255,13 @@ const putUnit = async u => {
   await localPutUnit(u);
   upsert('colibri_units', [unitRow(u)], 'number').then(() => setCloud(true), e => setCloud(false, e.message));
 };
+// add a new sheet, or replace an existing one (same id) when editing
 const addLog = async l => {
-  l.id = newId(); l.synced = false;
+  if (!l.id) l.id = newId();
+  l.synced = false;
   await localPutLog(l);
-  state.logs.push(l);
+  const i = state.logs.findIndex(x => x.id === l.id);
+  if (i >= 0) state.logs[i] = l; else state.logs.push(l);
   upsert('colibri_sheets', [sheetRow(l)], 'id')
     .then(async () => { l.synced = true; await localPutLog(l); setCloud(true); })
     .catch(e => setCloud(false, e.message));
@@ -278,8 +285,9 @@ async function load() {
     setCloud(false, e.message);
   }
 }
+// newest work date first (so past records slot into the right place)
 const unitLogs = n => state.logs.filter(l => l.unitNumber === n)
-  .sort((a, b) => String(b.createdAt || b.date).localeCompare(String(a.createdAt || a.date)));
+  .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 
 /* ---------- navigation ---------- */
 function show(id) {
@@ -323,8 +331,9 @@ function logHTML(l, open) {
       <div class="body"><p class="cmt">${esc(l.comments || '')}</p></div></details>`;
   }
   const noCount = [...Object.values(l.sw), ...Object.values(l.maint).map(m => m.value)].filter(v => v === 'no').length;
+  const tech = l.tech || l.name;
   return `<details class="log"${open ? ' open' : ''}>
-    <summary><b>${fmtDate(l.date)} · ${esc(l.name)}</b><small>${noCount ? `<span class="tag-n">${noCount} × no</span>` : '<span class="tag-y">all yes</span>'} · SW ${esc(l.swVersion || '—')}</small></summary>
+    <summary><b>${fmtDate(l.date)} · ${esc(tech)}</b><small>${l.past ? '<span class="badge">past record</span> ' : ''}${noCount ? `<span class="tag-n">${noCount} × no</span>` : '<span class="tag-y">all yes</span>'} · SW ${esc(l.swVersion || '—')}</small></summary>
     <div class="body">
       <h4>Colibri information</h4>
       <div class="kv"><span>Location</span><span>${esc(l.location || '—')}</span></div>
@@ -337,9 +346,12 @@ function logHTML(l, open) {
       ${MAINT_ITEMS.map(([k, t]) => { const m = l.maint[k] || {}; return `<div class="kv"><span>${t}</span>${ynTag(m.value)}${m.note ? `<span class="note">${esc(m.note)}</span>` : ''}</div>`; }).join('')}
       <p class="cmt">${esc(l.maintComments)}</p>
       <h4>Approval</h4>
+      <div class="kv"><span>Technician (work done by)</span><span>${esc(tech)}</span></div>
       <div class="kv"><span>Name</span><span>${esc(l.name)}</span></div>
       <div class="kv"><span>Date</span><span>${fmtDate(l.date)}</span></div>
       ${l.signature ? `<img class="sig-img" src="${l.signature}" alt="Signature">` : ''}
+      ${l.updatedAt ? `<p class="edited">Edited ${new Date(l.updatedAt).toLocaleString()}${l.updatedBy ? ' by ' + esc(l.updatedBy) : ''}</p>` : ''}
+      <button class="btn ghost small" onclick="openForm('${jsq(l.unitNumber)}', '${jsq(l.id)}')">Edit this sheet</button>
     </div></details>`;
 }
 
@@ -353,6 +365,7 @@ function openUnit(n) {
     <div class="row"><span class="lbl">Location:</span><span>${esc(u.location || '—')}</span></div>
     ${u.comments ? `<div class="row top"><span class="lbl">Comments:</span><span>${esc(u.comments)}</span></div>` : ''}
     <div class="actions"><button class="btn" onclick="openForm('${jsq(n)}')">+ New status sheet</button>
+      <button class="btn ghost" onclick="openForm('${jsq(n)}', null, true)">+ Log past maintenance</button>
       <button class="btn ghost" onclick="window.print()">Print</button></div>
     <h2>Status sheet history</h2>
     ${logs.length ? logs.map((l, i) => logHTML(l, i === 0)).join('') : '<p style="color:var(--muted)">No status sheets yet.</p>'}
@@ -362,52 +375,71 @@ function openUnit(n) {
   show('detail');
 }
 
-/* ---------- status sheet form ---------- */
-function ynRow(group, key, title, hint, withNote) {
+/* ---------- status sheet form (new / past / edit) ---------- */
+function ynRow(group, key, title, hint, withNote, cur, note) {
+  const chk = v => cur === v ? ' checked' : '';
   return `<div class="row" data-item="${group}.${key}">
     <span class="lbl">${title}${hint ? ` <em>${hint}</em>` : ''}:</span>
     <div><div class="yn">
-      <label><input type="radio" name="${group}.${key}" value="yes"><span class="y">yes</span></label>
-      <label><input type="radio" name="${group}.${key}" value="no"><span class="n">no</span></label>
-    </div>${withNote ? `<button type="button" class="note-toggle" onclick="const i=this.nextElementSibling;i.classList.add('show');i.focus();this.remove()">+ add note</button>
-      <input type="text" class="item-note" name="${group}.${key}.note" placeholder="Note for this item">` : ''}</div>
+      <label><input type="radio" name="${group}.${key}" value="yes"${chk('yes')}><span class="y">yes</span></label>
+      <label><input type="radio" name="${group}.${key}" value="no"${chk('no')}><span class="n">no</span></label>
+    </div>${withNote ? (note
+      ? `<input type="text" class="item-note show" name="${group}.${key}.note" value="${esc(note)}" placeholder="Note for this item">`
+      : `<button type="button" class="note-toggle" onclick="const i=this.nextElementSibling;i.classList.add('show');i.focus();this.remove()">+ add note</button>
+      <input type="text" class="item-note" name="${group}.${key}.note" placeholder="Note for this item">`) : ''}</div>
   </div>`;
 }
 
-function openForm(n) {
+function openForm(n, editId, pastMode) {
   let u = state.units.find(x => x.number === n);
   if (!u) { u = { id: n, number: n, location: '', comments: '', createdAt: new Date().toISOString() }; state.units.push(u); putUnit(u); }
+  const ex = editId ? state.logs.find(l => l.id === editId) : null;
+  const past = ex ? !!ex.past : !!pastMode;
   const last = unitLogs(n).find(l => l.sw);
+  let savedName = ''; try { savedName = localStorage.getItem('colibriTechName') || ''; } catch (e) {}
+  const v = {
+    location: ex ? ex.location : u.location,
+    infoComments: ex?.infoComments || '', swVersion: ex ? ex.swVersion : (past ? '' : last?.swVersion || ''),
+    swComments: ex?.swComments || '', maintComments: ex?.maintComments || '',
+    tech: ex ? (ex.tech || ex.name) : (past ? '' : savedName),
+    name: ex ? ex.name : savedName,
+    date: ex ? ex.date : (past ? '' : today()),
+  };
+  const title = ex ? 'Edit Status Sheet' : past ? 'Log Past Maintenance' : 'Colibri Status Sheet';
+  const intro = ex ? `Editing the sheet from ${fmtDate(ex.date)}. Changes replace the saved version.`
+    : past ? 'Enter a maintenance job that was already done: pick the date of the work and the technician who did it.'
+    : last ? `Last sheet for ${esc(u.number)}: ${fmtDate(last.date)} by ${esc(last.tech || last.name)} · <a href="#" onclick="openUnit('${jsq(n)}');return false">view history</a>` : '';
   document.getElementById('formBody').innerHTML = `
     <div class="sheet-head"><div class="logo"><img src="colibri-logo.jpg" alt="PDR Team"></div></div>
-    <h1>Colibri Status Sheet</h1>
-    ${last ? `<p style="text-align:center;color:var(--muted);font-size:14px;margin:-4px 0 0">Last sheet for ${esc(u.number)}: ${fmtDate(last.date)} by ${esc(last.name)} · <a href="#" onclick="openUnit('${jsq(n)}');return false">view history</a></p>` : ''}
+    <h1>${title}</h1>
+    ${intro ? `<p class="intro">${intro}</p>` : ''}
     <form id="sheetForm" novalidate>
       <h2>Colibri information</h2>
       <div class="row"><label>Colibri number:</label><input type="text" value="${esc(u.number)}" readonly></div>
-      <div class="row"><label for="f_location">Location:</label><input type="text" id="f_location" value="${esc(u.location)}"></div>
-      <div class="row top"><label for="f_infoComments">Comments:</label><textarea id="f_infoComments"></textarea></div>
+      <div class="row"><label for="f_location">Location:</label><input type="text" id="f_location" value="${esc(v.location)}"></div>
+      <div class="row top"><label for="f_infoComments">Comments:</label><textarea id="f_infoComments">${esc(v.infoComments)}</textarea></div>
 
       <h2>Software (SW)</h2>
-      <div class="row"><label for="f_swVersion">Installed software version:</label><input type="text" id="f_swVersion" value="${esc(last?.swVersion || '')}" placeholder="e.g. Release-2025-07"></div>
-      ${SW_ITEMS.map(([k, t, h]) => ynRow('sw', k, t, h, false)).join('')}
-      <div class="row top"><label for="f_swComments">Comments:</label><textarea id="f_swComments"></textarea></div>
+      <div class="row"><label for="f_swVersion">Installed software version:</label><input type="text" id="f_swVersion" value="${esc(v.swVersion)}" placeholder="e.g. Release-2025-07"></div>
+      ${SW_ITEMS.map(([k, t, h]) => ynRow('sw', k, t, h, false, ex?.sw?.[k])).join('')}
+      <div class="row top"><label for="f_swComments">Comments:</label><textarea id="f_swComments">${esc(v.swComments)}</textarea></div>
 
       <h2>Maintenance</h2>
-      ${MAINT_ITEMS.map(([k, t, h]) => ynRow('maint', k, t, h, true)).join('')}
-      <div class="row top"><label for="f_maintComments">Comments:</label><textarea id="f_maintComments"></textarea></div>
+      ${MAINT_ITEMS.map(([k, t, h]) => ynRow('maint', k, t, h, true, ex?.maint?.[k]?.value, ex?.maint?.[k]?.note)).join('')}
+      <div class="row top"><label for="f_maintComments">Comments:</label><textarea id="f_maintComments">${esc(v.maintComments)}</textarea></div>
 
       <h2>Approval</h2>
-      <div class="row"><label for="f_name">Name:</label><input type="text" id="f_name" autocomplete="name"></div>
-      <div class="row"><label for="f_date">Date:</label><input type="date" id="f_date" value="${today()}"></div>
-      <div class="row top"><span class="lbl">Signature:</span>
-        <div class="sig-wrap"><canvas id="sigPad"></canvas><button type="button" class="sig-clear" id="sigClear">clear</button></div></div>
+      <div class="row"><label for="f_tech">Technician <em>(work done by)</em>:</label><input type="text" id="f_tech" value="${esc(v.tech)}" placeholder="Who did the work"></div>
+      <div class="row"><label for="f_name">Name:</label><input type="text" id="f_name" value="${esc(v.name)}" autocomplete="name"></div>
+      <div class="row"><label for="f_date">Date${past ? ' <em>(of the work)</em>' : ''}:</label><input type="date" id="f_date" value="${esc(v.date)}" max="${today()}"></div>
+      <div class="row top"><span class="lbl">Signature:${past ? ' <em>(optional)</em>' : ''}</span>
+        <div>${ex?.signature ? `<img class="sig-img" src="${ex.signature}" alt="Saved signature"><p class="intro" style="text-align:left;margin:4px 0">Saved signature. Sign below only to replace it.</p>` : ''}
+        <div class="sig-wrap"><canvas id="sigPad"></canvas><button type="button" class="sig-clear" id="sigClear">clear</button></div></div></div>
 
       <div class="error" id="formError"></div>
-      <button class="btn block" type="submit">Save status sheet</button>
+      <button class="btn block" type="submit">${ex ? 'Save changes' : past ? 'Save past maintenance' : 'Save status sheet'}</button>
       <button class="btn ghost block" type="button" style="margin-top:10px" onclick="openUnit('${jsq(n)}')">Cancel</button>
     </form>`;
-  try { const nm = localStorage.getItem('colibriTechName'); if (nm) document.getElementById('f_name').value = nm; } catch (e) {}
   show('form');
   const sig = setupSignature();
   document.getElementById('sheetForm').addEventListener('change', e => e.target.closest('[data-item]')?.classList.remove('missing'));
@@ -415,23 +447,26 @@ function openForm(n) {
   document.getElementById('sheetForm').onsubmit = async e => {
     e.preventDefault();
     const f = e.target, err = document.getElementById('formError');
+    const fail = (msg, el) => { err.textContent = msg; err.style.display = 'block'; if (el) el.focus(); };
     const val = name => f.querySelector(`input[name="${name}"]:checked`)?.value || null;
     const missing = [];
     f.querySelectorAll('[data-item]').forEach(r => {
       const has = !!val(r.dataset.item); r.classList.toggle('missing', !has); if (!has) missing.push(r);
     });
+    const tech = document.getElementById('f_tech').value.trim();
     const name = document.getElementById('f_name').value.trim();
+    const date = document.getElementById('f_date').value;
     const saveBtn = f.querySelector('button[type=submit]');
-    if (!name) {
-      err.textContent = 'Enter your name under Approval to save.'; err.style.display = 'block';
-      document.getElementById('f_name').focus(); return;
-    }
+    if (!tech) return fail('Enter the technician who did the work.', document.getElementById('f_tech'));
+    if (!name) return fail('Enter your name under Approval to save.', document.getElementById('f_name'));
+    if (!date) return fail('Pick the date the work was done.', document.getElementById('f_date'));
+    if (date > today()) return fail('The date can’t be in the future.', document.getElementById('f_date'));
     const msgs = [];
     if (missing.length) msgs.push(`${missing.length} item${missing.length > 1 ? 's' : ''} not answered (highlighted)`);
-    if (sig.isEmpty()) msgs.push('no signature');
+    if (sig.isEmpty() && !past && !ex?.signature) msgs.push('no signature');
     if (msgs.length && !f.dataset.confirmed) {
       f.dataset.confirmed = '1';
-      err.textContent = `Heads up: ${msgs.join(', ')}. Tap the button again to save anyway.`; err.style.display = 'block';
+      fail(`Heads up: ${msgs.join(', ')}. Tap the button again to save anyway.`);
       saveBtn.textContent = 'Save anyway';
       err.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
     }
@@ -439,9 +474,11 @@ function openForm(n) {
 
     const loc = document.getElementById('f_location').value.trim();
     const log = {
+      ...(ex || {}),
       unitNumber: u.number,
-      createdAt: new Date().toISOString(),
-      date: document.getElementById('f_date').value || today(),
+      createdAt: ex?.createdAt || new Date().toISOString(),
+      date,
+      past,
       location: loc,
       infoComments: document.getElementById('f_infoComments').value.trim(),
       swVersion: document.getElementById('f_swVersion').value.trim(),
@@ -449,21 +486,25 @@ function openForm(n) {
       swComments: document.getElementById('f_swComments').value.trim(),
       maint: Object.fromEntries(MAINT_ITEMS.map(([k]) => [k, { value: val('maint.' + k), note: (f.querySelector(`input[name="maint.${k}.note"]`)?.value || '').trim() }])),
       maintComments: document.getElementById('f_maintComments').value.trim(),
+      tech,
       name,
-      signature: sig.isEmpty() ? '' : sig.toDataURL(),
+      signature: sig.isEmpty() ? (ex?.signature || '') : sig.toDataURL(),
     };
+    if (ex) { log.updatedAt = new Date().toISOString(); log.updatedBy = name; }
     try {
       await addLog(log);
-      if (loc !== u.location) { u.location = loc; await putUnit(u); }
-    } catch (ex) {
-      saveBtn.disabled = false; saveBtn.textContent = 'Save status sheet';
-      err.textContent = 'Could not save on this device: ' + (ex && ex.message || ex) + '. Try opening the page in Safari/Chrome (not the camera preview).';
-      err.style.display = 'block'; return;
+      // unit location follows the most recent sheet
+      const newest = unitLogs(u.number).find(l => l.sw);
+      if (loc && newest && newest.id === log.id && loc !== u.location) { u.location = loc; await putUnit(u); }
+      else if (loc && !u.location) { u.location = loc; await putUnit(u); }
+    } catch (exn) {
+      saveBtn.disabled = false; saveBtn.textContent = 'Save';
+      return fail('Could not save on this device: ' + (exn && exn.message || exn) + '. Try opening the page in Safari/Chrome (not the camera preview).');
     }
-    try { localStorage.setItem('colibriTechName', name); } catch (e) {}
+    if (!past) try { localStorage.setItem('colibriTechName', name); } catch (e2) {}
     history.replaceState(null, '', location.pathname);
     openUnit(u.number);
-    toast('Status sheet saved');
+    toast(ex ? 'Sheet updated' : past ? 'Past maintenance logged' : 'Status sheet saved');
   };
 }
 
