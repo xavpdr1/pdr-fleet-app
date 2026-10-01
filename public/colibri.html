@@ -41,7 +41,7 @@
   .topbar button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
   .sheet { background: var(--paper); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 22px 20px 26px; }
-  .sheet-head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+  .sheet-head { display: flex; justify-content: flex-end; align-items: center; font-size: 14px; }
   .logo { width: 120px; background: #fff; border-radius: 4px; padding: 2px; }
   .logo img { width: 100%; height: auto; display: block; }
   .sheet h1 { text-align: center; color: var(--head); font-weight: 400; font-size: 26px; margin: 18px 0 10px; padding-bottom: 14px; border-bottom: 1px solid var(--fg); }
@@ -140,7 +140,7 @@
 
   <section id="add" class="page">
     <div class="sheet">
-      <div class="sheet-head"><span>PDR-Team Inc.</span><div class="logo"><img src="colibri-logo.jpg" alt="PDR Team"></div></div>
+      <div class="sheet-head"><div class="logo"><img src="colibri-logo.jpg" alt="PDR Team"></div></div>
       <h1>Register Colibri</h1>
       <form id="addForm">
         <div class="row"><label for="newNumber">Colibri number:</label><input type="text" id="newNumber" placeholder="e.g. XL03" required></div>
@@ -283,7 +283,7 @@ function openUnit(n) {
   const u = state.units.find(x => x.number === n); if (!u) return;
   const logs = unitLogs(n);
   document.getElementById('detailBody').innerHTML = `
-    <div class="sheet-head"><span>PDR-Team Inc.</span><div class="logo"><img src="colibri-logo.jpg" alt="PDR Team"></div></div>
+    <div class="sheet-head"><div class="logo"><img src="colibri-logo.jpg" alt="PDR Team"></div></div>
     <h1>${esc(u.number)}</h1>
     <div class="row"><span class="lbl">Location:</span><span>${esc(u.location || '—')}</span></div>
     ${u.comments ? `<div class="row top"><span class="lbl">Comments:</span><span>${esc(u.comments)}</span></div>` : ''}
@@ -313,7 +313,7 @@ function openForm(n) {
   if (!u) { u = { id: n, number: n, location: '', comments: '', createdAt: new Date().toISOString() }; state.units.push(u); putUnit(u); }
   const last = unitLogs(n).find(l => l.sw);
   document.getElementById('formBody').innerHTML = `
-    <div class="sheet-head"><span>PDR-Team Inc.</span><div class="logo"><img src="colibri-logo.jpg" alt="PDR Team"></div></div>
+    <div class="sheet-head"><div class="logo"><img src="colibri-logo.jpg" alt="PDR Team"></div></div>
     <h1>Colibri Status Sheet</h1>
     <form id="sheetForm" novalidate>
       <h2>Colibri information</h2>
