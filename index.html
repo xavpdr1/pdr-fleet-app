@@ -482,7 +482,8 @@
             z-index: 500;
             display: none;
             flex-direction: column;
-            align-items: flex-end;
+            justify-content: flex-end;   /* sheet sits at the bottom of the screen */
+            align-items: stretch;
             padding-top: env(safe-area-inset-top);
         }
 
@@ -537,7 +538,7 @@
 
         .qr-form-content {
             padding: 16px;
-            padding-bottom: 32px;
+            padding-bottom: calc(32px + env(safe-area-inset-bottom));
         }
 
         .form-group {
@@ -579,14 +580,30 @@
             margin-top: 8px;
         }
 
+        .form-checkbox-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 12px;
+        }
+
         .form-checkbox-item {
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .form-checkbox-item label {
+        .form-group .form-checkbox-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            flex: 0 0 20px;
+            margin: 0;
+            padding: 0;
+        }
+
+        .form-group .form-checkbox-item label {
+            display: inline;
             font-size: 14px;
+            font-weight: 500;
             color: #374151;
             cursor: pointer;
             margin: 0;
@@ -813,7 +830,6 @@
                         <input type="email" name="email" class="form-input" required id="personEmail">
                     </div>
                     <div class="form-group">
-                    <div class="form-group">
                         <label class="form-label">Phone</label>
                         <input type="tel" name="phone" class="form-input" id="personPhone">
                     </div>
@@ -821,6 +837,7 @@
                         <label class="form-label">Address</label>
                         <input type="text" name="address" class="form-input" id="personAddress">
                     </div>
+                    <div class="form-group">
                         <label class="form-label">Role</label>
                         <select name="role" class="form-input" required id="personRole">
                             <option value="">Select Role</option>
