@@ -65,19 +65,29 @@
         }
 
         .app-header {
-            background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%);
-            color: white;
-            padding: 20px 16px;
-            padding-top: max(20px, env(safe-area-inset-top));
-            box-shadow: 0 4px 12px rgba(31, 78, 121, 0.2);
+            background: #ffffff;
+            color: #1F4E79;
+            padding: 10px 16px;
+            padding-top: max(10px, env(safe-area-inset-top));
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
             z-index: 100;
         }
 
-        .header-content {
+        .app-header .header-content {
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;   /* logo on the right */
             align-items: center;
-            margin-bottom: 12px;
+            gap: 0;
+            max-width: none;
+            margin: 0;
+            flex-direction: row;
+        }
+
+        .header-logo {
+            height: 44px;
+            width: auto;
+            display: block;
         }
 
         .header-title {
@@ -719,7 +729,12 @@
 
         @media (max-width: 768px) {
             .app-header {
-                padding: 16px;
+                padding: 8px 14px;
+                padding-top: max(8px, env(safe-area-inset-top));
+            }
+
+            .header-logo {
+                height: 38px;
             }
 
             .header-title {
@@ -736,10 +751,7 @@
 
     <div class="app-header">
         <div class="header-content">
-            <div>
-                <div class="header-title"><i class="fas fa-truck"></i> PDR Fleet</div>
-                <div class="header-subtitle">Vehicle Management</div>
-            </div>
+            <img class="header-logo" src="/colibri-logo.jpg" alt="PDR Team">
         </div>
     </div>
 
