@@ -664,6 +664,7 @@ const app = {
             const statusColor = this.getStatusColor(item.status);
             const isInUse = this.currentUsage[item.id];
             const usageInfo = isInUse ? `<div style="font-size: 12px; color: #f59e0b; font-weight: 600; margin-top: 4px;">⚠️ In use by ${isInUse.userName}${isInUse.location ? ` at ${isInUse.location}` : ''}</div>` : '';
+            const alertBadges = item.type === 'trailer' ? '' : this.fleetBadgesHTML(item);
             const here = (isInUse && isInUse.location) || item.lastLocation;
             const locationInfo = item.type === 'trailer'
                 ? `<div style="font-size: 12px; color: #374151; margin-top: 4px;"><i class="fas fa-map-marker-alt" style="color: #2E75B6;"></i> ${here ? (isInUse ? '' : 'Last at: ') + here : 'Location not set'}</div>`
@@ -681,6 +682,7 @@ const app = {
                             </div>
                             ${usageInfo}
                             ${isInUse && isInUse.location ? '' : locationInfo}
+                            ${alertBadges}
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px; position: relative;">
@@ -722,6 +724,7 @@ const app = {
 
             assetList.appendChild(card);
         }
+        if (this.currentTab === 'vehicles') this.prefetchRecalls();
     },
 
     // Switch between vehicles and trailers tabs
@@ -826,6 +829,8 @@ const app = {
                 </div>
             </div>
 
+            ${asset.type === 'trailer' ? '' : this.registrationCardHTML(asset)}
+            ${asset.type === 'trailer' ? '' : `<div id="recallBox">${this.recallCardHTML(asset)}</div>`}
             ${this.maintenanceSectionHTML(asset)}
 
             <div style="display: flex; align-items: center; gap: 14px; background: white; border-radius: 12px; padding: 12px; margin-top: 16px;">
@@ -853,9 +858,213 @@ const app = {
         `;
 
         this.showPage('assetDetailPage');
+        if (asset.type !== 'trailer') this.loadRecallsInto(asset);
         const mini = document.getElementById('assetQrMini');
         if (mini && window.QRCode) new QRCode(mini, { text: this.assetLink(asset.id), width: 84, height: 84, correctLevel: QRCode.CorrectLevel.M });
     },
+
+    // ===== Registration status =====
+    registrationInfo(asset) {
+        const d = asset.registrationExpiration;
+        if (!d) return { level: 'none', label: 'Not set', detail: 'Add the expiration date with Edit.' };
+        const days = Math.ceil((new Date(d + 'T23:59:59') - new Date()) / 864e5);
+        const nice = new Date(d + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+        if (days < 0) return { level: 'bad', label: 'Expired', detail: `Expired ${nice} (${-days} day${days === -1 ? '' : 's'} ago)`, days, nice };
+        if (days <= 30) return { level: 'warn', label: 'Expires soon', detail: `Expires ${nice} (${days} day${days === 1 ? '' : 's'} left)`, days, nice };
+        return { level: 'ok', label: 'Current', detail: `Valid until ${nice}`, days, nice };
+    },
+
+    _alertColors: { ok: ['#ecfdf5', '#047857'], warn: ['#fff7ed', '#c2410c'], bad: ['#fef2f2', '#b91c1c'], none: ['#f3f4f6', '#4b5563'] },
+
+    registrationCardHTML(asset) {
+        const r = this.registrationInfo(asset);
+        const [bg, fg] = this._alertColors[r.level];
+        return `
+            <div onclick="app.openRegistrationWindow('${asset.id}')" style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: pointer;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <div style="font-weight: 600; color: #1F4E79; font-size: 14px;"><i class="fas fa-id-card"></i> Registration</div>
+                    <span style="background: ${bg}; color: ${fg}; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 99px;">${r.label}</span>
+                </div>
+                <div style="font-size: 14px; color: #1f2937; margin-top: 8px;">${r.detail}</div>
+                <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">Plate ${asset.licensePlate || '—'} · tap for details</div>
+            </div>`;
+    },
+
+    openRegistrationWindow(assetId) {
+        const a = this.findAsset(assetId); if (!a) return;
+        const r = this.registrationInfo(a);
+        const [bg, fg] = this._alertColors[r.level];
+        this.openInfoWindow(`Registration · ${a.name}`, `
+            <div style="background: ${bg}; color: ${fg}; border-radius: 10px; padding: 14px; font-weight: 700; font-size: 16px;">${r.label}</div>
+            <div style="margin-top: 12px; font-size: 15px; color: #1f2937;">${r.detail}</div>
+            <div style="display: grid; gap: 8px; margin-top: 16px; font-size: 14px;">
+                <div style="display: flex; justify-content: space-between;"><span style="color: #6b7280;">License plate</span><b>${a.licensePlate || '—'}</b></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: #6b7280;">VIN</span><b style="font-family: monospace;">${a.vin || '—'}</b></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: #6b7280;">Expiration date</span><b>${r.nice || 'Not set'}</b></div>
+            </div>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 14px;">Status is worked out from the expiration date saved for this vehicle. After renewing, update the date with Edit.</div>
+            <a href="https://www.txdmv.gov/motorists/register-your-vehicle" target="_blank" rel="noopener" style="display: block; text-align: center; margin-top: 16px; padding: 13px; background: #2E75B6; color: white; border-radius: 8px; font-weight: 600; text-decoration: none;">Renew with Texas DMV</a>
+            <button onclick="app.closeInfoWindow(); app.showEditAssetModal();" style="width: 100%; margin-top: 10px; padding: 12px; background: white; color: #2E75B6; border: 1px solid #2E75B6; border-radius: 8px; font-weight: 600;">Update expiration date</button>`);
+    },
+
+    // ===== Recalls (NHTSA, by VIN) =====
+    _recallMem: {},
+
+    _recallCache(vin, value) {
+        const key = 'pdrRecalls:' + vin;
+        try {
+            if (value) { localStorage.setItem(key, JSON.stringify({ at: Date.now(), ...value })); return value; }
+            const c = JSON.parse(localStorage.getItem(key) || 'null');
+            return c && Date.now() - c.at < 12 * 3600e3 ? c : null;   // refresh twice a day
+        } catch (e) { return null; }
+    },
+
+    async fetchRecalls(asset) {
+        const vin = (asset.vin || '').trim().toUpperCase();
+        if (vin.length !== 17) return { error: 'Add the 17-character VIN to check recalls.' };
+        if (this._recallMem[asset.id] && this._recallMem[asset.id].vin === vin) return this._recallMem[asset.id];
+        const cached = this._recallCache(vin);
+        if (cached) return (this._recallMem[asset.id] = cached);
+        try {
+            const dec = (await (await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`)).json()).Results[0];
+            const make = dec.Make, model = dec.Model, year = dec.ModelYear;
+            if (!make || !model || !year) return { error: 'This VIN could not be decoded. Check it in Edit.' };
+            // NHTSA files recalls under model names like "F-250 SD" or "F-150 SUPER CREW", so check every matching name
+            let names = [model];
+            try {
+                const list = (await (await fetch(`https://api.nhtsa.gov/products/vehicle/models?modelYear=${year}&make=${encodeURIComponent(make)}&issueType=r`)).json()).results || [];
+                const base = model.toUpperCase();
+                names = [...new Set([model, ...list.map(m => m.model).filter(m => m.toUpperCase() === base || m.toUpperCase().startsWith(base + ' '))])].slice(0, 8);
+            } catch (e) {}
+            const seen = new Map();
+            for (const n of names) {
+                const r = await (await fetch(`https://api.nhtsa.gov/recalls/recallsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(n)}&modelYear=${year}`)).json();
+                for (const x of r.results || []) if (!seen.has(x.NHTSACampaignNumber)) seen.set(x.NHTSACampaignNumber, x);
+            }
+            const toISO = d => { const [dd, mm, yy] = String(d || '').split('/'); return yy ? `${yy}-${mm}-${dd}` : ''; };
+            const recalls = [...seen.values()].map(x => ({
+                id: x.NHTSACampaignNumber, date: toISO(x.ReportReceivedDate), component: x.Component, summary: x.Summary,
+                consequence: x.Consequence, remedy: x.Remedy, notes: x.Notes, parkIt: x.parkIt, parkOutSide: x.parkOutSide, ota: x.overTheAirUpdate,
+                manufacturer: x.Manufacturer,
+            })).sort((a, b) => b.date.localeCompare(a.date));
+            const out = { vin, make, model, year, recalls };
+            this._recallCache(vin, out);
+            return (this._recallMem[asset.id] = out);
+        } catch (e) {
+            return { error: 'Could not reach NHTSA right now. Try again later.' };
+        }
+    },
+
+    recallStatusOf(asset, id) { return (asset.recallStatus || {})[id] || null; },
+    openRecallCount(asset) {
+        const data = this._recallMem[asset.id];
+        return data && data.recalls ? data.recalls.filter(r => !this.recallStatusOf(asset, r.id)).length : null;
+    },
+
+    recallCardHTML(asset) {
+        const data = this._recallMem[asset.id];
+        const head = right => `
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <div style="font-weight: 600; color: #1F4E79; font-size: 14px;"><i class="fas fa-exclamation-triangle"></i> Safety Recalls</div>${right}
+            </div>`;
+        const box = inner => `<div style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">${inner}</div>`;
+        if (!data) return box(head('') + '<div style="font-size: 13px; color: #6b7280;">Checking NHTSA for recalls…</div>');
+        if (data.error) return box(head('') + `<div style="font-size: 13px; color: #6b7280;">${data.error}</div>`);
+        const open = data.recalls.filter(r => !this.recallStatusOf(asset, r.id));
+        const [bg, fg] = this._alertColors[open.length ? 'bad' : 'ok'];
+        const pill = `<span style="background: ${bg}; color: ${fg}; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 99px;">${open.length ? open.length + ' to review' : 'All reviewed'}</span>`;
+        const fmt = d => d ? new Date(d + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        const row = r => {
+            const st = this.recallStatusOf(asset, r.id);
+            return `
+                <div onclick="app.openRecallWindow('${asset.id}', '${r.id}')" style="padding: 10px 0; border-top: 1px solid #f3f4f6; cursor: pointer; ${st ? 'opacity: 0.55;' : ''}">
+                    <div style="display: flex; justify-content: space-between; gap: 8px;">
+                        <span style="font-weight: 600; font-size: 13px; color: #1f2937; min-width: 0; overflow-wrap: anywhere;">${(r.component || 'Recall').split(':').slice(-2).join(' · ')}</span>
+                        <span style="font-size: 12px; color: #6b7280; white-space: nowrap;">${fmt(r.date)}</span>
+                    </div>
+                    <div style="font-size: 12px; color: ${st ? '#047857' : '#6b7280'}; margin-top: 2px;">#${r.id}${r.parkIt ? ' · <b style="color:#b91c1c">PARK IT</b>' : ''}${st ? ' · ' + (st.status === 'na' ? 'Does not apply' : 'Completed') : ''}</div>
+                </div>`;
+        };
+        return box(head(pill) + `
+            <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">${data.year} ${data.make} ${data.model} · ${data.recalls.length} recall${data.recalls.length === 1 ? '' : 's'} on file for this model year. Not all may apply to this truck: check the VIN below, then mark each one Repair done or Doesn't apply.</div>
+            ${data.recalls.length ? open.map(row).join('') + data.recalls.filter(r => this.recallStatusOf(asset, r.id)).map(row).join('') : '<div style="font-size: 13px; color: #047857; margin-top: 6px;">No recalls on file for this vehicle.</div>'}
+            <a href="https://www.nhtsa.gov/recalls?vin=${encodeURIComponent(asset.vin || '')}" target="_blank" rel="noopener" style="display: block; font-size: 12px; color: #2E75B6; margin-top: 10px;">Check which are still open for this exact VIN on NHTSA.gov →</a>`);
+    },
+
+    async loadRecallsInto(asset) {
+        const id = asset.id;
+        await this.fetchRecalls(asset);
+        const box = document.getElementById('recallBox');
+        if (box && this.currentVehicle && this.currentVehicle.id === id) box.innerHTML = this.recallCardHTML(this.findAsset(id) || asset);
+    },
+
+    async prefetchRecalls() {
+        if (this._prefetching) return;
+        this._prefetching = true;
+        let changed = false;
+        for (const v of this.vehicles) if (!this._recallMem[v.id]) { await this.fetchRecalls(v); changed = true; }
+        this._prefetching = false;
+        if (changed && !this._userBusy()) this.renderFleetList();
+    },
+
+    fleetBadgesHTML(asset) {
+        const out = [];
+        const n = this.openRecallCount(asset);
+        if (n) out.push(`<span style="background:#fef2f2;color:#b91c1c;">⚠ ${n} recall${n === 1 ? '' : 's'} to review</span>`);
+        const r = this.registrationInfo(asset);
+        if (r.level === 'bad') out.push(`<span style="background:#fef2f2;color:#b91c1c;">Registration expired</span>`);
+        else if (r.level === 'warn') out.push(`<span style="background:#fff7ed;color:#c2410c;">Registration due in ${r.days}d</span>`);
+        if (!out.length) return '';
+        return `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${out.map(b => b.replace('<span style="', '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;')).join('')}</div>`;
+    },
+
+    openRecallWindow(assetId, recallId) {
+        const a = this.findAsset(assetId);
+        const data = this._recallMem[assetId];
+        const r = data && data.recalls && data.recalls.find(x => x.id === recallId);
+        if (!a || !r) return;
+        const st = this.recallStatusOf(a, r.id);
+        const sec = (t, v) => v ? `<div style="margin-top: 14px;"><div style="font-size: 12px; font-weight: 700; color: #1F4E79; text-transform: uppercase; letter-spacing: .03em;">${t}</div><div style="font-size: 14px; color: #1f2937; margin-top: 4px; line-height: 1.5;">${v}</div></div>` : '';
+        const fmt = d => d ? new Date(d + 'T12:00:00').toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }) : '';
+        this.openInfoWindow(`Recall #${r.id}`, `
+            <div style="font-weight: 700; font-size: 16px; color: #1f2937;">${r.component || ''}</div>
+            <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">${a.name} · ${data.year} ${data.make} ${data.model} · reported ${fmt(r.date)}</div>
+            ${r.parkIt ? '<div style="margin-top: 12px; background: #fef2f2; color: #b91c1c; padding: 10px 12px; border-radius: 8px; font-weight: 700;">Do not drive this vehicle until it is repaired.</div>' : ''}
+            ${r.parkOutSide ? '<div style="margin-top: 12px; background: #fff7ed; color: #c2410c; padding: 10px 12px; border-radius: 8px; font-weight: 700;">Park outside and away from buildings until repaired.</div>' : ''}
+            ${sec('Summary', r.summary)}
+            ${sec('Safety risk', r.consequence)}
+            ${sec('Remedy', r.remedy)}
+            ${sec('Notes', r.notes)}
+            <div style="margin-top: 16px; font-size: 12px; color: #6b7280;">${st ? `Marked ${st.status === 'na' ? '"does not apply"' : 'completed'} by ${st.by || 'team'} on ${fmt((st.at || '').slice(0, 10))}.` : 'This recall is on file for this model. Confirm on NHTSA.gov or with the dealer whether it is open for this VIN.'}</div>
+            <a href="https://www.nhtsa.gov/recalls?vin=${encodeURIComponent(a.vin || '')}" target="_blank" rel="noopener" style="display: block; text-align: center; margin-top: 14px; padding: 12px; background: #2E75B6; color: white; border-radius: 8px; font-weight: 600; text-decoration: none;">Check this VIN on NHTSA.gov</a>
+            ${st
+                ? `<button onclick="app.setRecallStatus('${a.id}', '${r.id}', null)" style="width: 100%; margin-top: 10px; padding: 12px; background: white; color: #b91c1c; border: 1px solid #b91c1c; border-radius: 8px; font-weight: 600;">Mark as open again</button>`
+                : `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+                    <button onclick="app.setRecallStatus('${a.id}', '${r.id}', 'done')" style="padding: 12px; background: #047857; color: white; border: none; border-radius: 8px; font-weight: 600;">Repair done</button>
+                    <button onclick="app.setRecallStatus('${a.id}', '${r.id}', 'na')" style="padding: 12px; background: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-weight: 600;">Doesn't apply</button>
+                   </div>`}`);
+    },
+
+    setRecallStatus(assetId, recallId, status) {
+        const a = this.findAsset(assetId); if (!a) return;
+        a.recallStatus = { ...(a.recallStatus || {}) };
+        if (status) a.recallStatus[recallId] = { status, by: this.currentUser.name, at: new Date().toISOString() };
+        else delete a.recallStatus[recallId];
+        this.saveData();
+        this.closeInfoWindow();
+        this.showAssetDetail(assetId);
+        this.renderFleetList();
+    },
+
+    // Generic pop-up window (used by recalls and registration)
+    openInfoWindow(title, html) {
+        document.getElementById('infoWindowTitle').textContent = title;
+        document.getElementById('infoWindowBody').innerHTML = html;
+        const m = document.getElementById('infoWindow');
+        m.classList.add('active');
+        m.querySelector('.qr-form-sheet').scrollTop = 0;
+    },
+    closeInfoWindow() { document.getElementById('infoWindow').classList.remove('active'); },
 
     // ===== Maintenance log for one vehicle / trailer =====
     maintenanceEntries(assetId) {
@@ -2535,9 +2744,14 @@ const app = {
                 <label class="form-label">Next Maintenance</label>
                 <input type="date" name="nextMaintenance" class="form-input" value="${asset.nextMaintenance}" required>
             </div>
+            <div class="form-group">
+                <label class="form-label">Registration Expires</label>
+                <input type="date" name="registrationExpiration" class="form-input" value="${asset.registrationExpiration || ''}">
+            </div>
         `;
 
         document.getElementById('editAssetFields').innerHTML = fields;
+        this._editVinBefore = asset.vin;
         document.getElementById('editAssetForm').dataset.assetId = asset.id;
         document.getElementById('editAssetModal').classList.add('active');
     },
@@ -2565,6 +2779,8 @@ const app = {
         asset.status = formData.get('status');
         asset.lastMaintenance = formData.get('lastMaintenance');
         asset.nextMaintenance = formData.get('nextMaintenance');
+        if (formData.has('registrationExpiration')) asset.registrationExpiration = formData.get('registrationExpiration');
+        if (formData.get('vin') !== this._editVinBefore) delete this._recallMem[asset.id];
 
         if (asset.type === 'vehicle') {
             asset.mileage = parseInt(formData.get('mileage'));

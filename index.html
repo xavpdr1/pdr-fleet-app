@@ -1002,6 +1002,17 @@
         </div>
     </div>
 
+    <!-- Recall / registration details window -->
+    <div class="qr-form-modal" id="infoWindow" onclick="if (event.target === this) app.closeInfoWindow()">
+        <div class="qr-form-sheet">
+            <div class="qr-form-header">
+                <h3 id="infoWindowTitle">Details</h3>
+                <button class="close-form-btn" onclick="app.closeInfoWindow()">×</button>
+            </div>
+            <div class="qr-form-content" id="infoWindowBody"></div>
+        </div>
+    </div>
+
     <!-- QR Form Modal -->
     <div class="qr-form-modal" id="qrFormModal">
         <div class="qr-form-sheet">
