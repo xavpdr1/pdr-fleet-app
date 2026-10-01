@@ -88,6 +88,11 @@
   .pill.ok { background: var(--yes-bg); color: var(--yes); }
   .pill.warn { background: var(--warn-bg); color: var(--warn); }
   .pill.bad { background: var(--no-bg); color: var(--no); }
+  .sync { font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; }
+  .sync:empty { display: none; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--yes); color: #fff; padding: 12px 20px; border-radius: 10px; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,.2); z-index: 20; }
+  .sync.ok { background: var(--yes-bg); color: var(--yes); }
+  .sync.local { background: var(--warn-bg); color: var(--warn); }
   .empty { text-align: center; color: var(--muted); padding: 40px 0; }
 
   .log { border: 1px solid var(--line); border-radius: 8px; margin-top: 10px; overflow: hidden; }
@@ -133,6 +138,7 @@
     <button data-nav="dashboard" class="active">Units</button>
     <button data-nav="add">Add Unit</button>
   </div>
+  <div id="syncStatus" class="sync"></div>
 
   <section id="dashboard" class="page active"><div id="units" class="units"></div></section>
   <section id="detail" class="page"><div class="sheet" id="detailBody"></div></section>
@@ -200,19 +206,77 @@ const LS = {
   set(k, v) { mem[k] = v; try { localStorage.setItem('colibri.' + k, JSON.stringify(v)); } catch (e) {} },
 };
 const mem = {};
-const putUnit = async u => {
+const localPutUnit = async u => {
   if (idb) return tx('units', 'readwrite', s => s.put(u));
   const a = LS.get('units').filter(x => x.id !== u.id); a.push(u); LS.set('units', a);
 };
-const addLog = async l => {
-  if (idb) return tx('logs', 'readwrite', s => s.add(l));
-  const a = LS.get('logs'); l.id = Date.now(); a.push(l); LS.set('logs', a);
+const localPutLog = async l => {
+  if (idb) return tx('logs', 'readwrite', s => s.put(l));
+  const a = LS.get('logs').filter(x => x.id !== l.id); a.push(l); LS.set('logs', a);
 };
+const localAll = async () => idb
+  ? { units: await tx('units', 'readonly', s => s.getAll()) || [], logs: await tx('logs', 'readonly', s => s.getAll()) || [] }
+  : { units: LS.get('units'), logs: LS.get('logs') };
+
+/* ---------- cloud (Supabase) – shared across all phones ---------- */
+const SB_URL = 'https://jedolnkjmlrruipkgqyd.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y';
+async function sb(path, opts = {}) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/${path}`, { ...opts, signal: ctl.signal,
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+    if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 150)}`);
+    const txt = await r.text(); return txt ? JSON.parse(txt) : null;
+  } finally { clearTimeout(t); }
+}
+const upsert = (table, rows, key) => sb(`${table}?on_conflict=${key}`, { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows) });
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+
+let cloudOK = null;
+function setCloud(ok, why) {
+  cloudOK = ok;
+  if (why) console.warn('Cloud sync:', why);
+  const el = document.getElementById('syncStatus'); if (!el) return;
+  const pending = state.logs.filter(l => !l.synced).length;
+  el.className = 'sync ' + (ok ? 'ok' : 'local');
+  el.textContent = ok ? 'Synced: sheets are shared with every phone'
+    : `Saved on this phone only${pending ? ` (${pending} waiting)` : ''}. Will sync when the connection is back.`;
+}
+const unitRow = u => ({ number: u.number, location: u.location || '', comments: u.comments || '', created_at: u.createdAt || new Date().toISOString() });
+const sheetRow = l => { const { id, synced, ...data } = l; return { id: l.id, unit_number: l.unitNumber, created_at: l.createdAt || new Date().toISOString(), data }; };
+
+// Saves go to the phone first (instant), then upload in the background.
+const putUnit = async u => {
+  await localPutUnit(u);
+  upsert('colibri_units', [unitRow(u)], 'number').then(() => setCloud(true), e => setCloud(false, e.message));
+};
+const addLog = async l => {
+  l.id = newId(); l.synced = false;
+  await localPutLog(l);
+  state.logs.push(l);
+  upsert('colibri_sheets', [sheetRow(l)], 'id')
+    .then(async () => { l.synced = true; await localPutLog(l); setCloud(true); })
+    .catch(e => setCloud(false, e.message));
+};
+
 async function load() {
-  if (idb) {
-    state.units = await tx('units', 'readonly', s => s.getAll()) || [];
-    state.logs = await tx('logs', 'readonly', s => s.getAll()) || [];
-  } else { state.units = LS.get('units'); state.logs = LS.get('logs'); }
+  const local = await localAll();
+  // give every old local record a string id so it can be uploaded
+  for (const l of local.logs) if (typeof l.id !== 'string') { const old = l.id; l.id = 'local-' + old; if (idb) await tx('logs', 'readwrite', s => s.delete(old)); await localPutLog(l); }
+  try {
+    const pending = local.logs.filter(l => !l.synced && l.sw);
+    if (pending.length) { await upsert('colibri_sheets', pending.map(sheetRow), 'id'); for (const l of pending) { l.synced = true; await localPutLog(l); } }
+    if (local.units.length) await upsert('colibri_units', local.units.map(unitRow), 'number');
+    const [units, sheets] = await Promise.all([sb('colibri_units?select=*'), sb('colibri_sheets?select=*&order=created_at.desc')]);
+    state.units = units.map(r => ({ id: r.number, number: r.number, location: r.location, comments: r.comments, createdAt: r.created_at }));
+    state.logs = sheets.map(r => ({ ...r.data, id: r.id, unitNumber: r.unit_number, synced: true }));
+    for (const u of local.units) if (!state.units.some(x => x.number === u.number)) state.units.push(u);
+    setCloud(true);
+  } catch (e) {
+    state.units = local.units; state.logs = local.logs.filter(l => l.sw);
+    setCloud(false, e.message);
+  }
 }
 const unitLogs = n => state.logs.filter(l => l.unitNumber === n)
   .sort((a, b) => String(b.createdAt || b.date).localeCompare(String(a.createdAt || a.date)));
@@ -315,6 +379,7 @@ function openForm(n) {
   document.getElementById('formBody').innerHTML = `
     <div class="sheet-head"><div class="logo"><img src="colibri-logo.jpg" alt="PDR Team"></div></div>
     <h1>Colibri Status Sheet</h1>
+    ${last ? `<p style="text-align:center;color:var(--muted);font-size:14px;margin:-4px 0 0">Last sheet for ${esc(u.number)}: ${fmtDate(last.date)} by ${esc(last.name)} · <a href="#" onclick="openUnit('${jsq(n)}');return false">view history</a></p>` : ''}
     <form id="sheetForm" novalidate>
       <h2>Colibri information</h2>
       <div class="row"><label>Colibri number:</label><input type="text" value="${esc(u.number)}" readonly></div>
@@ -394,11 +459,18 @@ function openForm(n) {
       err.style.display = 'block'; return;
     }
     try { localStorage.setItem('colibriTechName', name); } catch (e) {}
-    await load();
     history.replaceState(null, '', location.pathname);
     openUnit(u.number);
+    toast('Status sheet saved');
   };
 }
+
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+// retry uploads when the phone comes back online
+window.addEventListener('online', () => load().then(() => { renderDashboard(); }));
 
 function setupSignature() {
   const c = document.getElementById('sigPad'), ctx = c.getContext('2d');
@@ -441,6 +513,7 @@ document.getElementById('addForm').onsubmit = async e => {
   renderDashboard();
   const n = new URLSearchParams(location.hash.slice(1)).get('unit');
   if (n) openForm(n);
+  window.addEventListener('hashchange', () => { const m = new URLSearchParams(location.hash.slice(1)).get('unit'); if (m) openForm(m); });
 })();
 </script>
 </body>
