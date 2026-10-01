@@ -329,6 +329,7 @@ function openForm(n) {
   try { const nm = localStorage.getItem('colibriTechName'); if (nm) document.getElementById('f_name').value = nm; } catch (e) {}
   show('form');
   const sig = setupSignature();
+  document.getElementById('sheetForm').addEventListener('change', e => e.target.closest('[data-item]')?.classList.remove('missing'));
 
   document.getElementById('sheetForm').onsubmit = async e => {
     e.preventDefault();
