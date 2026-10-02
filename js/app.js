@@ -1373,6 +1373,34 @@ const app = {
         this.renderFleetList();
     },
 
+    // ===== SOP (How to use) =====
+    openSOP() {
+        const h = t => `<div style="font-weight: 700; color: #1F4E79; font-size: 15px; margin: 18px 0 6px;">${t}</div>`;
+        const ol = items => `<ol style="margin: 0; padding-left: 20px; line-height: 1.55; font-size: 14px; color: #1f2937;">${items.map(i => `<li style="margin-bottom: 4px;">${i}</li>`).join('')}</ol>`;
+        const ul = items => `<ul style="margin: 0; padding-left: 20px; line-height: 1.55; font-size: 14px; color: #1f2937;">${items.map(i => `<li style="margin-bottom: 4px;">${i}</li>`).join('')}</ul>`;
+        const p = t => `<p style="margin: 6px 0 0; font-size: 14px; line-height: 1.55; color: #1f2937;">${t}</p>`;
+        this.openInfoWindow('Fleet App SOP', `
+            <p style="margin: 0; font-size: 14px; line-height: 1.55; color: #374151;">Use the PDR Fleet app for every vehicle and trailer: check out, check in, damage and maintenance. No paper logs.</p>
+            ${h('1. Check out a vehicle')}
+            ${ol(['Walk around it. Report any damage not already listed (step 4).', 'Tap <b>USE</b> and pick your name.', 'Enter <b>mileage out</b> and <b>gas out</b>, then tap <b>Check out</b>.'])}
+            ${p('Never take a vehicle that shows <b>In use</b>.')}
+            ${h('2. Check in a vehicle')}
+            ${ol(['Tap <b>End</b>.', 'Enter <b>mileage in</b> and <b>gas in</b>.', 'Tick <b>Report new damage</b> if anything happened, then tap <b>Check in</b>.'])}
+            ${h('3. Trailers')}
+            ${p('Tap <b>USE</b>, enter the <b>location</b>, pick your name. Tap <b>End</b> when it\'s back.')}
+            ${h('4. Report damage')}
+            ${ol(['On the unit\'s page, tap <b>+ Report damage</b>.', 'Choose <b>Existing</b> or <b>New</b>, then add the date, where, what happened, who is reporting, and photos.', 'Tap <b>Save</b>. Report new damage to the office the same day.'])}
+            ${h('5. Log maintenance')}
+            ${p('On the unit\'s page, tap <b>+ Log maintenance</b>, fill in the date, service, mileage, cost and who did it, then tap <b>Save</b>.')}
+            ${h('6. Recalls and registration (weekly)')}
+            ${ul(['<b>Recalls:</b> check each on NHTSA.gov, then mark <b>Repair done</b> or <b>Doesn\'t apply</b>. <b>PARK IT</b> means don\'t drive it.', '<b>Registration:</b> renew any orange or red tag with the Texas DMV, then update the date in the app.'])}
+            ${h('7. QR codes')}
+            ${p('Scan a unit\'s label with the phone camera to open its page. Reprint labels from <b>Settings → App Settings → Print QR labels</b>.')}
+            ${h('8. If something looks wrong')}
+            ${ul(['Close and reopen the app.', 'No signal? Keep working; it syncs when you\'re back online.', 'Still stuck? Send a screenshot to the office.'])}
+            <button onclick="app.closeInfoWindow()" class="form-submit-btn" style="margin-top: 20px;">Got it</button>`);
+    },
+
     // Generic pop-up window (used by recalls and registration)
     openInfoWindow(title, html) {
         document.getElementById('infoWindowTitle').textContent = title;

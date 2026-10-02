@@ -84,12 +84,24 @@
 
         .app-header .header-content {
             display: flex;
-            justify-content: flex-end;   /* logo on the right */
+            justify-content: space-between;   /* SOP button left, logo right */
             align-items: center;
             gap: 0;
             max-width: none;
             margin: 0;
             flex-direction: row;
+        }
+
+        .sop-btn {
+            background: #eef4fb;
+            color: #1F4E79;
+            border: 1px solid #c7d4e6;
+            border-radius: 99px;
+            padding: 8px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
         }
 
         .header-logo {
@@ -814,6 +826,7 @@
 
     <div class="app-header">
         <div class="header-content">
+            <button class="sop-btn" onclick="app.openSOP()"><i class="fas fa-book"></i> How to use</button>
             <img class="header-logo" src="/colibri-logo.jpg" alt="PDR Team">
         </div>
     </div>
