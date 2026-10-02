@@ -634,7 +634,21 @@ const app = {
         }
     },
 
+    // Header Fleet/Settings switch (used when the app is open in Safari)
+    headerNav() {
+        if (this._hdrNav === 'settings') { this.showPage('fleetPage'); this.setActiveNav('fleet'); }
+        else { this.showPage('settingsPage'); this.setActiveNav('settings'); }
+        window.scrollTo(0, 0);
+    },
+
     setActiveNav(navId) {
+        const hb = document.getElementById('hdrNavBtn');
+        if (hb) {
+            const toFleet = navId === 'settings';
+            this._hdrNav = navId;
+            hb.innerHTML = toFleet ? '<i class="fas fa-list"></i> Fleet' : '<i class="fas fa-cog"></i>';
+            hb.setAttribute('aria-label', toFleet ? 'Fleet' : 'Settings');
+        }
         document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
         const navItems = document.querySelectorAll('.nav-item');
         const navMap = { 'fleet': 0, 'settings': 1 };

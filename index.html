@@ -107,6 +107,14 @@
             white-space: nowrap;
         }
 
+        .hdr-left { display: flex; gap: 8px; align-items: center; }
+        .hdr-nav-btn { display: none; padding: 8px 12px; }
+        /* Opened in Safari (not from the home-screen icon): Safari's own bottom toolbar
+           already takes that space, so the Fleet/Settings switch lives in the header instead */
+        html:not(.home-screen-app) .bottom-nav { display: none; }
+        html:not(.home-screen-app) .hdr-nav-btn { display: inline-flex; align-items: center; gap: 6px; }
+        html:not(.home-screen-app) .main-content { padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important; }
+
         .header-logo {
             height: 44px;
             width: auto;
@@ -837,7 +845,10 @@
 
     <div class="app-header">
         <div class="header-content">
-            <button class="sop-btn" onclick="app.openSOP()"><i class="fas fa-book"></i> How to use</button>
+            <div class="hdr-left">
+                <button class="sop-btn" onclick="app.openSOP()"><i class="fas fa-book"></i> How to use</button>
+                <button class="sop-btn hdr-nav-btn" id="hdrNavBtn" onclick="app.headerNav()" aria-label="Settings"><i class="fas fa-cog"></i></button>
+            </div>
             <img class="header-logo" src="/colibri-logo.jpg" alt="PDR Team">
         </div>
     </div>
