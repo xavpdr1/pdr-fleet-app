@@ -127,7 +127,7 @@
             flex: 1;
             overflow-y: auto;
             /* room for the bottom bar + the iPhone home bar / Safari toolbar, so the last card can scroll fully into view */
-            padding-bottom: calc(84px + env(safe-area-inset-bottom));
+            padding-bottom: calc(76px + env(safe-area-inset-bottom));
             -webkit-overflow-scrolling: touch;
         }
 
@@ -694,8 +694,8 @@
             border-top: 1px solid #e5e7eb;
             display: flex;
             justify-content: space-around;
-            /* sit just above the iPhone home bar / Safari toolbar without a big empty gap */
-            padding-bottom: max(10px, calc(env(safe-area-inset-bottom) - 20px));
+            /* in Safari the browser already keeps its own toolbar clear, so only a small gap is needed */
+            padding-bottom: 6px;
             z-index: 100;
             box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
         }
@@ -761,6 +761,7 @@
 
         /* ---- keep the header below the iPhone clock / battery bar ---- */
         .app-header { padding-top: max(10px, env(safe-area-inset-top)) !important; }
+        html.home-screen-app .bottom-nav { padding-bottom: max(8px, calc(env(safe-area-inset-bottom) - 14px)); }   /* home-screen app: clear the home bar only */
         html.home-screen-app body { padding-top: 0 !important; }   /* white header runs up under the clock */
         html.home-screen-app .app-header { padding-top: var(--status-bar-pad, 62px) !important; border-radius: 0; }
 
