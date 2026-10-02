@@ -694,7 +694,8 @@
             border-top: 1px solid #e5e7eb;
             display: flex;
             justify-content: space-around;
-            padding-bottom: env(safe-area-inset-bottom);
+            /* sit just above the iPhone home bar / Safari toolbar without a big empty gap */
+            padding-bottom: max(10px, calc(env(safe-area-inset-bottom) - 20px));
             z-index: 100;
             box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
         }
