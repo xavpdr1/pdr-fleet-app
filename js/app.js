@@ -1395,9 +1395,7 @@ const app = {
             ${h('6. Recalls and registration (weekly)')}
             ${ul(['<b>Recalls:</b> check each on NHTSA.gov, then mark <b>Repair done</b> or <b>Doesn\'t apply</b>. <b>PARK IT</b> means don\'t drive it.', '<b>Registration:</b> renew any orange or red tag with the Texas DMV, then update the date in the app.'])}
             ${h('7. QR codes')}
-            ${p('Scan a unit\'s label with the phone camera to open its page. Reprint labels from <b>Settings → App Settings → Print QR labels</b>.')}
-            ${h('8. If something looks wrong')}
-            ${ul(['Close and reopen the app.', 'No signal? Keep working; it syncs when you\'re back online.', 'Still stuck? Send a screenshot to the office.'])}
+            ${p('Scan a unit\'s label with the phone camera to open its page.')}
             <button onclick="app.closeInfoWindow()" class="form-submit-btn" style="margin-top: 20px;">Got it</button>`);
     },
 
