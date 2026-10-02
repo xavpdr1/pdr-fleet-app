@@ -201,16 +201,16 @@ header p {
 }
 
 .dot-active {
-    background: #4ade80;
+    background: #2E75B6;
     animation: pulse 2s infinite;
 }
 
 .dot-inactive {
-    background: #f87171;
+    background: #94a3b8;
 }
 
 .dot-unknown {
-    background: #facc15;
+    background: #1F4E79;
 }
 
 @keyframes pulse {
@@ -306,16 +306,16 @@ header p {
 
 .battery-fill {
     height: 100%;
-    background: #4ade80;
+    background: #2E75B6;
     border-radius: 4px;
 }
 
 .battery-fill.low {
-    background: #f87171;
+    background: #94a3b8;
 }
 
 .battery-fill.medium {
-    background: #facc15;
+    background: #1F4E79;
 }
 
 .card-actions {

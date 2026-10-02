@@ -661,7 +661,7 @@ const app = {
                 photoData = await this.getPhoto(item.id);
             }
 
-            const fallbackEmoji = this.currentTab === 'vehicles' ? '🚗' : '🚛';
+            const fallbackEmoji = this.currentTab === 'vehicles' ? '<i class="fas fa-truck-pickup" style="color:#1F4E79;font-size:24px;"></i>' : '<i class="fas fa-trailer" style="color:#1F4E79;font-size:24px;"></i>';
             const iconDisplay = photoData ?
                 `<img src="${photoData}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover; display: block;">`
                 : `<span style="font-size: 28px; line-height: 1;">${fallbackEmoji}</span>`;
@@ -671,7 +671,7 @@ const app = {
 
             const statusColor = this.getStatusColor(item.status);
             const isInUse = this.currentUsage[item.id];
-            const usageInfo = isInUse ? `<div style="font-size: 12px; color: #f59e0b; font-weight: 600; margin-top: 4px;">⚠️ In use by ${isInUse.userName}${isInUse.location ? ` at ${isInUse.location}` : ''}</div>` : '';
+            const usageInfo = isInUse ? `<div style="font-size: 12px; color: #1F4E79; font-weight: 600; margin-top: 4px;">In use by ${isInUse.userName}${isInUse.location ? ` at ${isInUse.location}` : ''}</div>` : '';
             const alertBadges = this.fleetBadgesHTML(item);
             const here = (isInUse && isInUse.location) || item.lastLocation;
             const locationInfo = item.type === 'trailer'
@@ -696,16 +696,16 @@ const app = {
                     <div class="asset-actions" style="display: flex; align-items: center; gap: 8px; position: relative;">
                         ${isInUse ? `
                         <div style="display: flex; gap: 6px;">
-                            <button onclick="app.showUsageDetails('${item.id}')" style="padding: 8px 12px; background: #f59e0b; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap;">
+                            <button onclick="app.showUsageDetails('${item.id}')" style="padding: 8px 12px; background: #1F4E79; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap;">
                                 IN USE
                             </button>
-                            <button onclick="app.endUsage('${item.id}')" style="padding: 8px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 11px; white-space: nowrap;">
+                            <button onclick="app.endUsage('${item.id}')" style="padding: 8px 12px; background: #64748b; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 11px; white-space: nowrap;">
                                 End
                             </button>
                         </div>
                         ` : `
                         <div style="position: relative;">
-                            <button id="useBtn-${item.id}" onclick="app.toggleUsageDropdown('${item.id}')" style="padding: 8px 12px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap;">
+                            <button id="useBtn-${item.id}" onclick="app.toggleUsageDropdown('${item.id}')" style="padding: 8px 12px; background: #2E75B6; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap;">
                                 USE
                             </button>
                             <div id="dropdown-${item.id}" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 6px; min-width: 200px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; margin-top: 4px;">
@@ -859,11 +859,11 @@ const app = {
                 <button onclick="app.openAssetQR()" style="padding: 14px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
                     <i class="fas fa-qrcode"></i> View QR
                 </button>
-                <button onclick="app.openPhotoUpload('${assetId}')" style="padding: 14px; background: #8b5cf6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                <button onclick="app.openPhotoUpload('${assetId}')" style="padding: 14px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
                     <i class="fas fa-camera"></i> Photo
                 </button>
                 ${this.currentUser.isAdmin ? `
-                    <button onclick="app.showEditAssetModal()" style="padding: 14px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                    <button onclick="app.showEditAssetModal()" style="padding: 14px; background: #2E75B6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
                         <i class="fas fa-edit"></i> Edit
                     </button>
                 ` : ''}
@@ -910,7 +910,7 @@ const app = {
                 <label style="display: flex; gap: 10px; align-items: center; font-size: 15px; margin: 4px 0 14px;">
                     <input type="checkbox" id="tripDamage" style="width: 22px; height: 22px;"> Report new damage after saving
                 </label>`}
-                <div class="error" id="tripError" style="color: #b91c1c; font-weight: 600; margin-bottom: 8px; display: none;"></div>
+                <div class="error" id="tripError" style="color: #1e3a5f; font-weight: 600; margin-bottom: 8px; display: none;"></div>
                 <button type="submit" class="form-submit-btn">${out ? 'Check out' : 'Check in'}</button>
             </form>`);
     },
@@ -964,7 +964,7 @@ const app = {
             <div style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                 <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <div style="font-weight: 600; color: #1F4E79; font-size: 14px;"><i class="fas fa-gas-pump"></i> Mileage &amp; Gas</div>
-                    ${use ? `<button onclick="app.endUsage('${asset.id}')" style="white-space: nowrap; padding: 8px 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 13px;">Check in</button>` : ''}
+                    ${use ? `<button onclick="app.endUsage('${asset.id}')" style="white-space: nowrap; padding: 8px 12px; background: #64748b; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 13px;">Check in</button>` : ''}
                 </div>
                 ${trips.length ? trips.slice(0, 15).map(l => `
                     <div style="padding: 9px 0; border-top: 1px solid #f3f4f6; font-size: 13px;">
@@ -973,7 +973,7 @@ const app = {
                             <span style="color: #6b7280; white-space: nowrap;">${when(l.startTime)}</span>
                         </div>
                         <div style="color: #374151; margin-top: 3px;">Out ${mi(l.startMileage)} mi · gas ${l.startFuel || '—'}</div>
-                        <div style="color: #374151;">${l.endTime ? `In ${mi(l.endMileage)} mi · gas ${l.endFuel || '—'}${l.distance != null ? ` · <b>${mi(l.distance)} mi driven</b>` : ''}` : '<span style="color: #c2410c; font-weight: 600;">Still out</span>'}</div>
+                        <div style="color: #374151;">${l.endTime ? `In ${mi(l.endMileage)} mi · gas ${l.endFuel || '—'}${l.distance != null ? ` · <b>${mi(l.distance)} mi driven</b>` : ''}` : '<span style="color: #2E75B6; font-weight: 600;">Still out</span>'}</div>
                     </div>`).join('') : '<div style="font-size: 13px; color: #6b7280;">No trips yet. Tap USE on the fleet list to check this vehicle out.</div>'}
             </div>`;
     },
@@ -991,12 +991,12 @@ const app = {
                 ${list.length ? list.map(d => `
                     <div onclick="app.openDamage('${asset.id}', '${d.id}')" style="padding: 10px 0; border-top: 1px solid #f3f4f6; cursor: pointer;">
                         <div style="display: flex; justify-content: space-between; gap: 8px; align-items: center;">
-                            <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; ${d.kind === 'new' ? 'background:#fef2f2;color:#b91c1c;' : 'background:#f3f4f6;color:#4b5563;'}">${d.kind === 'new' ? 'New damage' : 'Existing damage'}</span>
+                            <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; ${d.kind === 'new' ? 'background:#dbe4f0;color:#1e3a5f;' : 'background:#f3f4f6;color:#4b5563;'}">${d.kind === 'new' ? 'New damage' : 'Existing damage'}</span>
                             <span style="font-size: 12px; color: #6b7280; white-space: nowrap;">${fmt(d.date)}</span>
                         </div>
                         ${d.area ? `<div style="font-weight: 600; font-size: 14px; color: #1f2937; margin-top: 4px;">${this._esc(d.area)}</div>` : ''}
                         ${d.description ? `<div style="font-size: 13px; color: #374151; margin-top: 2px; overflow-wrap: anywhere;">${this._esc(d.description)}</div>` : ''}
-                        <div style="font-size: 12px; color: #374151; margin-top: 4px;"><i class="fas fa-user" style="color:#2E75B6;"></i> Reported by <b>${d.reportedBy ? this._esc(d.reportedBy) : 'not set'}</b>${d.repaired ? ' · <span style="color:#047857;font-weight:600;">Repaired</span>' : ''}</div>
+                        <div style="font-size: 12px; color: #374151; margin-top: 4px;"><i class="fas fa-user" style="color:#2E75B6;"></i> Reported by <b>${d.reportedBy ? this._esc(d.reportedBy) : 'not set'}</b>${d.repaired ? ' · <span style="color:#1F4E79;font-weight:600;">Repaired</span>' : ''}</div>
                         ${(d.photos || []).length ? `<div style="display: flex; gap: 6px; margin-top: 6px; overflow-x: auto;">${d.photos.map(pid => `<img data-photo-id="${pid}" alt="" style="width: 64px; height: 64px; object-fit: cover; border-radius: 6px; background: #e5e7eb; flex: 0 0 64px;">`).join('')}</div>` : ''}
                     </div>`).join('') : '<div style="font-size: 13px; color: #6b7280;">No damage reported.</div>'}
             </div>`;
@@ -1066,7 +1066,7 @@ const app = {
                 </div>
                 ${d ? `<label style="display: flex; gap: 10px; align-items: center; font-size: 15px; margin-bottom: 14px;"><input type="checkbox" id="dmgRepaired" style="width: 22px; height: 22px;"${d.repaired ? ' checked' : ''}> Repaired</label>` : ''}
                 <button type="submit" class="form-submit-btn" id="dmgSave">Save</button>
-                ${d ? `<button type="button" onclick="app.deleteDamage()" style="width: 100%; margin-top: 10px; padding: 12px; background: none; border: 1px solid #ef4444; color: #ef4444; border-radius: 8px; font-weight: 600;">Delete this report</button>` : ''}
+                ${d ? `<button type="button" onclick="app.deleteDamage()" style="width: 100%; margin-top: 10px; padding: 12px; background: none; border: 1px solid #64748b; color: #64748b; border-radius: 8px; font-weight: 600;">Delete this report</button>` : ''}
             </form>`);
         this.renderDamageThumbs();
     },
@@ -1182,7 +1182,7 @@ const app = {
         return { level: 'ok', label: 'Current', detail: `Valid until ${nice}`, days, nice };
     },
 
-    _alertColors: { ok: ['#ecfdf5', '#047857'], warn: ['#fff7ed', '#c2410c'], bad: ['#fef2f2', '#b91c1c'], none: ['#f3f4f6', '#4b5563'] },
+    _alertColors: { ok: ['#f1f5f9', '#475569'], warn: ['#dbeafe', '#1F4E79'], bad: ['#1F4E79', '#ffffff'], none: ['#f1f5f9', '#64748b'] },
 
     registrationCardHTML(asset) {
         const r = this.registrationInfo(asset);
@@ -1296,12 +1296,12 @@ const app = {
                         <span style="font-weight: 600; font-size: 13px; color: #1f2937; min-width: 0; overflow-wrap: anywhere;">${(r.component || 'Recall').split(':').slice(-2).join(' · ')}</span>
                         <span style="font-size: 12px; color: #6b7280; white-space: nowrap;">${fmt(r.date)}</span>
                     </div>
-                    <div style="font-size: 12px; color: ${st ? '#047857' : '#6b7280'}; margin-top: 2px;">#${r.id}${r.parkIt ? ' · <b style="color:#b91c1c">PARK IT</b>' : ''}${st ? ' · ' + (st.status === 'na' ? 'Does not apply' : 'Completed') : ''}</div>
+                    <div style="font-size: 12px; color: ${st ? '#1F4E79' : '#6b7280'}; margin-top: 2px;">#${r.id}${r.parkIt ? ' · <b style="color:#1e3a5f">PARK IT</b>' : ''}${st ? ' · ' + (st.status === 'na' ? 'Does not apply' : 'Completed') : ''}</div>
                 </div>`;
         };
         return box(head(pill) + `
             <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">${data.year} ${data.make} ${data.model} · recalls issued in the last 12 months that haven't been marked done</div>
-            ${open.length ? open.map(row).join('') : '<div style="font-size: 13px; color: #047857; margin-top: 6px;">No current recalls for this vehicle.</div>'}
+            ${open.length ? open.map(row).join('') : '<div style="font-size: 13px; color: #1F4E79; margin-top: 6px;">No current recalls for this vehicle.</div>'}
             <a href="https://www.nhtsa.gov/recalls?vin=${encodeURIComponent(asset.vin || '')}" target="_blank" rel="noopener" style="display: block; font-size: 12px; color: #2E75B6; margin-top: 10px;">Check which are still open for this exact VIN on NHTSA.gov →</a>`);
     },
 
@@ -1324,14 +1324,14 @@ const app = {
     fleetBadgesHTML(asset) {
         const out = [];
         const n = asset.type === 'trailer' ? 0 : this.openRecallCount(asset);
-        if (n) out.push(`<span style="background:#fef2f2;color:#b91c1c;">⚠ ${n} recall${n === 1 ? '' : 's'} due</span>`);
+        if (n) out.push(`<span style="background:#1F4E79;color:#ffffff;"><i class="fas fa-exclamation-triangle"></i> ${n} recall${n === 1 ? '' : 's'} due</span>`);
         // registration is always shown on the card
         const r = this.registrationInfo(asset);
         const short = r.nice ? new Date(asset.registrationExpiration + 'T12:00:00').toLocaleDateString([], { month: 'short', year: 'numeric' }) : '';
-        if (r.level === 'bad') out.push(`<span style="background:#fef2f2;color:#b91c1c;">Reg. expired ${short}</span>`);
-        else if (r.level === 'warn') out.push(`<span style="background:#fff7ed;color:#c2410c;">${r.days === 0 ? 'Reg. due today' : `Reg. due in ${r.days}d`}</span>`);
-        else if (r.level === 'ok') out.push(`<span style="background:#ecfdf5;color:#047857;">Reg. valid to ${short}</span>`);
-        else out.push(`<span style="background:#f3f4f6;color:#4b5563;">Reg. date not set</span>`);
+        if (r.level === 'bad') out.push(`<span style="background:#1F4E79;color:#ffffff;">Reg. expired ${short}</span>`);
+        else if (r.level === 'warn') out.push(`<span style="background:#dbeafe;color:#1F4E79;">${r.days === 0 ? 'Reg. due today' : `Reg. due in ${r.days}d`}</span>`);
+        else if (r.level === 'ok') out.push(`<span style="background:#f1f5f9;color:#475569;">Reg. valid to ${short}</span>`);
+        else out.push(`<span style="background:#f1f5f9;color:#64748b;">Reg. date not set</span>`);
         return `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${out.map(b => b.replace('<span style="', '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;')).join('')}</div>`;
     },
 
@@ -1346,8 +1346,8 @@ const app = {
         this.openInfoWindow(`Recall #${r.id}`, `
             <div style="font-weight: 700; font-size: 16px; color: #1f2937;">${r.component || ''}</div>
             <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">${a.name} · ${data.year} ${data.make} ${data.model} · reported ${fmt(r.date)}</div>
-            ${r.parkIt ? '<div style="margin-top: 12px; background: #fef2f2; color: #b91c1c; padding: 10px 12px; border-radius: 8px; font-weight: 700;">Do not drive this vehicle until it is repaired.</div>' : ''}
-            ${r.parkOutSide ? '<div style="margin-top: 12px; background: #fff7ed; color: #c2410c; padding: 10px 12px; border-radius: 8px; font-weight: 700;">Park outside and away from buildings until repaired.</div>' : ''}
+            ${r.parkIt ? '<div style="margin-top: 12px; background: #dbe4f0; color: #1e3a5f; padding: 10px 12px; border-radius: 8px; font-weight: 700;">Do not drive this vehicle until it is repaired.</div>' : ''}
+            ${r.parkOutSide ? '<div style="margin-top: 12px; background: #eef4fb; color: #2E75B6; padding: 10px 12px; border-radius: 8px; font-weight: 700;">Park outside and away from buildings until repaired.</div>' : ''}
             ${sec('Summary', r.summary)}
             ${sec('Safety risk', r.consequence)}
             ${sec('Remedy', r.remedy)}
@@ -1355,9 +1355,9 @@ const app = {
             <div style="margin-top: 16px; font-size: 12px; color: #6b7280;">${st ? `Marked ${st.status === 'na' ? '"does not apply"' : 'completed'} by ${st.by || 'team'} on ${fmt((st.at || '').slice(0, 10))}.` : 'This recall is on file for this model. Confirm on NHTSA.gov or with the dealer whether it is open for this VIN.'}</div>
             <a href="https://www.nhtsa.gov/recalls?vin=${encodeURIComponent(a.vin || '')}" target="_blank" rel="noopener" style="display: block; text-align: center; margin-top: 14px; padding: 12px; background: #2E75B6; color: white; border-radius: 8px; font-weight: 600; text-decoration: none;">Check this VIN on NHTSA.gov</a>
             ${st
-                ? `<button onclick="app.setRecallStatus('${a.id}', '${r.id}', null)" style="width: 100%; margin-top: 10px; padding: 12px; background: white; color: #b91c1c; border: 1px solid #b91c1c; border-radius: 8px; font-weight: 600;">Mark as open again</button>`
+                ? `<button onclick="app.setRecallStatus('${a.id}', '${r.id}', null)" style="width: 100%; margin-top: 10px; padding: 12px; background: white; color: #1e3a5f; border: 1px solid #1e3a5f; border-radius: 8px; font-weight: 600;">Mark as open again</button>`
                 : `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
-                    <button onclick="app.setRecallStatus('${a.id}', '${r.id}', 'done')" style="padding: 12px; background: #047857; color: white; border: none; border-radius: 8px; font-weight: 600;">Repair done</button>
+                    <button onclick="app.setRecallStatus('${a.id}', '${r.id}', 'done')" style="padding: 12px; background: #1F4E79; color: white; border: none; border-radius: 8px; font-weight: 600;">Repair done</button>
                     <button onclick="app.setRecallStatus('${a.id}', '${r.id}', 'na')" style="padding: 12px; background: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-weight: 600;">Doesn't apply</button>
                    </div>`}`);
     },
@@ -1726,7 +1726,7 @@ const app = {
                 </div>
             `;
         } else if (actionType === 'maintenance') {
-            title = '🔧 Log Maintenance';
+            title = 'Log Maintenance';
             fields = `
                 <div class="form-group">
                     <label class="form-label">Maintenance Type</label>
@@ -2181,7 +2181,7 @@ const app = {
                     </div>
                     <div class="info-row">
                         <span class="info-label">Status:</span>
-                        <span class="info-value" style="color: ${regStatus.expiring ? '#dc2626' : '#10b981'};">
+                        <span class="info-value" style="color: ${regStatus.expiring ? '#475569' : '#2E75B6'};">
                             ${regStatus.status === 'valid' ? 'Current' : regStatus.status === 'expired' ? 'EXPIRED' : 'Expiring Soon'}
                         </span>
                     </div>
@@ -2250,7 +2250,7 @@ const app = {
                     </div>
                     <div class="info-row">
                         <span class="info-label">Status:</span>
-                        <span class="info-value" style="color: ${regStatus.expiring ? '#dc2626' : '#10b981'};">
+                        <span class="info-value" style="color: ${regStatus.expiring ? '#475569' : '#2E75B6'};">
                             ${regStatus.status === 'valid' ? 'Current' : regStatus.status === 'expired' ? 'EXPIRED' : 'Expiring Soon'}
                         </span>
                     </div>
@@ -2844,9 +2844,9 @@ const app = {
     // Helper: Get status color
     getStatusColor(status) {
         const colors = {
-            'available': '#4ade80',
-            'in-use': '#facc15',
-            'maintenance': '#f87171'
+            'available': '#2E75B6',
+            'in-use': '#1F4E79',
+            'maintenance': '#94a3b8'
         };
         return colors[status] || '#999';
     },
@@ -2908,22 +2908,22 @@ const app = {
         if (regStatus.expiring) {
             if (regStatus.status === 'expired') {
                 html += `
-                    <div style="background: #fee2e2; border-left: 4px solid #dc2626; padding: 12px; margin-bottom: 12px; border-radius: 4px;">
-                        <div style="color: #dc2626; font-weight: bold; margin-bottom: 4px;">
+                    <div style="background: #e2e8f0; border-left: 4px solid #475569; padding: 12px; margin-bottom: 12px; border-radius: 4px;">
+                        <div style="color: #475569; font-weight: bold; margin-bottom: 4px;">
                             <i class="fas fa-exclamation-circle"></i> Registration EXPIRED
                         </div>
-                        <div style="color: #991b1b; font-size: 0.9em;">
+                        <div style="color: #1e3a5f; font-size: 0.9em;">
                             Registration expired on ${vehicle.registrationExpiration}. Immediate action required.
                         </div>
                     </div>
                 `;
             } else if (regStatus.status === 'expiring-soon') {
                 html += `
-                    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 12px; border-radius: 4px;">
-                        <div style="color: #d97706; font-weight: bold; margin-bottom: 4px;">
+                    <div style="background: #eef4fb; border-left: 4px solid #1F4E79; padding: 12px; margin-bottom: 12px; border-radius: 4px;">
+                        <div style="color: #1F4E79; font-weight: bold; margin-bottom: 4px;">
                             <i class="fas fa-clock"></i> Registration Expiring Soon
                         </div>
-                        <div style="color: #92400e; font-size: 0.9em;">
+                        <div style="color: #1F4E79; font-size: 0.9em;">
                             Expires ${vehicle.registrationExpiration} (${regStatus.daysLeft} days remaining)
                         </div>
                     </div>
@@ -2931,11 +2931,11 @@ const app = {
             }
         } else if (regStatus.status === 'unknown') {
             html += `
-                <div style="background: #e0e7ff; border-left: 4px solid #6366f1; padding: 12px; margin-bottom: 12px; border-radius: 4px;">
-                    <div style="color: #4f46e5; font-weight: bold; margin-bottom: 4px;">
+                <div style="background: #e0e7ff; border-left: 4px solid #2E75B6; padding: 12px; margin-bottom: 12px; border-radius: 4px;">
+                    <div style="color: #1F4E79; font-weight: bold; margin-bottom: 4px;">
                         <i class="fas fa-info-circle"></i> Registration Status Unknown
                     </div>
-                    <div style="color: #312e81; font-size: 0.9em;">
+                    <div style="color: #1F4E79; font-size: 0.9em;">
                         Expiration date needs to be updated.
                     </div>
                 </div>
@@ -2946,8 +2946,8 @@ const app = {
         if (alerts.length > 0) {
             html += `<div style="margin-bottom: 12px;"><strong style="color: #333;">Active Recalls/Alerts (${alerts.length})</strong></div>`;
             alerts.forEach(alert => {
-                const severityColor = alert.severity === 'high' ? '#dc2626' : alert.severity === 'medium' ? '#f59e0b' : '#10b981';
-                const severityBg = alert.severity === 'high' ? '#fee2e2' : alert.severity === 'medium' ? '#fef3c7' : '#ecfdf5';
+                const severityColor = alert.severity === 'high' ? '#475569' : alert.severity === 'medium' ? '#1F4E79' : '#2E75B6';
+                const severityBg = alert.severity === 'high' ? '#e2e8f0' : alert.severity === 'medium' ? '#eef4fb' : '#eef4fb';
 
                 html += `
                     <div style="background: ${severityBg}; border-left: 4px solid ${severityColor}; padding: 12px; margin-bottom: 8px; border-radius: 4px;">
@@ -2963,7 +2963,7 @@ const app = {
                 `;
             });
         } else if (!regStatus.expiring) {
-            html += '<div style="color: #10b981; padding: 12px; text-align: center;"><i class="fas fa-check-circle"></i> No active alerts</div>';
+            html += '<div style="color: #2E75B6; padding: 12px; text-align: center;"><i class="fas fa-check-circle"></i> No active alerts</div>';
         }
 
         return html;
@@ -3001,7 +3001,7 @@ const app = {
                 if (value) {
                     permissionsHTML += `
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span style="color: #10b981; font-weight: bold;">✓</span>
+                            <span style="color: #2E75B6; font-weight: bold;">✓</span>
                             <span style="color: #1f2937;">${permissionLabels[key]}</span>
                         </div>
                     `;
@@ -3380,7 +3380,7 @@ const app = {
         const cloud = this._cloudReady ? '✓ Synced with the cloud' : '… Cloud sync not confirmed yet (data is saved on this device)';
         return `
             <div style="background: #f0f0f0; padding: 16px; border-radius: 8px; margin: 16px 0; font-family: monospace; font-size: 12px;">
-                <div style="color: #333; margin-bottom: 8px;"><strong>📦 Saved data</strong></div>
+                <div style="color: #333; margin-bottom: 8px;"><strong>Saved data</strong></div>
                 <div style="color: #666;">✓ ${this.people.length} team members</div>
                 <div style="color: #666;">✓ ${this.vehicles.length} vehicles</div>
                 <div style="color: #666;">✓ ${this.trailers.length} trailers</div>

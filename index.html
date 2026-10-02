@@ -9,6 +9,9 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
     <link rel="manifest" href="/manifest.webmanifest">
     <meta name="apple-mobile-web-app-title" content="PDR Fleet">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="application-name" content="PDR Fleet">
     <meta name="theme-color" content="#1F4E79">
     <title>PDR Fleet Tracker</title>
@@ -266,9 +269,9 @@
             margin-right: 4px;
         }
 
-        .status-available { background: #10b981; }
-        .status-in-use { background: #f59e0b; }
-        .status-maintenance { background: #ef4444; }
+        .status-available { background: #2E75B6; }
+        .status-in-use { background: #1F4E79; }
+        .status-maintenance { background: #64748b; }
 
         /* QR Scanner Page */
         .qr-scanner-container {
@@ -460,12 +463,12 @@
         }
 
         .person-action-btn.delete {
-            background: #FEE2E2;
-            color: #DC2626;
+            background: #e2e8f0;
+            color: #475569;
         }
 
         .person-action-btn.delete:active {
-            background: #FECACA;
+            background: #cbd5e1;
         }
 
         .permissions-grid {
@@ -484,12 +487,12 @@
         }
 
         .permission-check {
-            color: #10b981;
+            color: #2E75B6;
             font-weight: bold;
         }
 
         .permission-cross {
-            color: #ef4444;
+            color: #64748b;
             font-weight: bold;
         }
 
@@ -754,6 +757,11 @@
         }
         html, body { max-width: 100%; overflow-x: hidden; }
 
+        /* ---- keep the header below the iPhone clock / battery bar ---- */
+        .app-header { padding-top: max(10px, env(safe-area-inset-top)) !important; }
+        html.home-screen-app body { padding-top: 0 !important; }   /* white header runs up under the clock */
+        html.home-screen-app .app-header { padding-top: var(--status-bar-pad, 62px) !important; border-radius: 0; }
+
         /* ---- smaller phones (iPhone 15 and similar): buttons go under the details ---- */
         @media (max-width: 430px) {
             .asset-row { flex-wrap: wrap !important; }
@@ -837,10 +845,10 @@
             <div class="fleet-container">
                 <div class="fleet-tabs">
                     <button class="fleet-tab active" data-tab="vehicles" onclick="app.switchFleetTab('vehicles')">
-                        🚗 Vehicles
+                        <i class="fas fa-truck-pickup"></i> Vehicles
                     </button>
                     <button class="fleet-tab" data-tab="trailers" onclick="app.switchFleetTab('trailers')">
-                        🚛 Trailers
+                        <i class="fas fa-trailer"></i> Trailers
                     </button>
                 </div>
                 <div class="asset-list" id="assetList"></div>
@@ -908,10 +916,10 @@
             <div style="padding: 16px; padding-top: 12px;">
                 <div class="settings-tabs">
                     <button class="settings-tab active" data-tab="people" onclick="app.switchSettingsTab('people')">
-                        👥 People
+                        <i class="fas fa-users"></i> People
                     </button>
                     <button class="settings-tab" data-tab="app" onclick="app.switchSettingsTab('app')">
-                        ⚙️ App Settings
+                        <i class="fas fa-cog"></i> App Settings
                     </button>
                 </div>
                 <div id="settingsContent"></div>
@@ -1029,7 +1037,7 @@
                         <input type="date" class="form-input" id="mlNext">
                     </div>
                     <button type="submit" class="form-submit-btn">Save</button>
-                    <button type="button" id="mlDelete" onclick="app.deleteMaintLog()" style="display:none; width:100%; margin-top:10px; padding:12px; background:none; border:1px solid #ef4444; color:#ef4444; border-radius:8px; font-weight:600;">Delete this entry</button>
+                    <button type="button" id="mlDelete" onclick="app.deleteMaintLog()" style="display:none; width:100%; margin-top:10px; padding:12px; background:none; border:1px solid #64748b; color:#64748b; border-radius:8px; font-weight:600;">Delete this entry</button>
                 </form>
             </div>
         </div>
@@ -1074,6 +1082,21 @@
         </button>
     </div>
 
+    <script>
+        (function () {
+            var standalone = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+            if (!standalone) return;
+            var probe = document.createElement('div');
+            probe.style.cssText = 'position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top)';
+            document.documentElement.appendChild(probe);
+            var inset = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+            probe.remove();
+            // room for the clock / battery bar (about 54px on current iPhones) plus a little space
+            var pad = Math.max(inset, 54) + 8;
+            document.documentElement.style.setProperty('--status-bar-pad', pad + 'px');
+            document.documentElement.classList.add('home-screen-app');
+        })();
+    </script>
     <script>
         // Handle splash screen fade-out
         document.addEventListener('DOMContentLoaded', function() {
