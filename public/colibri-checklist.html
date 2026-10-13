@@ -86,6 +86,10 @@ ul{list-style:none;margin:0;padding:0}
 .pill.saved{background:var(--ok-soft);color:var(--ok)} .pill.dirty{background:var(--accent-soft);color:var(--accent)}
 .actions{display:flex;flex-wrap:wrap;gap:8px}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+.sendBox{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.sendBox textarea{font:inherit;font-size:16px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:100%;resize:vertical}
+a.btn{text-decoration:none;display:inline-flex;align-items:center}
+a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
 .inl{display:flex;gap:8px;flex-wrap:wrap}.inl input{flex:1 1 160px;width:auto}
 </style>
 </head><body>
@@ -114,7 +118,15 @@ ul{list-style:none;margin:0;padding:0}
       <div class="field"><label for="ckdate">Date</label><input type="date" id="ckdate"></div>
     </div>
     <div class="field" id="addWrap" hidden><label for="newName">Add a name</label><div class="inl"><input id="newName" placeholder="First and last name" autocomplete="off"><button class="btn" id="addName">Add</button><button class="btn" id="addCancel">Cancel</button></div></div>
-    <div class="actions"><button class="btn primary" id="saveDep">Save deployment</button><button class="btn" id="newDep">Start new deployment</button></div>
+    <div class="actions"><button class="btn primary" id="saveDep">Save deployment</button><button class="btn" id="newDep">Start new deployment</button><button class="btn" id="sendBtn">Send to tech</button></div>
+    <div class="sendBox" id="sendBox" hidden>
+      <div class="fields">
+        <div class="field"><label for="sendTo">Send to</label><select id="sendTo"></select></div>
+      </div>
+      <div class="field"><label for="sendMsg">Message</label><textarea id="sendMsg" rows="4"></textarea></div>
+      <div class="actions"><a class="btn primary" id="sendSms" href="#">Text message</a><a class="btn" id="sendMail" href="#">Email</a><button class="btn" id="sendShare" hidden>Share…</button><button class="btn" id="sendCopy">Copy message</button><button class="btn" id="sendClose">Close</button></div>
+      <div class="notice" id="sendNote"></div>
+    </div>
     <div class="confirm" id="confirm" hidden>
       <span>Start a new, blank checklist? This one stays saved under Viewing.</span>
       <button class="btn primary" id="newYes">Start new</button>
@@ -151,6 +163,8 @@ const $ = id => document.getElementById(id);
 let people=["Xavier Fernandez","Anton Potgieter"];
 let deps=[];          // [{id, data:{type,by,date,createdAt,updatedAt,savedAt,savedBy,counts}}], newest first
 let viewId=null;      // null = newest deployment
+try { viewId=new URLSearchParams(location.search).get("d")||null; } catch(e) {}
+let team=[];          // from the fleet app team directory
 let pending=0, ready=false;
 const cur=()=>deps.find(d=>d.id===viewId)||deps[0]||null;
 const me=()=>(cur()&&cur().data.by)||"";
@@ -224,6 +238,41 @@ $("newYes").addEventListener("click", async ()=>{
   if (await putDep(d,"New deployment started. The previous one is saved under Viewing.")) {} else { deps.shift(); renderSession(); }
 });
 
+/* ---------- send to tech ---------- */
+function depLink(){ const d=cur(); return location.origin+location.pathname+(d?"?d="+encodeURIComponent(d.id):""); }
+function draft(){
+  const d=cur(), p=team.find(x=>x.name===$("sendTo").value), c=counts();
+  const first=p?p.name.split(" ")[0]:"";
+  const what=d?`${d.data.type||"Deployment"} checklist for ${fmtDay(d.data.date)}`:"deployment checklist";
+  return `${first?"Hi "+first+", h":"H"}ere's the ${what}: ${depLink()}\n${c.packed+c.na} of ${ITEMS.length} items done, ${c.open} still open.`;
+}
+function updateSendLinks(){
+  const p=team.find(x=>x.name===$("sendTo").value), body=$("sendMsg").value, d=cur();
+  const subj=`${(d&&d.data.type)||"Deployment"} checklist – ${d?fmtDay(d.data.date):""}`;
+  const sms=$("sendSms"), mail=$("sendMail");
+  sms.href=`sms:${p&&p.phone?p.phone.replace(/[^\d+]/g,""):""}?&body=${encodeURIComponent(body)}`;
+  mail.href=`mailto:${p&&p.email?encodeURIComponent(p.email):""}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  $("sendNote").textContent = p ? [p.phone?"Phone "+p.phone:"No phone on file", p.email?"Email "+p.email:"No email on file"].join(" · ")+" (from the fleet app team list)" : "Pick a person, or leave it blank and choose the contact in your messages app.";
+}
+function openSend(){
+  const names=team.length?team:people.map(n=>({name:n}));
+  const prevSel=$("sendTo").value;
+  $("sendTo").innerHTML='<option value="">Choose a person…</option>'+names.map(p=>`<option value="${esc(p.name)}">${esc(p.name)}${p.role?" · "+esc(p.role):""}</option>`).join("");
+  if (prevSel) $("sendTo").value=prevSel;
+  else { const tech=team.find(p=>/tech/i.test(p.role)); if(tech) $("sendTo").value=tech.name; }
+  $("sendMsg").value=draft(); updateSendLinks(); $("sendBox").hidden=false;
+  $("sendShare").hidden=!navigator.share;
+}
+$("sendBtn").addEventListener("click", ()=>{ if($("sendBox").hidden) openSend(); else $("sendBox").hidden=true; });
+$("sendClose").addEventListener("click", ()=>{ $("sendBox").hidden=true; });
+$("sendTo").addEventListener("change", ()=>{ $("sendMsg").value=draft(); updateSendLinks(); });
+$("sendMsg").addEventListener("input", updateSendLinks);
+$("sendShare").addEventListener("click", async ()=>{ try{ await navigator.share({title:"Deployment checklist", text:$("sendMsg").value}); }catch(e){} });
+$("sendCopy").addEventListener("click", async ()=>{
+  try { await navigator.clipboard.writeText($("sendMsg").value); $("sendNote").textContent="Message copied. Paste it into any chat."; }
+  catch(e){ $("sendMsg").select(); $("sendNote").textContent="Press and hold the message to copy it."; }
+});
+
 /* ---------- checklist ---------- */
 function render(){
   const {packed:c,na:n,open:o}=counts();
@@ -291,15 +340,15 @@ $("boxes").addEventListener("change", async e=>{
 });
 
 /* ---------- sync ---------- */
-function editing(){ const a=document.activeElement; return !!a && ((a.classList && a.classList.contains("note")) || ["checker","ckdate","newName","deptype","depSel"].includes(a.id)); }
+function editing(){ const a=document.activeElement; return !!a && ((a.classList && a.classList.contains("note")) || ["checker","ckdate","newName","deptype","depSel","sendTo","sendMsg"].includes(a.id)); }
 let loading=false, again=false;
 async function load(force){
   if (loading){ if(force) again=true; return; }
   if (!force && (pending || editing())) return;
   loading=true;
   try {
-    const rows = await sb('fleet_records?select=kind,id,data&kind=in.('+DEP+','+META+')&deleted=eq.false');
-    const nextDeps=[]; rows.forEach(r=>{ if(!r.data) return; if(r.kind===META && r.id==='people' && Array.isArray(r.data.names)) people=r.data.names; if(r.kind===DEP) nextDeps.push({id:r.id,data:r.data}); });
+    const rows = await sb('fleet_records?select=kind,id,data&kind=in.('+DEP+','+META+',person)&deleted=eq.false');
+    const nextDeps=[], nextTeam=[]; rows.forEach(r=>{ if(!r.data) return; if(r.kind===META && r.id==='people' && Array.isArray(r.data.names)) people=r.data.names; if(r.kind===DEP) nextDeps.push({id:r.id,data:r.data}); if(r.kind==='person' && r.data.name) nextTeam.push({name:r.data.name,phone:r.data.phone||'',email:r.data.email||'',role:r.data.role||''}); }); team=nextTeam.sort((a,b)=>a.name.localeCompare(b.name));
     nextDeps.sort((a,b)=>String(b.data.createdAt||"").localeCompare(String(a.data.createdAt||"")));
     if (!nextDeps.length){ const at=nowIso(); const d={id:"d"+Date.now().toString(36),data:{type:"Deployment",by:"",date:today(),createdAt:at,updatedAt:at}}; await upsert([{kind:DEP,id:d.id,data:d.data,deleted:false,updated_at:at}]); nextDeps.push(d); }
     if (viewId && !nextDeps.some(d=>d.id===viewId)) viewId=null;
