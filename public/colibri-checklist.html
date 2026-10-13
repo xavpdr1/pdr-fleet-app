@@ -81,6 +81,11 @@ ul{list-style:none;margin:0;padding:0}
 .field label{font:600 12px var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .field select,.field input{font:inherit;font-size:16px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);min-width:0;width:100%}
 .field select:focus,.field input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.sessHead{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+.pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--na-soft);color:var(--muted)}
+.pill.saved{background:var(--ok-soft);color:var(--ok)} .pill.dirty{background:var(--accent-soft);color:var(--accent)}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
 .inl{display:flex;gap:8px;flex-wrap:wrap}.inl input{flex:1 1 160px;width:auto}
 </style>
 </head><body>
@@ -88,9 +93,9 @@ ul{list-style:none;margin:0;padding:0}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="brand"><span class="logo"><img src="/colibri-logo.jpg" alt="PDR-Team"></span><span class="eyebrow">Colibri scanner</span></div>
+      <div class="brand"><span class="logo"><img src="/colibri-logo.jpg" alt="PDR-Team"></span></div>
       <h1>Deployment Checklist</h1>
-      <p class="sub">Tick each item as it goes into its case. Everyone who scans the code sees the same list.</p>
+      <p class="sub">Tick each item as it goes into its case. Each deployment is saved as its own record.</p>
     </div>
     <div class="qr"><img alt="QR code linking to this checklist" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAewAAAHsAQAAAAA4UaPNAAAC20lEQVR4nO2dYU7DMAyFnxH/0xvs/sfiBs4JzI8kjtMOIbSuYPYiNKUhn0KlN+/F9YIYHmj17REaIE6cOHHixIkTJ06c+Am4eNuAKkB/bZci0i/jtPNWJ078F/BircF1fjMRASA3QzEU2007c3XixK/D370nAIoCsLoJYIAr26rYYdoZqxMn/idw2WAK1O5zTIFiwc88d3XixJ+Mvx+HDJBiMjqoGwCr2xNWJ078enxqfrqX5nCApvYm+/YuiNPOWJ048evxofmWqwlNirrOvXOYlvreib8m3jUfo/eyewVQBVWsCvZB/vHViRO/HseSeyz7jmmfg2KmmD+taep7J/6a+FDvkH3r9JGg/Kbzlp8HRqKemieeD5/yDk+aRnjXPgFAi/Mz2jPOE8+KB29TDEPniFK3oXafNp7GUvPEE+IhziuatjHMzOyM2gOP/NQ88bR48PNN9jaqa0oos8Hi5z3sU/PEE+LuzAEgSr1vZhXByWBaesZ54lnxJc57GI9hP5qcJdpT88RT4sGc22pjANd/fEcwzhNPji/5+WOQn9N0eTJFP088LR5qzOomRQUQoFUaeFGZFMUosMQYPGN14sSvx7vmBSNLOYS9VOBUQdFWXYxi4iUKue+d+GviS73NTFRiyc+bhUH6eeK58an53XYVOPh5Bf088fz4od5mKS0IX/r2DlhvQ/z/4J6NRzv9YHRExD76ER+mkBv9PPG8+KHeBtO9L1WUuiD0NsSz415IZtaPtXEzLxtkm79F+Aj4I388ceI/ajFvA8wSyvm6Wn3f3jLOE8+JL3vYaHL8mazvW/dfkqLmiafE168BelGlol0u1cVYBql54jnxO2c6oQrCmU69AqGde+An3pyzOnHi1+P3NF9UxqtXHUixduJNP/rjnNWJE78ev+Pnd4NzRAdDP088MX4/b7PLxvuEucml5olnxcW+n/N14/9QI06cOHHixIkTJ078N/FPc0w4EFCnUDIAAAAASUVORK5CYII="><span>Scan to open</span></div>
   </header>
@@ -100,26 +105,26 @@ ul{list-style:none;margin:0;padding:0}
     <div class="stats" id="stats"></div>
   </div>
 
-  <section class="session" aria-label="Checklist details">
-    <h2>Checklist details</h2>
+  <section class="session" aria-label="Deployment record">
+    <div class="sessHead"><h2>Deployment record</h2><span class="pill" id="savedPill"></span></div>
+    <div class="field"><label for="depSel">Viewing</label><select id="depSel"></select></div>
     <div class="fields">
+      <div class="field"><label for="deptype">Type</label><select id="deptype"><option>Deployment</option><option>DEMO</option><option>CAT Deployment</option></select></div>
       <div class="field"><label for="checker">Checked by</label><select id="checker"><option value="">Select a name…</option></select></div>
       <div class="field"><label for="ckdate">Date</label><input type="date" id="ckdate"></div>
     </div>
     <div class="field" id="addWrap" hidden><label for="newName">Add a name</label><div class="inl"><input id="newName" placeholder="First and last name" autocomplete="off"><button class="btn" id="addName">Add</button><button class="btn" id="addCancel">Cancel</button></div></div>
+    <div class="actions"><button class="btn primary" id="saveDep">Save deployment</button><button class="btn" id="newDep">Start new deployment</button></div>
+    <div class="confirm" id="confirm" hidden>
+      <span>Start a new, blank checklist? This one stays saved under Viewing.</span>
+      <button class="btn primary" id="newYes">Start new</button>
+      <button class="btn" id="newNo">Cancel</button>
+    </div>
   </section>
 
   <div class="tools">
     <div class="chips" id="chips" role="toolbar" aria-label="Filter by case"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" id="openOnly" aria-pressed="false">Show open only</button>
-      <button class="btn danger" id="resetBtn">Start new deployment</button>
-    </div>
-  </div>
-  <div class="confirm" id="confirm" hidden>
-    <span>Clear every tick and N/A mark and set the date to today? Notes stay.</span>
-    <button class="btn danger" id="resetYes">Clear list</button>
-    <button class="btn" id="resetNo">Cancel</button>
+    <button class="btn" id="openOnly" aria-pressed="false">Show open only</button>
   </div>
   <div class="notice" id="notice">Connecting to the shared list…</div>
 
@@ -130,10 +135,11 @@ ul{list-style:none;margin:0;padding:0}
 const ITEMS = [{"k": "box1-screen-for-cabinet", "q": 1, "n": "Screen for cabinet", "b": "Box1", "note": ""}, {"k": "box1-charuco-board-intrinsic-calibration", "q": 1, "n": "Charuco board (intrinsic calibration)", "b": "Box1", "note": ""}, {"k": "box1-stand-for-charuco-board", "q": 1, "n": "Stand for charuco board", "b": "Box1", "note": ""}, {"k": "box1-blankets", "q": 2, "n": "Blankets", "b": "Box1", "note": ""}, {"k": "box1-spare-minion", "q": 1, "n": "Spare minion", "b": "Box1", "note": ""}, {"k": "box1-small-plastic-box", "q": 1, "n": "Small plastic box", "b": "Box1", "note": ""}, {"k": "box1-spare-3d-camera", "q": 1, "n": "Spare 3D-Camera", "b": "Box1", "note": ""}, {"k": "box1-spare-2d-camera", "q": 1, "n": "Spare 2D-Camera", "b": "Box1", "note": ""}, {"k": "box1-cable-for-3d-camera", "q": 1, "n": "Cable for 3D-Camera", "b": "Box1", "note": ""}, {"k": "box2-line-board-pdr-team", "q": 1, "n": "Line board PDR-Team", "b": "Box2", "note": ""}, {"k": "box2-box-with-markers-scanner-qr", "q": 1, "n": "Box with markers/Scanner QR", "b": "Box2", "note": ""}, {"k": "box2-foam-glass-cleaner", "q": 1, "n": "Foam glass cleaner", "b": "Box2", "note": ""}, {"k": "box2-spray-bottle", "q": 1, "n": "Spray bottle", "b": "Box2", "note": ""}, {"k": "box2-camping-table", "q": 1, "n": "Camping table", "b": "Box2", "note": ""}, {"k": "box2-big-drying-towel", "q": 1, "n": "Big drying towel", "b": "Box2", "note": ""}, {"k": "box2-squeegee", "q": 1, "n": "Squeegee", "b": "Box2", "note": ""}, {"k": "box2-box-with-10-towels", "q": 1, "n": "Box with 10 towels", "b": "Box2", "note": ""}, {"k": "box2-netgear-switch", "q": 1, "n": "NETGEAR switch", "b": "Box2", "note": ""}, {"k": "box2-glinet-wifi", "q": 1, "n": "GliNet WiFi", "b": "Box2", "note": ""}, {"k": "box3-pack-of-wago-connectors", "q": 1, "n": "Pack of WAGO connectors", "b": "Box3", "note": ""}, {"k": "box3-odu-cable", "q": 1, "n": "ODU-Cable", "b": "Box3", "note": ""}, {"k": "box3-power-cable", "q": 1, "n": "Power cable", "b": "Box3", "note": ""}, {"k": "box3-power-strip-6-feet", "q": 1, "n": "Power strip 6 feet", "b": "Box3", "note": ""}, {"k": "box3-extension-cord-25-feet", "q": 1, "n": "Extension cord 25 feet", "b": "Box3", "note": ""}, {"k": "box3-extension-cord-50-feet", "q": 1, "n": "Extension cord 50 feet", "b": "Box3", "note": ""}, {"k": "box3-adapter-1-14-50p", "q": 1, "n": "Adapter 1 (14-50P)", "b": "Box3", "note": ""}, {"k": "box3-adapter-2-14-60p", "q": 1, "n": "Adapter 2 (14-60P)", "b": "Box3", "note": ""}, {"k": "box3-adapter-3-14-30-p", "q": 1, "n": "Adapter 3 (14-30 P)", "b": "Box3", "note": ""}, {"k": "box3-adapter-4-6-50p", "q": 1, "n": "Adapter 4 (6-50P)", "b": "Box3", "note": ""}, {"k": "box3-adapter-5-only-one-side", "q": 1, "n": "Adapter 5 (only one side)", "b": "Box3", "note": ""}, {"k": "box3-pack-of-zip-ties-big", "q": 1, "n": "Pack of zip ties (big)", "b": "Box3", "note": ""}, {"k": "box3-pack-of-zip-ties-small", "q": 1, "n": "Pack of zip ties (small)", "b": "Box3", "note": ""}, {"k": "box3-hdmi-cable-15-feet", "q": 1, "n": "HDMI-cable (15 feet)", "b": "Box3", "note": ""}, {"k": "box3-hdmi-cable-6-feet", "q": 1, "n": "HDMI-cable (6 feet)", "b": "Box3", "note": ""}, {"k": "box3-ethernet-cable-100-feet", "q": 1, "n": "Ethernet cable (100 feet)", "b": "Box3", "note": ""}, {"k": "box3-ethernet-cable-35-feet", "q": 1, "n": "Ethernet cable (35 feet)", "b": "Box3", "note": ""}, {"k": "box3-ethernet-cable-6-feet", "q": 1, "n": "Ethernet cable (6 feet)", "b": "Box3", "note": ""}, {"k": "box3-usb-c-to-usb-cable-5-feet", "q": 1, "n": "USB-C to USB cable (5 feet)", "b": "Box3", "note": ""}, {"k": "box3-extra-cable-220v-30-feet", "q": 1, "n": "Extra cable 220V (30 feet)", "b": "Box3", "note": ""}, {"k": "box3-electrical-metal-pipe-and-holder-15-feet", "q": 1, "n": "Electrical metal pipe and holder (15 feet)", "b": "Box3", "note": ""}, {"k": "box3-extra-plug-for-installation", "q": 1, "n": "Extra plug for installation", "b": "Box3", "note": ""}, {"k": "colibri-colibri-in-chassis", "q": 1, "n": "Colibri in chassis", "b": "Colibri", "note": ""}, {"k": "colibri-control-cabinet", "q": 1, "n": "Control cabinet", "b": "Colibri", "note": ""}, {"k": "colibri-calibration-board-room-calibration", "q": 1, "n": "Calibration board (room calibration)", "b": "Colibri", "note": ""}, {"k": "colibri-crane-element-l-shaped", "q": 1, "n": "Crane element (L-shaped)", "b": "Colibri", "note": ""}, {"k": "colibri-crane-element-i-shaped", "q": 1, "n": "Crane element (I-shaped)", "b": "Colibri", "note": ""}, {"k": "other-cable-protector", "q": 3, "n": "Cable protector", "b": "other", "note": ""}, {"k": "other-starlink-kit-complete", "q": 1, "n": "Starlink kit (complete)", "b": "other", "note": "Mini"}, {"k": "other-generator-240v", "q": 1, "n": "Generator 240V", "b": "other", "note": ""}, {"k": "other-colibri-chair", "q": 1, "n": "Colibri chair", "b": "other", "note": ""}, {"k": "other-ladder", "q": 1, "n": "Ladder", "b": "other", "note": ""}, {"k": "other-gas-canister", "q": 1, "n": "Gas canister", "b": "other", "note": ""}, {"k": "toolbox-box-with-red-lid-bits", "q": 3, "n": "Box with red lid/ Bits", "b": "Toolbox", "note": ""}, {"k": "toolbox-toolbox-empty", "q": 1, "n": "Toolbox (empty)", "b": "Toolbox", "note": ""}, {"k": "toolbox-milwaukee-ratchet", "q": 1, "n": "Milwaukee ratchet", "b": "Toolbox", "note": ""}, {"k": "toolbox-milwaukee-charger", "q": 1, "n": "Milwaukee charger", "b": "Toolbox", "note": ""}, {"k": "toolbox-milwaukee-battery", "q": 1, "n": "Milwaukee Battery", "b": "Toolbox", "note": ""}, {"k": "toolbox-socket-size-8-ratchet", "q": 1, "n": "Socket (size 8) ratchet", "b": "Toolbox", "note": ""}, {"k": "toolbox-safety-screws-for-colibri-8ct", "q": 8, "n": "Safety screws for Colibri/8ct", "b": "Toolbox", "note": ""}, {"k": "toolbox-snipper-dikes", "q": 1, "n": "Snipper/ Dikes", "b": "Toolbox", "note": ""}, {"k": "toolbox-adjustable-pliers-big", "q": 1, "n": "Adjustable pliers (big)", "b": "Toolbox", "note": ""}, {"k": "toolbox-bit-set", "q": 1, "n": "Bit set", "b": "Toolbox", "note": ""}, {"k": "toolbox-handscrewdriver-set", "q": 1, "n": "Handscrewdriver set", "b": "Toolbox", "note": ""}, {"k": "toolbox-rubber-hammer", "q": 1, "n": "Rubber hammer", "b": "Toolbox", "note": ""}, {"k": "toolbox-remote-for-intrinsic-calibration-with-usb", "q": 1, "n": "Remote for intrinsic calibration (with USB)", "b": "Toolbox", "note": ""}, {"k": "toolbox-box-cutter", "q": 1, "n": "Box cutter", "b": "Toolbox", "note": ""}, {"k": "toolbox-camera-cleaner", "q": 1, "n": "Camera cleaner", "b": "Toolbox", "note": ""}, {"k": "toolbox-permanent-marker", "q": 1, "n": "Permanent marker", "b": "Toolbox", "note": ""}, {"k": "toolbox-paint-marker", "q": 1, "n": "Paint marker", "b": "Toolbox", "note": ""}, {"k": "toolbox-pencil", "q": 1, "n": "Pencil", "b": "Toolbox", "note": ""}, {"k": "toolbox-flat-tip-screw-driver-big", "q": 1, "n": "Flat tip screw driver (big)", "b": "Toolbox", "note": ""}, {"k": "toolbox-electrical-tape-big", "q": 1, "n": "Electrical tape (big)", "b": "Toolbox", "note": ""}, {"k": "toolbox-electrical-tape-small", "q": 1, "n": "Electrical tape (small)", "b": "Toolbox", "note": ""}, {"k": "toolbox-epoxy-glue-kit", "q": 1, "n": "Epoxy glue kit", "b": "Toolbox", "note": ""}, {"k": "toolbox-remote-for-crane", "q": 1, "n": "Remote for crane", "b": "Toolbox", "note": ""}, {"k": "toolbox-voltmeter", "q": 1, "n": "Voltmeter", "b": "Toolbox", "note": ""}, {"k": "toolbox-tape-measure-inch", "q": 1, "n": "Tape measure (inch)", "b": "Toolbox", "note": ""}, {"k": "toolbox-spare-key-for-control-cabinet", "q": 1, "n": "Spare key for control cabinet", "b": "Toolbox", "note": ""}, {"k": "toolbox-spray-lubricant", "q": 1, "n": "Spray lubricant", "b": "Toolbox", "note": ""}, {"k": "toolbox-bungee-3-feet-red", "q": 1, "n": "Bungee (3 feet, red)", "b": "Toolbox", "note": ""}, {"k": "toolbox-adjustable-wrench", "q": 1, "n": "Adjustable wrench", "b": "Toolbox", "note": ""}, {"k": "toolbox-spare-batteries", "q": 1, "n": "Spare batteries", "b": "Toolbox", "note": ""}, {"k": "toolbox-hex-key-set-1-5-to-10", "q": 1, "n": "Hex-key set 1.5 to 10", "b": "Toolbox", "note": ""}, {"k": "toolbox-wire-stripper", "q": 1, "n": "Wire stripper", "b": "Toolbox", "note": ""}, {"k": "toolbox-masking-tape", "q": 1, "n": "Masking Tape", "b": "Toolbox", "note": ""}, {"k": "toolbox-generator-battery-charger", "q": 1, "n": "Generator battery charger", "b": "Toolbox", "note": ""}];
 const BOXES = [["Box1","Box 1"],["Box2","Box 2"],["Box3","Box 3"],["Colibri","Colibri"],["other","Other gear"],["Toolbox","Toolbox"]];
 const CHECK_SVG = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 10.5l4 4 8-9"/></svg>';
+const TYPES = ["Deployment","DEMO","CAT Deployment"];
 let state = {}; let filter = "all"; let openOnly = false; let canWrite = true;
 const SB_URL='https://jedolnkjmlrruipkgqyd.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y';
-const KIND='colibri_check';
+const KIND='colibri_check', DEP='colibri_dep', META='colibri_meta';
 async function sb(path, opts={}){
   const ctl=new AbortController(), tm=setTimeout(()=>ctl.abort(),8000);
   try{ const r=await fetch(`${SB_URL}/rest/v1/${path}`,{...opts,signal:ctl.signal,headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json',...(opts.headers||{})}});
@@ -142,54 +148,96 @@ async function sb(path, opts={}){
 const upsert=rows=>sb('fleet_records?on_conflict=kind,id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)});
 try { filter = localStorage.getItem("colibri.filter") || "all"; openOnly = localStorage.getItem("colibri.open") === "1"; } catch(e) {}
 const $ = id => document.getElementById(id);
-let people=["Xavier Fernandez","Anton Potgieter"], session={by:"",date:""};
-const META='colibri_meta';
-const me=()=>session.by||"";
+let people=["Xavier Fernandez","Anton Potgieter"];
+let deps=[];          // [{id, data:{type,by,date,createdAt,updatedAt,savedAt,savedBy,counts}}], newest first
+let viewId=null;      // null = newest deployment
+let pending=0, ready=false;
+const cur=()=>deps.find(d=>d.id===viewId)||deps[0]||null;
+const me=()=>(cur()&&cur().data.by)||"";
+const nowIso=()=>new Date().toISOString();
 function today(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function fmt(iso){ try { const d=new Date(iso); return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); } catch(e){ return ""; } }
+function fmtDay(ymd){ if(!ymd) return "No date"; const [y,m,d]=ymd.split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function statusOf(k){ return (state[k] && state[k].status) || "open"; }
+function counts(){ const c=ITEMS.filter(i=>statusOf(i.k)==="checked").length, n=ITEMS.filter(i=>statusOf(i.k)==="na").length; return {packed:c,na:n,open:ITEMS.length-c-n}; }
+function lastEdit(){ const d=cur(); let m=(d&&d.data.updatedAt)||""; Object.values(state).forEach(s=>{ [s.at,s.noteAt].forEach(x=>{ if(x&&x>m) m=x; }); }); return m; }
+
+/* ---------- deployment record section ---------- */
 function renderSession(){
-  const sel=$("checker"), names=[...new Set(people)].sort((a,b)=>a.localeCompare(b));
-  if (session.by && !names.includes(session.by)) names.push(session.by);
-  sel.innerHTML='<option value="">Select a name…</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")+'<option value="__add">+ Add a name…</option>';
-  sel.value=session.by||""; $("ckdate").value=session.date||"";
+  const d=cur();
+  $("depSel").innerHTML = deps.length ? deps.map((x,i)=>{ const a=x.data, c=a.counts;
+      return `<option value="${esc(x.id)}">${esc(fmtDay(a.date))} · ${esc(a.type||"Deployment")}${a.by?" · "+esc(a.by):""}${c?` · ${c.packed+c.na}/${ITEMS.length}`:""}${i===0?" (latest)":""}</option>`; }).join("")
+    : '<option value="">No deployments yet</option>';
+  if (d) $("depSel").value=d.id;
+  const names=[...new Set(people)].sort((a,b)=>a.localeCompare(b));
+  if (d && d.data.by && !names.includes(d.data.by)) names.push(d.data.by);
+  $("checker").innerHTML='<option value="">Select a name…</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")+'<option value="__add">+ Add a name…</option>';
+  $("checker").value=(d&&d.data.by)||""; $("ckdate").value=(d&&d.data.date)||""; $("deptype").value=(d&&d.data.type)||"Deployment";
+  const pill=$("savedPill");
+  if (!d){ pill.className="pill"; pill.textContent=""; return; }
+  if (!d.data.savedAt){ pill.className="pill"; pill.textContent="Not saved yet"; }
+  else if (lastEdit()>d.data.savedAt){ pill.className="pill dirty"; pill.textContent="Changed since last save"; }
+  else { pill.className="pill saved"; pill.textContent=`Saved ${fmt(d.data.savedAt)}${d.data.savedBy?" by "+d.data.savedBy:""}`; }
 }
-const saveMeta=(id,data)=>{ const at=new Date().toISOString(); return upsert([{kind:META,id,data:{...data,at},deleted:false,updated_at:at}]); };
-async function saveSession(){ pending++; try{ await saveMeta("session",{by:session.by,date:session.date}); $("notice").textContent="Checklist details saved."; } catch(e){ $("notice").textContent="Couldn't save the checklist details. Check your signal and try again."; } finally{ pending--; } }
+async function putDep(d, msg){
+  pending++;
+  try { await upsert([{kind:DEP,id:d.id,data:d.data,deleted:false,updated_at:nowIso()}]); if(msg) $("notice").textContent=msg; return true; }
+  catch(e){ $("notice").textContent="Couldn't save the deployment details. Check your signal and try again."; return false; }
+  finally { pending--; }
+}
+function editDetails(patch){ const d=cur(); if(!d) return; Object.assign(d.data,patch,{updatedAt:nowIso()}); renderSession(); render(); putDep(d,"Deployment details saved."); }
+$("depSel").addEventListener("change", ()=>{ viewId=$("depSel").value||null; if(deps[0]&&viewId===deps[0].id) viewId=null; state={}; render(); $("notice").textContent="Loading that deployment…"; load(true); });
+$("deptype").addEventListener("change", ()=>editDetails({type:$("deptype").value}));
+$("ckdate").addEventListener("change", ()=>editDetails({date:$("ckdate").value}));
 $("checker").addEventListener("change", ()=>{
   const v=$("checker").value;
-  if (v==="__add"){ $("checker").value=session.by||""; $("addWrap").hidden=false; $("newName").focus(); return; }
-  session.by=v; saveSession(); render();
+  if (v==="__add"){ $("checker").value=me(); $("addWrap").hidden=false; $("newName").focus(); return; }
+  editDetails({by:v});
 });
-$("ckdate").addEventListener("change", ()=>{ session.date=$("ckdate").value; saveSession(); });
 $("addCancel").addEventListener("click", ()=>{ $("newName").value=""; $("addWrap").hidden=true; });
 async function addName(){
-  const n=$("newName").value.trim().replace(/\s+/g," "); if(!n) { $("newName").focus(); return; }
+  const n=$("newName").value.trim().replace(/\s+/g," "); if(!n){ $("newName").focus(); return; }
   const prev=people.slice(); if(!people.some(p=>p.toLowerCase()===n.toLowerCase())) people.push(n);
-  session.by=people.find(p=>p.toLowerCase()===n.toLowerCase());
-  $("newName").value=""; $("addWrap").hidden=true; renderSession(); render();
-  pending++; try{ await saveMeta("people",{names:people}); } catch(e){ people=prev; $("notice").textContent="Couldn't add that name. Check your signal and try again."; } finally{ pending--; }
-  saveSession();
+  const name=people.find(p=>p.toLowerCase()===n.toLowerCase());
+  $("newName").value=""; $("addWrap").hidden=true;
+  pending++; try{ await upsert([{kind:META,id:"people",data:{names:people,at:nowIso()},deleted:false,updated_at:nowIso()}]); } catch(e){ people=prev; $("notice").textContent="Couldn't add that name. Check your signal and try again."; } finally{ pending--; }
+  editDetails({by:name});
 }
 $("addName").addEventListener("click", addName);
 $("newName").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); addName(); } });
-function statusOf(k){ return (state[k] && state[k].status) || "open"; }
-function fmt(iso){ try { const d=new Date(iso); return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); } catch(e){ return ""; } }
+$("saveDep").addEventListener("click", async ()=>{
+  const d=cur(); if(!d||!ready) return;
+  const prev={...d.data};
+  Object.assign(d.data,{savedAt:nowIso(),savedBy:me(),counts:counts()}); renderSession();
+  if(!(await putDep(d,`Saved: ${d.data.type||"Deployment"} on ${fmtDay(d.data.date)}.`))){ d.data=prev; renderSession(); }
+});
+$("newDep").addEventListener("click", ()=>{ if(!ready){ $("notice").textContent="Still loading the shared list. Try again in a moment."; return; } $("confirm").hidden=false; });
+$("newNo").addEventListener("click", ()=>{ $("confirm").hidden=true; });
+$("newYes").addEventListener("click", async ()=>{
+  $("confirm").hidden=true;
+  const prevCur=cur(); const at=nowIso();
+  if (prevCur && !prevCur.data.counts) prevCur.data.counts=counts();
+  const d={id:"d"+Date.now().toString(36), data:{type:"Deployment", by:me(), date:today(), createdAt:at, updatedAt:at}};
+  deps.unshift(d); viewId=null; state={}; renderSession(); render();
+  if (prevCur) putDep(prevCur);
+  if (await putDep(d,"New deployment started. The previous one is saved under Viewing.")) {} else { deps.shift(); renderSession(); }
+});
+
+/* ---------- checklist ---------- */
 function render(){
-  const c = ITEMS.filter(i=>statusOf(i.k)==="checked").length;
-  const n = ITEMS.filter(i=>statusOf(i.k)==="na").length;
-  const o = ITEMS.length-c-n;
+  const {packed:c,na:n,open:o}=counts();
   $("barC").style.width = (c/ITEMS.length*100)+"%";
   $("barN").style.width = (n/ITEMS.length*100)+"%";
   $("stats").innerHTML = `<span><b>${c}</b> packed</span><span><b>${n}</b> N/A</span><span><b>${o}</b> still open</span><span><b>${ITEMS.length}</b> line items</span>`;
-
-  const chips = [["all","All"]].concat(BOXES).map(([k,l])=>{
+  $("chips").innerHTML = [["all","All"]].concat(BOXES).map(([k,l])=>{
     const set = k==="all"?ITEMS:ITEMS.filter(i=>i.b===k);
     const open = set.filter(i=>statusOf(i.k)==="open").length;
     return `<button class="chip" data-f="${k}" aria-pressed="${filter===k}">${l}<small>${open?open+" open":"✓"}</small></button>`;
   }).join("");
-  $("chips").innerHTML = chips;
   $("openOnly").setAttribute("aria-pressed", openOnly); $("openOnly").textContent = openOnly ? "Show all items" : "Show open only";
-
-  const html = BOXES.filter(([k])=>filter==="all"||filter===k).map(([k,l])=>{
+  const ok = canWrite && !!cur();
+  $("boxes").innerHTML = BOXES.filter(([k])=>filter==="all"||filter===k).map(([k,l])=>{
     const all = ITEMS.filter(i=>i.b===k);
     const list = all.filter(i=>!openOnly||statusOf(i.k)==="open");
     const done = all.filter(i=>statusOf(i.k)!=="open").length;
@@ -198,69 +246,73 @@ function render(){
       let meta = "";
       if (st && s!=="open" && st.at){ const who = st.by || ""; meta = `<div class="meta">${s==="na"?"Marked N/A":"Packed"}${who?" by "+esc(who):""} · ${fmt(st.at)}</div>`; }
       return `<li class="row ${s}" data-k="${i.k}">
-        <button class="tick" data-act="tick" aria-label="${s==="checked"?"Uncheck":"Check"} ${esc(i.n)}" aria-pressed="${s==="checked"}" ${canWrite?"":"disabled"}>${CHECK_SVG}</button>
-        <div class="name"><div class="t"><span class="qty">×${i.q}</span><span class="label">${esc(i.n)}</span>${i.note?`<span class="tag">${esc(i.note)}</span>`:""}</div>${meta}<textarea class="note${st&&st.note?" has":""}" id="note-${i.k}" data-k="${i.k}" rows="1" placeholder="Add a note…" aria-label="Note for ${esc(i.n)}" ${canWrite?"":"disabled"}>${esc(st&&st.note||"")}</textarea>${st&&st.note&&st.noteAt?`<div class="noteMeta">Note${st.noteBy?" by "+esc(st.noteBy):""} · ${fmt(st.noteAt)}</div>`:""}</div>
-        <button class="naBtn" data-act="na" aria-pressed="${s==="na"}" ${canWrite?"":"disabled"}>N/A</button></li>`;
+        <button class="tick" data-act="tick" aria-label="${s==="checked"?"Uncheck":"Check"} ${esc(i.n)}" aria-pressed="${s==="checked"}" ${ok?"":"disabled"}>${CHECK_SVG}</button>
+        <div class="name"><div class="t"><span class="qty">×${i.q}</span><span class="label">${esc(i.n)}</span>${i.note?`<span class="tag">${esc(i.note)}</span>`:""}</div>${meta}<textarea class="note${st&&st.note?" has":""}" id="note-${i.k}" data-k="${i.k}" rows="1" placeholder="Add a note…" aria-label="Note for ${esc(i.n)}" ${ok?"":"disabled"}>${esc(st&&st.note||"")}</textarea>${st&&st.note&&st.noteAt?`<div class="noteMeta">Note${st.noteBy?" by "+esc(st.noteBy):""} · ${fmt(st.noteAt)}</div>`:""}</div>
+        <button class="naBtn" data-act="na" aria-pressed="${s==="na"}" ${ok?"":"disabled"}>N/A</button></li>`;
     }).join("");
     return `<section class="box"><h2>${l}<span>${done}/${all.length}</span></h2><ul>${rows||'<li class="empty">Everything in this case is packed.</li>'}</ul></section>`;
   }).join("");
-  $("boxes").innerHTML = html;
   growAll();
 }
-function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-
-let pending=0;
+async function putCheck(k, body){
+  const d=cur(); if(!d) throw new Error("no deployment");
+  await upsert([{kind:KIND,id:d.id+":"+k,data:body,deleted:false,updated_at:nowIso()}]);
+}
 async function setStatus(k, status){
   const prev = state[k];
-  const body = { ...(prev||{}), status, at: new Date().toISOString(), by: me() };
-  state[k] = body; render(); pending++;
-  try { await upsert([{kind:KIND,id:k,data:body,deleted:false,updated_at:body.at}]); $("notice").textContent="Saved. Everyone sees the same list."; }
+  const body = { ...(prev||{}), status, at: nowIso(), by: me() };
+  state[k] = body; render(); renderSession(); pending++;
+  try { await putCheck(k, body); $("notice").textContent="Ticked items save automatically. Tap Save deployment when you're done."; }
   catch(e){ state[k]=prev; render(); $("notice").textContent="That change didn't save. Check your signal and tap it again."; }
   finally { pending--; }
 }
 $("boxes").addEventListener("click", e=>{
-  const b = e.target.closest("button[data-act]"); if(!b||!canWrite) return;
+  const b = e.target.closest("button[data-act]"); if(!b||!canWrite||!cur()) return;
   const k = b.closest(".row").dataset.k, s = statusOf(k);
   if (b.dataset.act==="tick") setStatus(k, s==="checked"?"open":"checked");
   else setStatus(k, s==="na"?"open":"na");
 });
 $("chips").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; filter=b.dataset.f; try{localStorage.setItem("colibri.filter",filter)}catch(_){} render(); });
 $("openOnly").addEventListener("click", ()=>{ openOnly=!openOnly; try{localStorage.setItem("colibri.open",openOnly?"1":"0")}catch(_){} render(); });
-$("resetBtn").addEventListener("click", ()=>{ $("confirm").hidden=false; });
-$("resetNo").addEventListener("click", ()=>{ $("confirm").hidden=true; });
-$("resetYes").addEventListener("click", async ()=>{
-  $("confirm").hidden=true;
-  const at=new Date().toISOString(), by=me();
-  session.date=today(); renderSession(); saveSession();
-  const prev=state; state={}; render(); $("notice").textContent="Clearing list…";
-  try { await upsert(ITEMS.map(i=>({kind:KIND,id:i.k,data:{...(prev[i.k]||{}),status:"open",at,by},deleted:false,updated_at:at}))); $("notice").textContent="List cleared. Ready for the next deployment."; }
-  catch(e){ state=prev; render(); $("notice").textContent="Couldn't clear the list. Check your signal and try again."; }
-});
-render(); renderSession();
-
 function grow(el){ el.style.height="auto"; el.style.height=el.scrollHeight+"px"; }
 function growAll(){ document.querySelectorAll(".note").forEach(grow); }
 $("boxes").addEventListener("input", e=>{ if(e.target.classList.contains("note")) grow(e.target); });
 $("boxes").addEventListener("change", async e=>{
-  const el=e.target; if(!el.classList.contains("note")||!canWrite) return;
+  const el=e.target; if(!el.classList.contains("note")||!canWrite||!cur()) return;
   const k=el.dataset.k, prev=state[k], note=el.value.trim();
   if ((prev&&prev.note||"")===note) return;
-  const now=new Date().toISOString();
+  const now=nowIso();
   const body={ status:"open", ...(prev||{}), note, noteBy:me(), noteAt:now };
   if(!note){ delete body.noteBy; delete body.noteAt; }
   state[k]=body; pending++;
-  try { await upsert([{kind:KIND,id:k,data:body,deleted:false,updated_at:now}]); $("notice").textContent="Note saved."; }
+  try { await putCheck(k, body); $("notice").textContent="Note saved."; }
   catch(err){ state[k]=prev; $("notice").textContent="That note didn't save. Check your signal and try again."; }
-  finally { pending--; if(!editing()) render(); }
+  finally { pending--; renderSession(); if(!editing()) render(); }
 });
-function editing(){ const a=document.activeElement; return !!a && ((a.classList && a.classList.contains("note")) || ["checker","ckdate","newName"].includes(a.id)); }
-async function load(){
-  if (pending || editing()) return;
-  try { const rows = await sb('fleet_records?select=kind,id,data&kind=in.('+KIND+','+META+')&deleted=eq.false');
-    if (pending || editing()) return; const next={}; rows.forEach(r=>{ if(!r.data) return; if(r.kind===META){ if(r.id==='people'&&Array.isArray(r.data.names)) people=r.data.names; if(r.id==='session') session={by:r.data.by||'',date:r.data.date||''}; } else next[r.id]=r.data; }); state=next; renderSession(); render();
-    if (/Connecting|Offline/.test($("notice").textContent)) $("notice").textContent="Live: ticks sync to every phone. Refreshes every 10 seconds.";
+
+/* ---------- sync ---------- */
+function editing(){ const a=document.activeElement; return !!a && ((a.classList && a.classList.contains("note")) || ["checker","ckdate","newName","deptype","depSel"].includes(a.id)); }
+let loading=false, again=false;
+async function load(force){
+  if (loading){ if(force) again=true; return; }
+  if (!force && (pending || editing())) return;
+  loading=true;
+  try {
+    const rows = await sb('fleet_records?select=kind,id,data&kind=in.('+DEP+','+META+')&deleted=eq.false');
+    const nextDeps=[]; rows.forEach(r=>{ if(!r.data) return; if(r.kind===META && r.id==='people' && Array.isArray(r.data.names)) people=r.data.names; if(r.kind===DEP) nextDeps.push({id:r.id,data:r.data}); });
+    nextDeps.sort((a,b)=>String(b.data.createdAt||"").localeCompare(String(a.data.createdAt||"")));
+    if (!nextDeps.length){ const at=nowIso(); const d={id:"d"+Date.now().toString(36),data:{type:"Deployment",by:"",date:today(),createdAt:at,updatedAt:at}}; await upsert([{kind:DEP,id:d.id,data:d.data,deleted:false,updated_at:at}]); nextDeps.push(d); }
+    if (viewId && !nextDeps.some(d=>d.id===viewId)) viewId=null;
+    const d = nextDeps.find(x=>x.id===viewId) || nextDeps[0];
+    const checks = await sb('fleet_records?select=id,data&kind=eq.'+KIND+'&deleted=eq.false&id=like.'+encodeURIComponent(d.id+':')+'*');
+    if (!force && (pending || editing())) return;
+    deps=nextDeps; const next={}; checks.forEach(r=>{ if(r.data) next[r.id.slice(d.id.length+1)]=r.data; }); state=next;
+    ready=true; renderSession(); render();
+    if (/Connecting|Offline|Loading/.test($("notice").textContent)) $("notice").textContent = viewId ? "Viewing an earlier deployment. Choose the latest under Viewing to go back." : "Live: ticks sync to every phone. Refreshes every 10 seconds.";
   } catch(e){ $("notice").textContent="Offline: can't reach the shared list. It will retry automatically."; }
+  finally { loading=false; if(again){ again=false; load(true); } }
 }
+render(); renderSession();
 load(); setInterval(()=>{ if(!document.hidden) load(); },10000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
 </script>
