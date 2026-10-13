@@ -74,8 +74,14 @@ ul{list-style:none;margin:0;padding:0}
 @media (max-width:520px){header.top{grid-template-columns:1fr}.qr{justify-self:start}}
 @media (prefers-reduced-motion:no-preference){.tick{transition:background .12s,border-color .12s}}
 *{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}
-.who{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--muted)}
-.who input{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);min-width:0;width:12em}
+.session{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:12px}
+.session h2{margin:0;font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.field{display:grid;gap:4px;min-width:0}
+.field label{font:600 12px var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.field select,.field input{font:inherit;font-size:16px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);min-width:0;width:100%}
+.field select:focus,.field input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.inl{display:flex;gap:8px;flex-wrap:wrap}.inl input{flex:1 1 160px;width:auto}
 </style>
 </head><body>
 
@@ -94,6 +100,15 @@ ul{list-style:none;margin:0;padding:0}
     <div class="stats" id="stats"></div>
   </div>
 
+  <section class="session" aria-label="Checklist details">
+    <h2>Checklist details</h2>
+    <div class="fields">
+      <div class="field"><label for="checker">Checked by</label><select id="checker"><option value="">Select a name…</option></select></div>
+      <div class="field"><label for="ckdate">Date</label><input type="date" id="ckdate"></div>
+    </div>
+    <div class="field" id="addWrap" hidden><label for="newName">Add a name</label><div class="inl"><input id="newName" placeholder="First and last name" autocomplete="off"><button class="btn" id="addName">Add</button><button class="btn" id="addCancel">Cancel</button></div></div>
+  </section>
+
   <div class="tools">
     <div class="chips" id="chips" role="toolbar" aria-label="Filter by case"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -102,11 +117,10 @@ ul{list-style:none;margin:0;padding:0}
     </div>
   </div>
   <div class="confirm" id="confirm" hidden>
-    <span>Clear every tick and N/A mark for a new deployment?</span>
+    <span>Clear every tick and N/A mark and set the date to today? Notes stay.</span>
     <button class="btn danger" id="resetYes">Clear list</button>
     <button class="btn" id="resetNo">Cancel</button>
   </div>
-  <label class="who" for="who">Your name <input id="who" placeholder="e.g. Curtis" autocomplete="name"></label>
   <div class="notice" id="notice">Connecting to the shared list…</div>
 
   <div id="boxes" style="display:grid;gap:16px"></div>
@@ -128,8 +142,35 @@ async function sb(path, opts={}){
 const upsert=rows=>sb('fleet_records?on_conflict=kind,id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)});
 try { filter = localStorage.getItem("colibri.filter") || "all"; openOnly = localStorage.getItem("colibri.open") === "1"; } catch(e) {}
 const $ = id => document.getElementById(id);
-try { $("who").value = localStorage.getItem("colibri.who") || ""; } catch(e) {}
-$("who").addEventListener("change", ()=>{ try{ localStorage.setItem("colibri.who", $("who").value.trim()); }catch(e){} });
+let people=["Xavier Fernandez","Anton Potgieter"], session={by:"",date:""};
+const META='colibri_meta';
+const me=()=>session.by||"";
+function today(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function renderSession(){
+  const sel=$("checker"), names=[...new Set(people)].sort((a,b)=>a.localeCompare(b));
+  if (session.by && !names.includes(session.by)) names.push(session.by);
+  sel.innerHTML='<option value="">Select a name…</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")+'<option value="__add">+ Add a name…</option>';
+  sel.value=session.by||""; $("ckdate").value=session.date||"";
+}
+const saveMeta=(id,data)=>{ const at=new Date().toISOString(); return upsert([{kind:META,id,data:{...data,at},deleted:false,updated_at:at}]); };
+async function saveSession(){ pending++; try{ await saveMeta("session",{by:session.by,date:session.date}); $("notice").textContent="Checklist details saved."; } catch(e){ $("notice").textContent="Couldn't save the checklist details. Check your signal and try again."; } finally{ pending--; } }
+$("checker").addEventListener("change", ()=>{
+  const v=$("checker").value;
+  if (v==="__add"){ $("checker").value=session.by||""; $("addWrap").hidden=false; $("newName").focus(); return; }
+  session.by=v; saveSession(); render();
+});
+$("ckdate").addEventListener("change", ()=>{ session.date=$("ckdate").value; saveSession(); });
+$("addCancel").addEventListener("click", ()=>{ $("newName").value=""; $("addWrap").hidden=true; });
+async function addName(){
+  const n=$("newName").value.trim().replace(/\s+/g," "); if(!n) { $("newName").focus(); return; }
+  const prev=people.slice(); if(!people.some(p=>p.toLowerCase()===n.toLowerCase())) people.push(n);
+  session.by=people.find(p=>p.toLowerCase()===n.toLowerCase());
+  $("newName").value=""; $("addWrap").hidden=true; renderSession(); render();
+  pending++; try{ await saveMeta("people",{names:people}); } catch(e){ people=prev; $("notice").textContent="Couldn't add that name. Check your signal and try again."; } finally{ pending--; }
+  saveSession();
+}
+$("addName").addEventListener("click", addName);
+$("newName").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); addName(); } });
 function statusOf(k){ return (state[k] && state[k].status) || "open"; }
 function fmt(iso){ try { const d=new Date(iso); return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); } catch(e){ return ""; } }
 function render(){
@@ -171,7 +212,7 @@ function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
 let pending=0;
 async function setStatus(k, status){
   const prev = state[k];
-  const body = { ...(prev||{}), status, at: new Date().toISOString(), by: ($("who").value||"").trim() };
+  const body = { ...(prev||{}), status, at: new Date().toISOString(), by: me() };
   state[k] = body; render(); pending++;
   try { await upsert([{kind:KIND,id:k,data:body,deleted:false,updated_at:body.at}]); $("notice").textContent="Saved. Everyone sees the same list."; }
   catch(e){ state[k]=prev; render(); $("notice").textContent="That change didn't save. Check your signal and tap it again."; }
@@ -189,12 +230,13 @@ $("resetBtn").addEventListener("click", ()=>{ $("confirm").hidden=false; });
 $("resetNo").addEventListener("click", ()=>{ $("confirm").hidden=true; });
 $("resetYes").addEventListener("click", async ()=>{
   $("confirm").hidden=true;
-  const at=new Date().toISOString(), by=($("who").value||"").trim();
+  const at=new Date().toISOString(), by=me();
+  session.date=today(); renderSession(); saveSession();
   const prev=state; state={}; render(); $("notice").textContent="Clearing list…";
   try { await upsert(ITEMS.map(i=>({kind:KIND,id:i.k,data:{...(prev[i.k]||{}),status:"open",at,by},deleted:false,updated_at:at}))); $("notice").textContent="List cleared. Ready for the next deployment."; }
   catch(e){ state=prev; render(); $("notice").textContent="Couldn't clear the list. Check your signal and try again."; }
 });
-render();
+render(); renderSession();
 
 function grow(el){ el.style.height="auto"; el.style.height=el.scrollHeight+"px"; }
 function growAll(){ document.querySelectorAll(".note").forEach(grow); }
@@ -204,18 +246,18 @@ $("boxes").addEventListener("change", async e=>{
   const k=el.dataset.k, prev=state[k], note=el.value.trim();
   if ((prev&&prev.note||"")===note) return;
   const now=new Date().toISOString();
-  const body={ status:"open", ...(prev||{}), note, noteBy:($("who").value||"").trim(), noteAt:now };
+  const body={ status:"open", ...(prev||{}), note, noteBy:me(), noteAt:now };
   if(!note){ delete body.noteBy; delete body.noteAt; }
   state[k]=body; pending++;
   try { await upsert([{kind:KIND,id:k,data:body,deleted:false,updated_at:now}]); $("notice").textContent="Note saved."; }
   catch(err){ state[k]=prev; $("notice").textContent="That note didn't save. Check your signal and try again."; }
   finally { pending--; if(!editing()) render(); }
 });
-function editing(){ const a=document.activeElement; return a && a.classList && a.classList.contains("note"); }
+function editing(){ const a=document.activeElement; return !!a && ((a.classList && a.classList.contains("note")) || ["checker","ckdate","newName"].includes(a.id)); }
 async function load(){
   if (pending || editing()) return;
-  try { const rows = await sb('fleet_records?select=id,data&kind=eq.'+KIND+'&deleted=eq.false');
-    if (pending || editing()) return; const next={}; rows.forEach(r=>{ if(r.data) next[r.id]=r.data; }); state=next; render();
+  try { const rows = await sb('fleet_records?select=kind,id,data&kind=in.('+KIND+','+META+')&deleted=eq.false');
+    if (pending || editing()) return; const next={}; rows.forEach(r=>{ if(!r.data) return; if(r.kind===META){ if(r.id==='people'&&Array.isArray(r.data.names)) people=r.data.names; if(r.id==='session') session={by:r.data.by||'',date:r.data.date||''}; } else next[r.id]=r.data; }); state=next; renderSession(); render();
     if (/Connecting|Offline/.test($("notice").textContent)) $("notice").textContent="Live: ticks sync to every phone. Refreshes every 10 seconds.";
   } catch(e){ $("notice").textContent="Offline: can't reach the shared list. It will retry automatically."; }
 }
