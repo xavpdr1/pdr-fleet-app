@@ -57,7 +57,7 @@ section.box{background:var(--surface);border:1px solid var(--line);border-radius
 section.box h2{margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 14px;border-bottom:2px solid var(--fg);font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:.08em;text-transform:uppercase}
 section.box h2 span{font-family:var(--f-mono);font-size:13px;font-weight:500;letter-spacing:0;color:var(--muted)}
 ul{list-style:none;margin:0;padding:0}
-.row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:auto 48px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
 .row:first-child{border-top:0}
 .tick{width:30px;height:30px;border-radius:6px;border:2px solid var(--muted);background:transparent;cursor:pointer;display:grid;place-items:center;padding:0;color:var(--surface)}
 .tick svg{width:18px;height:18px;opacity:0}
@@ -106,6 +106,26 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
 .panel summary .count{margin-left:auto;font-family:var(--f-mono);font-size:13px;font-weight:500;letter-spacing:0;color:var(--muted)}
 .panel summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .panel[open]{padding-bottom:14px}
+.ph{width:48px;height:48px;border-radius:6px;overflow:hidden;padding:0;border:1px solid var(--line);background:var(--bg);cursor:zoom-in;display:block}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph.none{border-style:dashed;cursor:default;background:transparent}
+.ph:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lb{position:fixed;inset:0;z-index:50;background:rgba(10,14,20,.88);display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 16px);gap:12px}
+.lb .lbTop{display:flex;justify-content:flex-end}
+.lb img{max-width:100%;max-height:100%;margin:auto;display:block;object-fit:contain;border-radius:6px;min-height:0}
+.lb .cap{color:#fff;text-align:center;font-weight:600}
+.lb .btn{background:#fff;color:#1A2332;border-color:#fff}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.pcard{display:grid;gap:6px;min-width:0}
+.pcard button{all:unset;cursor:zoom-in;border-radius:6px;overflow:hidden;aspect-ratio:1;max-width:100%;border:1px solid var(--line)}
+.pcard button img{width:100%;height:100%;object-fit:cover;display:block}
+.pcard select{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:100%;min-width:0}
+.pcard.unmatched select{border-color:var(--accent);background:var(--accent-soft)}
+.name .t{flex-wrap:nowrap}.name .label{min-width:0}.name .tag{flex:none}.name .qty{min-width:0;flex:none}
+.meta,.noteMeta{padding-left:0}
+.note{margin-left:0;width:100%}
+@media (max-width:420px){.row{gap:10px;padding:10px 12px}}
+.pwarn{font-size:12px;color:var(--accent)}
 .hfilter{display:flex;gap:8px;align-items:center;margin-bottom:10px;font-size:14px;color:var(--muted)}
 .hfilter select{font:inherit;font-size:16px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);min-width:0}
 .hist,.log{list-style:none;margin:0;padding:0;display:grid}
@@ -175,6 +195,12 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
     <ul class="hist" id="histList"></ul>
   </details>
 
+  <details class="panel" id="photoPanel">
+    <summary><span>Item photos</span><span class="count" id="photoCount"></span></summary>
+    <p class="hint">Reference photos stay the same for every deployment. If a photo is on the wrong item, pick the right one from its dropdown. Changes save for everyone.</p>
+    <div class="pgrid" id="photoGrid"></div>
+  </details>
+
   <details class="panel" id="logPanel">
     <summary><span>Change history</span><span class="count" id="logCount"></span></summary>
     <p class="hint">Every change to this deployment, newest first, with the time and the name selected under Checked by.</p>
@@ -189,10 +215,15 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
   <div class="notice" id="notice">Connecting to the shared list…</div>
 
   <div id="boxes" style="display:grid;gap:16px"></div>
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Item photo"><div class="lbTop"><button class="btn" id="lbClose">Close</button></div><img id="lbImg" alt=""><div class="cap" id="lbCap"></div></div>
 </div>
 
 <script>
 const ITEMS = [{"k": "box1-screen-for-cabinet", "q": 1, "n": "Screen for cabinet", "b": "Box1", "note": ""}, {"k": "box1-charuco-board-intrinsic-calibration", "q": 1, "n": "Charuco board (intrinsic calibration)", "b": "Box1", "note": ""}, {"k": "box1-stand-for-charuco-board", "q": 1, "n": "Stand for charuco board", "b": "Box1", "note": ""}, {"k": "box1-blankets", "q": 2, "n": "Blankets", "b": "Box1", "note": ""}, {"k": "box1-spare-minion", "q": 1, "n": "Spare minion", "b": "Box1", "note": ""}, {"k": "box1-small-plastic-box", "q": 1, "n": "Small plastic box", "b": "Box1", "note": ""}, {"k": "box1-spare-3d-camera", "q": 1, "n": "Spare 3D-Camera", "b": "Box1", "note": ""}, {"k": "box1-spare-2d-camera", "q": 1, "n": "Spare 2D-Camera", "b": "Box1", "note": ""}, {"k": "box1-cable-for-3d-camera", "q": 1, "n": "Cable for 3D-Camera", "b": "Box1", "note": ""}, {"k": "box2-line-board-pdr-team", "q": 1, "n": "Line board PDR-Team", "b": "Box2", "note": ""}, {"k": "box2-box-with-markers-scanner-qr", "q": 1, "n": "Box with markers/Scanner QR", "b": "Box2", "note": ""}, {"k": "box2-foam-glass-cleaner", "q": 1, "n": "Foam glass cleaner", "b": "Box2", "note": ""}, {"k": "box2-spray-bottle", "q": 1, "n": "Spray bottle", "b": "Box2", "note": ""}, {"k": "box2-camping-table", "q": 1, "n": "Camping table", "b": "Box2", "note": ""}, {"k": "box2-big-drying-towel", "q": 1, "n": "Big drying towel", "b": "Box2", "note": ""}, {"k": "box2-squeegee", "q": 1, "n": "Squeegee", "b": "Box2", "note": ""}, {"k": "box2-box-with-10-towels", "q": 1, "n": "Box with 10 towels", "b": "Box2", "note": ""}, {"k": "box2-netgear-switch", "q": 1, "n": "NETGEAR switch", "b": "Box2", "note": ""}, {"k": "box2-glinet-wifi", "q": 1, "n": "GliNet WiFi", "b": "Box2", "note": ""}, {"k": "box3-pack-of-wago-connectors", "q": 1, "n": "Pack of WAGO connectors", "b": "Box3", "note": ""}, {"k": "box3-odu-cable", "q": 1, "n": "ODU-Cable", "b": "Box3", "note": ""}, {"k": "box3-power-cable", "q": 1, "n": "Power cable", "b": "Box3", "note": ""}, {"k": "box3-power-strip-6-feet", "q": 1, "n": "Power strip 6 feet", "b": "Box3", "note": ""}, {"k": "box3-extension-cord-25-feet", "q": 1, "n": "Extension cord 25 feet", "b": "Box3", "note": ""}, {"k": "box3-extension-cord-50-feet", "q": 1, "n": "Extension cord 50 feet", "b": "Box3", "note": ""}, {"k": "box3-adapter-1-14-50p", "q": 1, "n": "Adapter 1 (14-50P)", "b": "Box3", "note": ""}, {"k": "box3-adapter-2-14-60p", "q": 1, "n": "Adapter 2 (14-60P)", "b": "Box3", "note": ""}, {"k": "box3-adapter-3-14-30-p", "q": 1, "n": "Adapter 3 (14-30 P)", "b": "Box3", "note": ""}, {"k": "box3-adapter-4-6-50p", "q": 1, "n": "Adapter 4 (6-50P)", "b": "Box3", "note": ""}, {"k": "box3-adapter-5-only-one-side", "q": 1, "n": "Adapter 5 (only one side)", "b": "Box3", "note": ""}, {"k": "box3-pack-of-zip-ties-big", "q": 1, "n": "Pack of zip ties (big)", "b": "Box3", "note": ""}, {"k": "box3-pack-of-zip-ties-small", "q": 1, "n": "Pack of zip ties (small)", "b": "Box3", "note": ""}, {"k": "box3-hdmi-cable-15-feet", "q": 1, "n": "HDMI-cable (15 feet)", "b": "Box3", "note": ""}, {"k": "box3-hdmi-cable-6-feet", "q": 1, "n": "HDMI-cable (6 feet)", "b": "Box3", "note": ""}, {"k": "box3-ethernet-cable-100-feet", "q": 1, "n": "Ethernet cable (100 feet)", "b": "Box3", "note": ""}, {"k": "box3-ethernet-cable-35-feet", "q": 1, "n": "Ethernet cable (35 feet)", "b": "Box3", "note": ""}, {"k": "box3-ethernet-cable-6-feet", "q": 1, "n": "Ethernet cable (6 feet)", "b": "Box3", "note": ""}, {"k": "box3-usb-c-to-usb-cable-5-feet", "q": 1, "n": "USB-C to USB cable (5 feet)", "b": "Box3", "note": ""}, {"k": "box3-extra-cable-220v-30-feet", "q": 1, "n": "Extra cable 220V (30 feet)", "b": "Box3", "note": ""}, {"k": "box3-electrical-metal-pipe-and-holder-15-feet", "q": 1, "n": "Electrical metal pipe and holder (15 feet)", "b": "Box3", "note": ""}, {"k": "box3-extra-plug-for-installation", "q": 1, "n": "Extra plug for installation", "b": "Box3", "note": ""}, {"k": "colibri-colibri-in-chassis", "q": 1, "n": "Colibri in chassis", "b": "Colibri", "note": ""}, {"k": "colibri-control-cabinet", "q": 1, "n": "Control cabinet", "b": "Colibri", "note": ""}, {"k": "colibri-calibration-board-room-calibration", "q": 1, "n": "Calibration board (room calibration)", "b": "Colibri", "note": ""}, {"k": "colibri-crane-element-l-shaped", "q": 1, "n": "Crane element (L-shaped)", "b": "Colibri", "note": ""}, {"k": "colibri-crane-element-i-shaped", "q": 1, "n": "Crane element (I-shaped)", "b": "Colibri", "note": ""}, {"k": "other-cable-protector", "q": 3, "n": "Cable protector", "b": "other", "note": ""}, {"k": "other-starlink-kit-complete", "q": 1, "n": "Starlink kit (complete)", "b": "other", "note": "Mini"}, {"k": "other-generator-240v", "q": 1, "n": "Generator 240V", "b": "other", "note": ""}, {"k": "other-colibri-chair", "q": 1, "n": "Colibri chair", "b": "other", "note": ""}, {"k": "other-ladder", "q": 1, "n": "Ladder", "b": "other", "note": ""}, {"k": "other-gas-canister", "q": 1, "n": "Gas canister", "b": "other", "note": ""}, {"k": "toolbox-box-with-red-lid-bits", "q": 3, "n": "Box with red lid/ Bits", "b": "Toolbox", "note": ""}, {"k": "toolbox-toolbox-empty", "q": 1, "n": "Toolbox (empty)", "b": "Toolbox", "note": ""}, {"k": "toolbox-milwaukee-ratchet", "q": 1, "n": "Milwaukee ratchet", "b": "Toolbox", "note": ""}, {"k": "toolbox-milwaukee-charger", "q": 1, "n": "Milwaukee charger", "b": "Toolbox", "note": ""}, {"k": "toolbox-milwaukee-battery", "q": 1, "n": "Milwaukee Battery", "b": "Toolbox", "note": ""}, {"k": "toolbox-socket-size-8-ratchet", "q": 1, "n": "Socket (size 8) ratchet", "b": "Toolbox", "note": ""}, {"k": "toolbox-safety-screws-for-colibri-8ct", "q": 8, "n": "Safety screws for Colibri/8ct", "b": "Toolbox", "note": ""}, {"k": "toolbox-snipper-dikes", "q": 1, "n": "Snipper/ Dikes", "b": "Toolbox", "note": ""}, {"k": "toolbox-adjustable-pliers-big", "q": 1, "n": "Adjustable pliers (big)", "b": "Toolbox", "note": ""}, {"k": "toolbox-bit-set", "q": 1, "n": "Bit set", "b": "Toolbox", "note": ""}, {"k": "toolbox-handscrewdriver-set", "q": 1, "n": "Handscrewdriver set", "b": "Toolbox", "note": ""}, {"k": "toolbox-rubber-hammer", "q": 1, "n": "Rubber hammer", "b": "Toolbox", "note": ""}, {"k": "toolbox-remote-for-intrinsic-calibration-with-usb", "q": 1, "n": "Remote for intrinsic calibration (with USB)", "b": "Toolbox", "note": ""}, {"k": "toolbox-box-cutter", "q": 1, "n": "Box cutter", "b": "Toolbox", "note": ""}, {"k": "toolbox-camera-cleaner", "q": 1, "n": "Camera cleaner", "b": "Toolbox", "note": ""}, {"k": "toolbox-permanent-marker", "q": 1, "n": "Permanent marker", "b": "Toolbox", "note": ""}, {"k": "toolbox-paint-marker", "q": 1, "n": "Paint marker", "b": "Toolbox", "note": ""}, {"k": "toolbox-pencil", "q": 1, "n": "Pencil", "b": "Toolbox", "note": ""}, {"k": "toolbox-flat-tip-screw-driver-big", "q": 1, "n": "Flat tip screw driver (big)", "b": "Toolbox", "note": ""}, {"k": "toolbox-electrical-tape-big", "q": 1, "n": "Electrical tape (big)", "b": "Toolbox", "note": ""}, {"k": "toolbox-electrical-tape-small", "q": 1, "n": "Electrical tape (small)", "b": "Toolbox", "note": ""}, {"k": "toolbox-epoxy-glue-kit", "q": 1, "n": "Epoxy glue kit", "b": "Toolbox", "note": ""}, {"k": "toolbox-remote-for-crane", "q": 1, "n": "Remote for crane", "b": "Toolbox", "note": ""}, {"k": "toolbox-voltmeter", "q": 1, "n": "Voltmeter", "b": "Toolbox", "note": ""}, {"k": "toolbox-tape-measure-inch", "q": 1, "n": "Tape measure (inch)", "b": "Toolbox", "note": ""}, {"k": "toolbox-spare-key-for-control-cabinet", "q": 1, "n": "Spare key for control cabinet", "b": "Toolbox", "note": ""}, {"k": "toolbox-spray-lubricant", "q": 1, "n": "Spray lubricant", "b": "Toolbox", "note": ""}, {"k": "toolbox-bungee-3-feet-red", "q": 1, "n": "Bungee (3 feet, red)", "b": "Toolbox", "note": ""}, {"k": "toolbox-adjustable-wrench", "q": 1, "n": "Adjustable wrench", "b": "Toolbox", "note": ""}, {"k": "toolbox-spare-batteries", "q": 1, "n": "Spare batteries", "b": "Toolbox", "note": ""}, {"k": "toolbox-hex-key-set-1-5-to-10", "q": 1, "n": "Hex-key set 1.5 to 10", "b": "Toolbox", "note": ""}, {"k": "toolbox-wire-stripper", "q": 1, "n": "Wire stripper", "b": "Toolbox", "note": ""}, {"k": "toolbox-masking-tape", "q": 1, "n": "Masking Tape", "b": "Toolbox", "note": ""}, {"k": "toolbox-generator-battery-charger", "q": 1, "n": "Generator battery charger", "b": "Toolbox", "note": ""}];
+const PHOTOS = [{"id": "box1-screen-for-cabinet", "box": "Box1", "item": "box1-screen-for-cabinet"}, {"id": "box1-charuco-board-intrinsic-calibration", "box": "Box1", "item": "box1-charuco-board-intrinsic-calibration"}, {"id": "box1-stand-for-charuco-board", "box": "Box1", "item": "box1-stand-for-charuco-board"}, {"id": "box1-blankets", "box": "Box1", "item": "box1-blankets"}, {"id": "box1-spare-minion", "box": "Box1", "item": "box1-spare-minion"}, {"id": "box1-spare-2d-camera", "box": "Box1", "item": "box1-spare-2d-camera"}, {"id": "box1-small-plastic-box", "box": "Box1", "item": "box1-small-plastic-box"}, {"id": "box1-cable-for-3d-camera", "box": "Box1", "item": "box1-cable-for-3d-camera"}, {"id": "box1-spare-3d-camera", "box": "Box1", "item": "box1-spare-3d-camera"}];   // reference photo library: [{id, box, item}]
+const PHOTO_DIR = "/item-photos/";
+const PHOTO_KIND = "colibri_photo";
+let photoOverride = {};     // photoId -> itemKey ("" = not used)
 const BOXES = [["Box1","Box 1"],["Box2","Box 2"],["Box3","Box 3"],["Colibri","Colibri"],["other","Other gear"],["Toolbox","Toolbox"]];
 const CHECK_SVG = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 10.5l4 4 8-9"/></svg>';
 const TYPES = ["Deployment","DEMO","CAT Deployment"];
@@ -376,6 +407,36 @@ $("sendCopy").addEventListener("click", async ()=>{
   catch(e){ $("sendMsg").select(); $("sendNote").textContent="Press and hold the message to copy it."; }
 });
 
+/* ---------- item photos ---------- */
+const photoItem = p => (p.id in photoOverride) ? photoOverride[p.id] : p.item;
+function itemPhotos(){ const m={}; PHOTOS.forEach(p=>{ const k=photoItem(p); if(k) m[k]=p.id; }); return m; }
+function openPhoto(pid, caption){ $("lbImg").src=PHOTO_DIR+pid+".jpg"; $("lbImg").alt=caption; $("lbCap").textContent=caption; $("lb").hidden=false; $("lbClose").focus(); }
+function closePhoto(){ $("lb").hidden=true; $("lbImg").src=""; }
+$("lbClose").addEventListener("click", closePhoto);
+$("lb").addEventListener("click", e=>{ if(e.target===$("lb")) closePhoto(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("lb").hidden) closePhoto(); });
+function itemOptions(sel){
+  return '<option value="">Not used</option>'+BOXES.map(([b,l])=>`<optgroup label="${l}">`+ITEMS.filter(i=>i.b===b).map(i=>`<option value="${i.k}" ${i.k===sel?"selected":""}>${esc(i.n)}</option>`).join("")+'</optgroup>').join("");
+}
+function renderPhotos(){
+  const used={}; PHOTOS.forEach(p=>{ const k=photoItem(p); if(k) used[k]=(used[k]||0)+1; });
+  const withPhoto=Object.keys(used).length;
+  $("photoCount").textContent=`${withPhoto} of ${ITEMS.length} items`;
+  if (document.activeElement && document.activeElement.classList.contains("psel")) return;
+  $("photoGrid").innerHTML = PHOTOS.map(p=>{ const k=photoItem(p), it=ITEMS.find(i=>i.k===k);
+    return `<div class="pcard ${k?"":"unmatched"}"><button data-pid="${p.id}" aria-label="View photo"><img src="${PHOTO_DIR}thumbs/${p.id}.jpg" alt="${it?esc(it.n):"Unmatched photo"}" loading="lazy"></button><select class="psel" data-pid="${p.id}" aria-label="Item for this photo">${itemOptions(k)}</select>${k&&used[k]>1?'<span class="pwarn">Another photo is on this item too. The last one wins.</span>':""}</div>`; }).join("") || '<p class="empty2">No photos yet.</p>';
+}
+$("photoGrid").addEventListener("click", e=>{ const b=e.target.closest("button[data-pid]"); if(!b) return; const p=PHOTOS.find(x=>x.id===b.dataset.pid), it=ITEMS.find(i=>i.k===photoItem(p)); openPhoto(p.id, it?it.n:"Unmatched photo"); });
+$("photoGrid").addEventListener("change", async e=>{
+  const s=e.target; if(!s.classList.contains("psel")) return;
+  const pid=s.dataset.pid, prev=photoOverride[pid], had=pid in photoOverride;
+  photoOverride[pid]=s.value; s.blur(); renderPhotos(); render(); pending++;
+  try { const at=nowIso(); await upsert([{kind:PHOTO_KIND,id:pid,data:{item:s.value,at},deleted:false,updated_at:at}]); $("notice").textContent="Photo match saved."; }
+  catch(err){ if(had) photoOverride[pid]=prev; else delete photoOverride[pid]; renderPhotos(); render(); $("notice").textContent="Couldn't save that photo match. Check your signal and try again."; }
+  finally { pending--; }
+});
+$("boxes").addEventListener("click", e=>{ const b=e.target.closest("button.ph[data-pid]"); if(!b) return; const it=ITEMS.find(i=>i.k===b.closest(".row").dataset.k); openPhoto(b.dataset.pid, it?it.n:""); });
+
 /* ---------- checklist ---------- */
 function render(){
   const {packed:c,na:n,open:o}=counts();
@@ -388,7 +449,7 @@ function render(){
     return `<button class="chip" data-f="${k}" aria-pressed="${filter===k}">${l}<small>${open?open+" open":"✓"}</small></button>`;
   }).join("");
   $("openOnly").setAttribute("aria-pressed", openOnly); $("openOnly").textContent = openOnly ? "Show all items" : "Show open only";
-  const ok = canWrite && !!cur();
+  const ok = canWrite && !!cur(); const pm = itemPhotos();
   $("boxes").innerHTML = BOXES.filter(([k])=>filter==="all"||filter===k).map(([k,l])=>{
     const all = ITEMS.filter(i=>i.b===k);
     const list = all.filter(i=>!openOnly||statusOf(i.k)==="open");
@@ -399,6 +460,7 @@ function render(){
       if (st && s!=="open" && st.at){ const who = st.by || ""; meta = `<div class="meta">${s==="na"?"Marked N/A":"Packed"}${who?" by "+esc(who):""} · ${fmt(st.at)}</div>`; }
       return `<li class="row ${s}" data-k="${i.k}">
         <button class="tick" data-act="tick" aria-label="${s==="checked"?"Uncheck":"Check"} ${esc(i.n)}" aria-pressed="${s==="checked"}" ${ok?"":"disabled"}>${CHECK_SVG}</button>
+        ${pm[i.k]?`<button class="ph" data-pid="${pm[i.k]}" aria-label="View photo of ${esc(i.n)}"><img src="${PHOTO_DIR}thumbs/${pm[i.k]}.jpg" alt="" loading="lazy"></button>`:'<span class="ph none" aria-hidden="true"></span>'}
         <div class="name"><div class="t"><span class="qty">×${i.q}</span><span class="label">${esc(i.n)}</span>${i.note?`<span class="tag">${esc(i.note)}</span>`:""}</div>${meta}<textarea class="note${st&&st.note?" has":""}" id="note-${i.k}" data-k="${i.k}" rows="1" placeholder="Add a note…" aria-label="Note for ${esc(i.n)}" ${ok?"":"disabled"}>${esc(st&&st.note||"")}</textarea>${st&&st.note&&st.noteAt?`<div class="noteMeta">Note${st.noteBy?" by "+esc(st.noteBy):""} · ${fmt(st.noteAt)}</div>`:""}</div>
         <button class="naBtn" data-act="na" aria-pressed="${s==="na"}" ${ok?"":"disabled"}>N/A</button></li>`;
     }).join("");
@@ -444,15 +506,15 @@ $("boxes").addEventListener("change", async e=>{
 });
 
 /* ---------- sync ---------- */
-function editing(){ const a=document.activeElement; return !!a && ((a.classList && a.classList.contains("note")) || ["checker","ckdate","newName","deptype","depSel","sendTo","sendMsg","location"].includes(a.id)); }
+function editing(){ const a=document.activeElement; return !!a && ((a.classList && (a.classList.contains("note")||a.classList.contains("psel"))) || ["checker","ckdate","newName","deptype","depSel","sendTo","sendMsg","location"].includes(a.id)); }
 let loading=false, again=false, lastSig="";
 async function load(force){
   if (loading){ if(force) again=true; return; }
   if (!force && (pending || editing())) return;
   loading=true;
   try {
-    const rows = await sb('fleet_records?select=kind,id,data&kind=in.('+DEP+','+META+',person)&deleted=eq.false');
-    const nextDeps=[], nextTeam=[]; rows.forEach(r=>{ if(!r.data) return; if(r.kind===META && r.id==='people' && Array.isArray(r.data.names)) people=r.data.names; if(r.kind===DEP) nextDeps.push({id:r.id,data:r.data}); if(r.kind==='person' && r.data.name) nextTeam.push({name:r.data.name,phone:r.data.phone||'',email:r.data.email||'',role:r.data.role||''}); }); team=nextTeam.sort((a,b)=>a.name.localeCompare(b.name));
+    const rows = await sb('fleet_records?select=kind,id,data&kind=in.('+DEP+','+META+',person,'+PHOTO_KIND+')&deleted=eq.false');
+    const nextDeps=[], nextTeam=[], nextPh={}; rows.forEach(r=>{ if(!r.data) return; if(r.kind===META && r.id==='people' && Array.isArray(r.data.names)) people=r.data.names; if(r.kind===DEP) nextDeps.push({id:r.id,data:r.data}); if(r.kind===PHOTO_KIND) nextPh[r.id]=r.data.item||''; if(r.kind==='person' && r.data.name) nextTeam.push({name:r.data.name,phone:r.data.phone||'',email:r.data.email||'',role:r.data.role||''}); }); team=nextTeam.sort((a,b)=>a.name.localeCompare(b.name)); photoOverride=nextPh;
     nextDeps.sort((a,b)=>String(b.data.createdAt||"").localeCompare(String(a.data.createdAt||"")));
     if (!nextDeps.length){ const at=nowIso(); const d={id:"d"+Date.now().toString(36),data:{type:"Deployment",by:"",date:today(),createdAt:at,updatedAt:at}}; await upsert([{kind:DEP,id:d.id,data:d.data,deleted:false,updated_at:at}]); nextDeps.push(d); }
     if (viewId && !nextDeps.some(d=>d.id===viewId)) viewId=null;
@@ -463,13 +525,13 @@ async function load(force){
     if (!force && (pending || editing())) return;
     deps=nextDeps; const next={}; checks.forEach(r=>{ if(r.data) next[r.id.slice(d.id.length+1)]=r.data; }); state=next;
     logs=logRows.filter(r=>r.data).sort((a,b)=>String(b.data.at).localeCompare(String(a.data.at)));
-    const sig=JSON.stringify([deps,state,people,team.length,viewId,logs.length,logs[0]&&logs[0].id]);
-    ready=true; if (sig!==lastSig){ lastSig=sig; const y=window.scrollY; renderSession(); render(); renderHist(); renderLog(); if (Math.abs(window.scrollY-y)>1) window.scrollTo(0,y); }
+    const sig=JSON.stringify([deps,state,people,team.length,viewId,logs.length,logs[0]&&logs[0].id,photoOverride]);
+    ready=true; if (sig!==lastSig){ lastSig=sig; const y=window.scrollY; renderSession(); render(); renderHist(); renderLog(); renderPhotos(); if (Math.abs(window.scrollY-y)>1) window.scrollTo(0,y); }
     if (/Connecting|Offline|Loading/.test($("notice").textContent)) $("notice").textContent = viewId ? "Viewing an earlier deployment." : "Live: ticks sync to every phone. Refreshes every 10 seconds.";
   } catch(e){ $("notice").textContent="Offline: can't reach the shared list. It will retry automatically."; }
   finally { loading=false; if(again){ again=false; load(true); } }
 }
-render(); renderSession();
+render(); renderSession(); renderPhotos();
 load(); setInterval(()=>{ if(!document.hidden) load(); },10000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
 </script>
