@@ -62,6 +62,11 @@ ul{list-style:none;margin:0;padding:0}
 .row.checked .label{color:var(--muted)}
 .row.na .label{color:var(--na);text-decoration:line-through}
 .meta{font-size:12px;color:var(--muted);padding-left:calc(2.2em + 8px)}
+.note{font:13px/1.4 var(--f-body);color:var(--fg);background:transparent;border:1px dashed var(--line);border-radius:6px;padding:5px 8px;margin:4px 0 0 calc(2.2em + 8px);width:calc(100% - 2.2em - 8px);resize:none;overflow:hidden;min-height:30px}
+.note::placeholder{color:var(--muted);opacity:.8}
+.note:focus{outline:2px solid var(--accent);outline-offset:1px;border-style:solid}
+.note.has{border-style:solid;background:var(--accent-soft)}
+.noteMeta{font-size:11px;color:var(--muted);padding-left:calc(2.2em + 8px)}
 .tag{font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;background:var(--accent-soft);color:var(--accent)}
 .naBtn{font:600 12px var(--f-display);letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);background:transparent;color:var(--muted);padding:4px 8px;border-radius:4px;cursor:pointer}
 .row.na .naBtn{background:var(--na-soft);color:var(--fg);border-color:var(--na)}
@@ -153,19 +158,20 @@ function render(){
       if (st && s!=="open" && st.at){ const who = st.by || ""; meta = `<div class="meta">${s==="na"?"Marked N/A":"Packed"}${who?" by "+esc(who):""} · ${fmt(st.at)}</div>`; }
       return `<li class="row ${s}" data-k="${i.k}">
         <button class="tick" data-act="tick" aria-label="${s==="checked"?"Uncheck":"Check"} ${esc(i.n)}" aria-pressed="${s==="checked"}" ${canWrite?"":"disabled"}>${CHECK_SVG}</button>
-        <div class="name"><div class="t"><span class="qty">×${i.q}</span><span class="label">${esc(i.n)}</span>${i.note?`<span class="tag">${esc(i.note)}</span>`:""}</div>${meta}</div>
+        <div class="name"><div class="t"><span class="qty">×${i.q}</span><span class="label">${esc(i.n)}</span>${i.note?`<span class="tag">${esc(i.note)}</span>`:""}</div>${meta}<textarea class="note${st&&st.note?" has":""}" id="note-${i.k}" data-k="${i.k}" rows="1" placeholder="Add a note…" aria-label="Note for ${esc(i.n)}" ${canWrite?"":"disabled"}>${esc(st&&st.note||"")}</textarea>${st&&st.note&&st.noteAt?`<div class="noteMeta">Note${st.noteBy?" by "+esc(st.noteBy):""} · ${fmt(st.noteAt)}</div>`:""}</div>
         <button class="naBtn" data-act="na" aria-pressed="${s==="na"}" ${canWrite?"":"disabled"}>N/A</button></li>`;
     }).join("");
     return `<section class="box"><h2>${l}<span>${done}/${all.length}</span></h2><ul>${rows||'<li class="empty">Everything in this case is packed.</li>'}</ul></section>`;
   }).join("");
   $("boxes").innerHTML = html;
+  growAll();
 }
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 let pending=0;
 async function setStatus(k, status){
   const prev = state[k];
-  const body = { status, at: new Date().toISOString(), by: ($("who").value||"").trim() };
+  const body = { ...(prev||{}), status, at: new Date().toISOString(), by: ($("who").value||"").trim() };
   state[k] = body; render(); pending++;
   try { await upsert([{kind:KIND,id:k,data:body,deleted:false,updated_at:body.at}]); $("notice").textContent="Saved. Everyone sees the same list."; }
   catch(e){ state[k]=prev; render(); $("notice").textContent="That change didn't save. Check your signal and tap it again."; }
@@ -185,15 +191,31 @@ $("resetYes").addEventListener("click", async ()=>{
   $("confirm").hidden=true;
   const at=new Date().toISOString(), by=($("who").value||"").trim();
   const prev=state; state={}; render(); $("notice").textContent="Clearing list…";
-  try { await upsert(ITEMS.map(i=>({kind:KIND,id:i.k,data:{status:"open",at,by},deleted:false,updated_at:at}))); $("notice").textContent="List cleared. Ready for the next deployment."; }
+  try { await upsert(ITEMS.map(i=>({kind:KIND,id:i.k,data:{...(prev[i.k]||{}),status:"open",at,by},deleted:false,updated_at:at}))); $("notice").textContent="List cleared. Ready for the next deployment."; }
   catch(e){ state=prev; render(); $("notice").textContent="Couldn't clear the list. Check your signal and try again."; }
 });
 render();
 
+function grow(el){ el.style.height="auto"; el.style.height=el.scrollHeight+"px"; }
+function growAll(){ document.querySelectorAll(".note").forEach(grow); }
+$("boxes").addEventListener("input", e=>{ if(e.target.classList.contains("note")) grow(e.target); });
+$("boxes").addEventListener("change", async e=>{
+  const el=e.target; if(!el.classList.contains("note")||!canWrite) return;
+  const k=el.dataset.k, prev=state[k], note=el.value.trim();
+  if ((prev&&prev.note||"")===note) return;
+  const now=new Date().toISOString();
+  const body={ status:"open", ...(prev||{}), note, noteBy:($("who").value||"").trim(), noteAt:now };
+  if(!note){ delete body.noteBy; delete body.noteAt; }
+  state[k]=body; pending++;
+  try { await upsert([{kind:KIND,id:k,data:body,deleted:false,updated_at:now}]); $("notice").textContent="Note saved."; }
+  catch(err){ state[k]=prev; $("notice").textContent="That note didn't save. Check your signal and try again."; }
+  finally { pending--; if(!editing()) render(); }
+});
+function editing(){ const a=document.activeElement; return a && a.classList && a.classList.contains("note"); }
 async function load(){
-  if (pending) return;
+  if (pending || editing()) return;
   try { const rows = await sb('fleet_records?select=id,data&kind=eq.'+KIND+'&deleted=eq.false');
-    if (pending) return; const next={}; rows.forEach(r=>{ if(r.data) next[r.id]=r.data; }); state=next; render();
+    if (pending || editing()) return; const next={}; rows.forEach(r=>{ if(r.data) next[r.id]=r.data; }); state=next; render();
     if (/Connecting|Offline/.test($("notice").textContent)) $("notice").textContent="Live: ticks sync to every phone. Refreshes every 10 seconds.";
   } catch(e){ $("notice").textContent="Offline: can't reach the shared list. It will retry automatically."; }
 }
