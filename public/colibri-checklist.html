@@ -236,7 +236,8 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
 
   <section class="session trailer" aria-label="Trailer walkthrough - Body cam">
     <div class="sessHead"><h2>Trailer walkthrough - Body cam</h2><span class="pill" id="trPill"></span></div>
-    <p class="hint">Record a walk-around of the trailer with the clip-on cam, once loaded and once unloaded. Every change is time-stamped in Change history.</p>
+    <p class="hint">Pick the stage, then record it with the body cam. Every change is time-stamped in Change history.</p>
+    <div class="field"><label for="trStage">Stage</label><select id="trStage"></select></div>
     <div class="trGrid" id="trGrid"></div>
   </section>
 
@@ -550,15 +551,20 @@ $("lbDelYes").addEventListener("click", async ()=>{
 });
 
 /* ---------- trailer walk-through (per deployment) ---------- */
-const TR_PARTS=[["loaded","Loaded","Upload video of loading process."],["unloaded","Unloaded","Upload video while unloading."]];
+const TR_PARTS=[["loaded","Loading","Upload video of loading process."],["unloaded","Unloading","Upload video while unloading."],["checkin","Checking in","Upload video when checking in."],["trip","During trip status check","Upload video of the trip status check."]];
+let trStage="loaded"; try{ const s=localStorage.getItem("colibri.trStage"); if(s) trStage=s; }catch(_){}
+$("trStage").addEventListener("change",()=>{ trStage=$("trStage").value; try{localStorage.setItem("colibri.trStage",trStage)}catch(_){} $("trStage").blur(); renderTrailer(true); });
 const VID_BUCKET="colibri-videos";
 function trOf(d,p){ return ((d&&d.data.trailer)||{})[p]||{}; }
-function renderTrailer(){
+function renderTrailer(force){
   const d=cur(), ok=canWrite&&!!d;
   const parts=TR_PARTS.map(([p])=>trOf(d,p)); const n=parts.filter(x=>x.done).length;
-  $("trPill").className="pill"+(n===2?" saved":""); $("trPill").textContent=`${n} of 2 done`;
-  if (document.activeElement && document.activeElement.closest && document.activeElement.closest("#trGrid")) return;
-  $("trGrid").innerHTML=TR_PARTS.map(([p,label,hint])=>{ const s=trOf(d,p), v=s.video;
+  $("trPill").className="pill"+(n===TR_PARTS.length?" saved":""); $("trPill").textContent=`${n} of ${TR_PARTS.length} done`;
+  const ae=document.activeElement; if (!force && ae && ae.closest && ae.closest("#trGrid") && /^(TEXTAREA|INPUT)$/.test(ae.tagName) && ae.type!=="file") return;
+  if(!TR_PARTS.some(x=>x[0]===trStage)) trStage="loaded";
+  $("trStage").innerHTML=TR_PARTS.map(([p,label])=>{ const s=trOf(d,p); return `<option value="${p}">${s.done?"✓ ":""}${label}${s.done?" (done)":s.video||s.note?" (started)":""}</option>`; }).join("");
+  $("trStage").value=trStage;
+  $("trGrid").innerHTML=TR_PARTS.filter(x=>x[0]===trStage).map(([p,label,hint])=>{ const s=trOf(d,p), v=s.video;
     const vid = v ? `<div class="trVid">${v.kind==="upload"?`<video controls preload="metadata" playsinline src="${esc(v.url)}"></video>`:""}<a href="${esc(v.url)}" target="_blank" rel="noopener">${v.kind==="upload"?"Open video":"Open video link"}</a><span class="trMeta">${v.kind==="upload"?"Uploaded":"Link added"}${v.by?" by "+esc(v.by):""} · ${esc(fmtFull(v.at))}${v.name?" · "+esc(v.name):""}</span></div>` : "";
     return `<div class="trCard${s.done?" done":""}" data-p="${p}">
       <div class="trTop"><button class="tick" data-tr="done" aria-pressed="${!!s.done}" aria-label="Mark ${label} walk-through done" ${ok?"":"disabled"} style="${s.done?"background:var(--ok);border-color:var(--ok)":""}">${CHECK_SVG.replace('<svg','<svg style="opacity:'+(s.done?1:0)+'"')}</button><div><h3>${label}</h3>${s.done&&s.doneAt?`<div class="trMeta">Done${s.doneBy?" by "+esc(s.doneBy):""} · ${esc(fmtFull(s.doneAt))}</div>`:`<div class="trMeta">${esc(hint)}</div>`}</div></div>
@@ -685,7 +691,7 @@ $("boxes").addEventListener("change", async e=>{
 });
 
 /* ---------- sync ---------- */
-function editing(){ const a=document.activeElement; return !!a && ((a.closest && a.closest("#trGrid") && /INPUT|TEXTAREA/.test(a.tagName)) || (a.classList && (a.classList.contains("note")||a.classList.contains("psel"))) || ["checker","ckdate","newName","deptype","depSel","sendTo","sendMsg","location"].includes(a.id)); }
+function editing(){ const a=document.activeElement; return !!a && ((a.closest && a.closest("#trGrid") && /INPUT|TEXTAREA/.test(a.tagName)) || (a.classList && (a.classList.contains("note")||a.classList.contains("psel"))) || ["trStage","checker","ckdate","newName","deptype","depSel","sendTo","sendMsg","location"].includes(a.id)); }
 let loading=false, again=false, lastSig="";
 async function load(force){
   if (loading){ if(force) again=true; return; }
