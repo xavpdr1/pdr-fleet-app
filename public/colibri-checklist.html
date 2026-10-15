@@ -234,8 +234,8 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
     <div class="banner" id="pastBanner" hidden><span id="pastText"></span><button class="btn" id="toLatest">Back to latest</button></div>
   </section>
 
-  <section class="session trailer" aria-label="Trailer walk-through">
-    <div class="sessHead"><h2>Trailer walk-through</h2><span class="pill" id="trPill"></span></div>
+  <section class="session trailer" aria-label="Trailer walkthrough - Body cam">
+    <div class="sessHead"><h2>Trailer walkthrough - Body cam</h2><span class="pill" id="trPill"></span></div>
     <p class="hint">Record a walk-around of the trailer with the clip-on cam, once loaded and once unloaded. Every change is time-stamped in Change history.</p>
     <div class="trGrid" id="trGrid"></div>
   </section>
@@ -550,7 +550,7 @@ $("lbDelYes").addEventListener("click", async ()=>{
 });
 
 /* ---------- trailer walk-through (per deployment) ---------- */
-const TR_PARTS=[["loaded","Loaded","Walk around the loaded trailer before leaving. Show every strap, case and the Colibri tie-downs."],["unloaded","Unloaded","Walk around the empty trailer after unloading. Show the deck, straps and anything left behind or damaged."]];
+const TR_PARTS=[["loaded","Loaded","Upload video of loading process."],["unloaded","Unloaded","Upload video while unloading."]];
 const VID_BUCKET="colibri-videos";
 function trOf(d,p){ return ((d&&d.data.trailer)||{})[p]||{}; }
 function renderTrailer(){
