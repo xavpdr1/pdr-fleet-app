@@ -165,6 +165,11 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
 .trLink{display:flex;gap:8px;flex-wrap:wrap}
 .trLink input{flex:1 1 160px;min-width:0;font:inherit;font-size:16px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
 .trCard .note{margin-left:0;width:100%}
+.trNotes{display:grid;gap:8px}
+.trNoteList{list-style:none;margin:0;padding:0;display:grid;gap:0;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.trNoteList li{display:grid;gap:2px;padding:8px 10px;border-top:1px solid var(--line);font-size:14px;overflow-wrap:anywhere}
+.trNoteList li:first-child{border-top:0}
+.trNoteList .lt{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .trProg{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.trProg i{display:block;height:100%;background:var(--accent);width:0}
 .pwarn{font-size:12px;color:var(--accent)}
 .hfilter{display:flex;gap:8px;align-items:center;margin-bottom:10px;font-size:14px;color:var(--muted)}
@@ -555,6 +560,7 @@ const TR_PARTS=[["loaded","Loading","Upload video of loading process."],["unload
 let trStage="loaded"; try{ const s=localStorage.getItem("colibri.trStage"); if(s) trStage=s; }catch(_){}
 $("trStage").addEventListener("change",()=>{ trStage=$("trStage").value; try{localStorage.setItem("colibri.trStage",trStage)}catch(_){} $("trStage").blur(); renderTrailer(true); });
 const VID_BUCKET="colibri-videos";
+function trNotes(s){ const a=Array.isArray(s.notes)?s.notes.slice():[]; if(s.note&&!a.length) a.push({text:s.note,at:s.noteAt||"",by:s.noteBy||""}); return a.sort((x,y)=>String(y.at).localeCompare(String(x.at))); }
 function trOf(d,p){ return ((d&&d.data.trailer)||{})[p]||{}; }
 function renderTrailer(force){
   const d=cur(), ok=canWrite&&!!d;
@@ -562,7 +568,7 @@ function renderTrailer(force){
   $("trPill").className="pill"+(n===TR_PARTS.length?" saved":""); $("trPill").textContent=`${n} of ${TR_PARTS.length} done`;
   const ae=document.activeElement; if (!force && ae && ae.closest && ae.closest("#trGrid") && /^(TEXTAREA|INPUT)$/.test(ae.tagName) && ae.type!=="file") return;
   if(!TR_PARTS.some(x=>x[0]===trStage)) trStage="loaded";
-  $("trStage").innerHTML=TR_PARTS.map(([p,label])=>{ const s=trOf(d,p); return `<option value="${p}">${s.done?"✓ ":""}${label}${s.done?" (done)":s.video||s.note?" (started)":""}</option>`; }).join("");
+  $("trStage").innerHTML=TR_PARTS.map(([p,label])=>{ const s=trOf(d,p); return `<option value="${p}">${s.done?"✓ ":""}${label}${s.done?" (done)":s.video||s.note||(s.notes&&s.notes.length)?" (started)":""}</option>`; }).join("");
   $("trStage").value=trStage;
   $("trGrid").innerHTML=TR_PARTS.filter(x=>x[0]===trStage).map(([p,label,hint])=>{ const s=trOf(d,p), v=s.video;
     const vid = v ? `<div class="trVid">${v.kind==="upload"?`<video controls preload="metadata" playsinline src="${esc(v.url)}"></video>`:""}<a href="${esc(v.url)}" target="_blank" rel="noopener">${v.kind==="upload"?"Open video":"Open video link"}</a><span class="trMeta">${v.kind==="upload"?"Uploaded":"Link added"}${v.by?" by "+esc(v.by):""} · ${esc(fmtFull(v.at))}${v.name?" · "+esc(v.name):""}</span></div>` : "";
@@ -572,7 +578,8 @@ function renderTrailer(force){
       <div class="trBtns"><label class="dmgAdd${ok?"":" off"}">${CAM_SVG}<span>${v?"Replace video":"Upload video"}</span><input type="file" accept="video/*" data-tr="upload" ${ok?"":"disabled"} aria-label="Upload ${label} walk-through video"></label>${v?`<button class="btn" data-tr="rmvid" ${ok?"":"disabled"}>Remove video</button>`:""}</div>
       <div class="trProg" hidden><i></i></div>
       <div class="trLink"><input type="url" inputmode="url" placeholder="…or paste a video link" data-tr="link" aria-label="${label} video link" ${ok?"":"disabled"}><button class="btn" data-tr="savelink" ${ok?"":"disabled"}>Add link</button></div>
-      <textarea class="note${s.note?" has":""}" rows="1" data-tr="note" placeholder="Add a note…" aria-label="${label} walk-through note" ${ok?"":"disabled"}>${esc(s.note||"")}</textarea>${s.note&&s.noteAt?`<div class="noteMeta" style="padding-left:0">Note${s.noteBy?" by "+esc(s.noteBy):""} · ${esc(fmt(s.noteAt))}</div>`:""}
+      <div class="trNotes"><div class="flabel">Notes</div>${trNotes(s).length?`<ol class="trNoteList">${trNotes(s).map(n=>`<li><span class="lt">${esc(fmtFull(n.at))}${n.by?" · "+esc(n.by):""}</span><span>${esc(n.text)}</span></li>`).join("")}</ol>`:`<div class="trMeta">No notes yet.</div>`}
+      <textarea class="note" rows="1" data-tr="note" placeholder="Add a note…" aria-label="${label} note" ${ok?"":"disabled"}></textarea><div class="trBtns"><button class="btn" data-tr="addnote" ${ok?"":"disabled"}>Add note</button><span class="trMeta">Each note is saved with the date and time. Notes can't be edited or deleted.</span></div></div>
     </div>`; }).join("");
   document.querySelectorAll("#trGrid .note").forEach(grow);
 }
@@ -588,6 +595,9 @@ async function setTr(p, patch, logEntry, msg){
 $("trGrid").addEventListener("click", async e=>{
   const b=e.target.closest("[data-tr]"); if(!b||!canWrite||!cur()) return; const p=b.closest(".trCard").dataset.p, s=trOf(cur(),p);
   if (b.dataset.tr==="done"){ const v=!s.done; await setTr(p, v?{done:true,doneAt:nowIso(),doneBy:me()}:{done:false,doneAt:undefined,doneBy:undefined}, {what:v?"walk-through marked done":"walk-through unmarked"}, "Trailer walk-through saved."); }
+  if (b.dataset.tr==="addnote"){ const ta=b.closest(".trNotes").querySelector("textarea"); const text=(ta.value||"").trim(); if(!text){ ta.focus(); return; }
+    const list=trNotes(s).slice().reverse(); list.push({text,at:nowIso(),by:me()}); ta.value=""; ta.blur();
+    await setTr(p,{notes:list,note:undefined,noteAt:undefined,noteBy:undefined},{what:"note added",to:text},"Note added and time-stamped."); }
   if (b.dataset.tr==="savelink"){ const inp=b.parentElement.querySelector("input"); let u=(inp.value||"").trim(); if(!u){ inp.focus(); return; } if(!/^https?:\/\//i.test(u)) u="https://"+u;
     try{ new URL(u); }catch(_){ $("notice").textContent="That link doesn't look right. Copy the share link from the app and paste it again."; return; }
     inp.value=""; await setTr(p,{video:{kind:"link",url:u,at:nowIso(),by:me()}},{what:"video link added"},"Video link saved."); }
@@ -597,8 +607,7 @@ $("trGrid").addEventListener("click", async e=>{
 $("trGrid").addEventListener("input", e=>{ if(e.target.classList.contains("note")) grow(e.target); });
 $("trGrid").addEventListener("change", async e=>{
   const el=e.target, card=el.closest(".trCard"); if(!card||!canWrite||!cur()) return; const p=card.dataset.p, s=trOf(cur(),p);
-  if (el.dataset.tr==="note"){ const note=el.value.trim(); if((s.note||"")===note) return; el.blur();
-    await setTr(p, note?{note,noteAt:nowIso(),noteBy:me()}:{note:undefined,noteAt:undefined,noteBy:undefined}, {what:note?(s.note?"note changed to":"note added"):"note removed",to:note}, "Trailer note saved."); }
+  if (el.dataset.tr==="note"){ return; }
   if (el.dataset.tr==="upload"){ const f=el.files&&el.files[0]; el.value=""; if(!f) return; uploadVideo(p,f,card); }
 });
 function uploadVideo(p,f,card){
