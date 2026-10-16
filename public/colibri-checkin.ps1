@@ -4,7 +4,8 @@
   Tells the "Colibri Unit Status" page that this PC is on.
   - Sends a check-in every minute while Windows is running.
   - Sends a "came online" entry each time Windows starts.
-  It only sends: unit name, computer name, role, Windows version, last boot time and a time stamp.
+  It only sends: unit name, computer name, role, Windows version, last boot time, a time stamp,
+  and the approximate city/state and network provider of the internet connection (looked up from ipinfo.io).
   It does not read, change or control anything else on this PC.
 
   INSTALL (once per PC, in PowerShell "Run as administrator"):
@@ -28,10 +29,11 @@ param(
 $ErrorActionPreference = "Stop"
 $SB_URL   = "https://jedolnkjmlrruipkgqyd.supabase.co"
 $SB_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y"
-$Version  = "1.0"
+$Version  = "1.1"
 $Home_    = Join-Path $env:ProgramData "ColibriCheckin"
 $CfgPath  = Join-Path $Home_ "config.json"
 $LogPath  = Join-Path $Home_ "checkin.log"
+$GeoPath  = Join-Path $Home_ "geo.json"
 $TaskBeat = "Colibri Check-in"
 $TaskBoot = "Colibri Check-in (startup)"
 
@@ -66,15 +68,37 @@ function Send-Rows($rows) {
     -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 20 | Out-Null
 }
 
+# Approximate location from the internet connection (city/state + network provider).
+# Looked up at startup and then every 30 minutes; the last result is kept in geo.json.
+function Get-Geo([bool]$force) {
+  $cache = $null
+  try { if (Test-Path $GeoPath) { $cache = Get-Content $GeoPath -Raw | ConvertFrom-Json } } catch {}
+  $nowS = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+  if ($cache -and (-not $force) -and (($nowS - [int64]$cache.ts) -lt 1800)) { return $cache }
+  try {
+    $r = Invoke-RestMethod -Uri "https://ipinfo.io/json" -TimeoutSec 10
+    $org = [string]$r.org -replace '^AS\d+\s+', ''
+    $geo = [ordered]@{ city = [string]$r.city; region = [string]$r.region; country = [string]$r.country; loc = [string]$r.loc; net = $org; ts = $nowS }
+    try {
+      if (-not (Test-Path $Home_)) { New-Item -ItemType Directory -Path $Home_ -Force | Out-Null }
+      ($geo | ConvertTo-Json -Compress) | Set-Content -Path $GeoPath -Encoding UTF8
+    } catch {}
+    return $geo
+  } catch { return $cache }
+}
+
 function New-CheckinRows($cfg, [bool]$withStartup) {
   $nowUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
   $pc = $env:COMPUTERNAME
   $boot = ""; $os = ""
   try { $w = Get-CimInstance Win32_OperatingSystem; $boot = $w.LastBootUpTime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"); $os = $w.Caption } catch {}
   $data = [ordered]@{ unit = $cfg.unit; pc = $pc; role = $cfg.role; at = $nowUtc; boot = $boot; os = $os; ver = $Version }
+  $g = Get-Geo $withStartup
+  if ($g) { $data.geo = [ordered]@{ city = $g.city; region = $g.region; country = $g.country; loc = $g.loc; net = $g.net } }
   $rows = @([ordered]@{ kind = "colibri_hb"; id = "$($cfg.unit)|$pc"; data = $data; deleted = $false; updated_at = $nowUtc })
   if ($withStartup) {
     $ev = [ordered]@{ unit = $cfg.unit; pc = $pc; event = "online"; at = $nowUtc; boot = $boot }
+    if ($data.geo) { $ev.geo = $data.geo }
     $rows += [ordered]@{ kind = "colibri_unitev"; id = "$($cfg.unit)|$pc|$nowUtc"; data = $ev; deleted = $false; updated_at = $nowUtc }
   }
   return $rows
