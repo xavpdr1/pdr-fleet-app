@@ -210,7 +210,7 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
 
   <section class="session" aria-label="Deployment record">
     <div class="sessHead"><h2>Deployment record</h2><span class="pill" id="savedPill"></span></div>
-    <div class="field"><label for="depSel">Viewing</label><select id="depSel"></select></div>
+    <div class="field"><label for="depSel">Deployment</label><select id="depSel"></select></div>
     <div class="fields">
       <div class="field"><label for="deptype">Type</label><select id="deptype"><option>Deployment</option><option>DEMO</option><option>CAT Deployment</option></select></div>
     </div>
@@ -232,7 +232,7 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
       <div class="notice" id="sendNote"></div>
     </div>
     <div class="confirm" id="confirm" hidden>
-      <span>Start a new, blank checklist? This one stays saved under Viewing.</span>
+      <span>Start a new, blank checklist? The current one stays saved in the Deployment list.</span><label class="inl" for="newDate" style="align-items:center;gap:8px;font-size:14px">Date <input type="date" id="newDate" style="font:inherit;font-size:16px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)"></label><span class="trMeta">Pick a future date to plan an upcoming deployment.</span>
       <button class="btn primary" id="newYes">Start new</button>
       <button class="btn" id="newNo">Cancel</button>
     </div>
@@ -247,7 +247,7 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
   </section>
 
   <details class="panel" id="histPanel">
-    <summary><span>Past deployments</span><span class="count" id="histCount"></span></summary>
+    <summary><span>All deployments</span><span class="count" id="histCount"></span></summary>
     <div class="hfilter"><label for="histType">Show</label><select id="histType"><option value="">All types</option><option>Deployment</option><option>DEMO</option><option>CAT Deployment</option></select></div>
     <ul class="hist" id="histList"></ul>
   </details>
@@ -339,13 +339,13 @@ function renderHist(){
   $("histCount").textContent=String(deps.length);
   $("histList").innerHTML = list.length ? list.map((x,i)=>{ const a=x.data, c=a.counts, latest=x===deps[0];
     const st=a.savedAt?`Saved ${fmt(a.savedAt)}${a.savedBy?" by "+esc(a.savedBy):""}`:"Not saved";
-    return `<li class="${d&&x.id===d.id?"on":""}"><button data-id="${esc(x.id)}"><span class="ht">${esc(fmtDay(a.date))} · ${esc(a.type||"Deployment")}${latest?" (latest)":""}</span><span class="hs">${a.model?esc(a.model)+" · ":""}${a.location?esc(a.location)+" · ":""}${a.by?esc(a.by)+" · ":""}${st}</span><span class="hp">${c?`${c.packed+c.na}/${ITEMS.length}`:"–"}</span></button></li>`; }).join("")
+    return `<li class="${d&&x.id===d.id?"on":""}"><button data-id="${esc(x.id)}"><span class="ht">${esc(fmtDay(a.date))} · ${esc(a.type||"Deployment")}</span><span class="hs"><b>${depStatus(x)}</b> · ${a.model?esc(a.model)+" · ":""}${a.location?esc(a.location)+" · ":""}${a.by?esc(a.by)+" · ":""}${st}</span><span class="hp">${c?`${c.packed+c.na}/${ITEMS.length}`:"–"}</span></button></li>`; }).join("")
     : '<li class="empty2">No deployments of this type yet.</li>';
   const past = d && deps[0] && d.id!==deps[0].id;
   $("pastBanner").hidden=!past;
   if (past) $("pastText").textContent=`You're viewing an earlier record: ${fmtDay(d.data.date)} · ${d.data.type||"Deployment"}. Changes here are logged with a time stamp.`;
 }
-function openDep(id){ viewId=(deps[0]&&id===deps[0].id)?null:id; state={}; logs=[]; dmg={}; logLimit=50; render(); renderLog(); renderHist(); $("notice").textContent="Loading that deployment…"; load(true); window.scrollTo({top:0,behavior:"smooth"}); }
+function openDep(id){ viewId=(deps[0]&&id===deps[0].id)?null:id; state={}; logs=[]; dmg={}; logLimit=50; render(); renderLog(); renderHist(); renderTrailer(true); $("notice").textContent="Loading that deployment…"; load(true); window.scrollTo({top:0,behavior:"smooth"}); }
 const cur=()=>deps.find(d=>d.id===viewId)||deps[0]||null;
 const me=()=>(cur()&&cur().data.by)||"";
 const nowIso=()=>new Date().toISOString();
@@ -358,11 +358,14 @@ function counts(){ const c=ITEMS.filter(i=>statusOf(i.k)==="checked").length, n=
 function lastEdit(){ const d=cur(); let m=(d&&d.data.updatedAt)||""; Object.values(state).forEach(s=>{ [s.at,s.noteAt].forEach(x=>{ if(x&&x>m) m=x; }); }); return m; }
 
 /* ---------- deployment record section ---------- */
+function depStatus(x){ const a=x.data; if(a.date && a.date>today()) return "Upcoming"; if(a.savedAt) return "Completed"; return "In progress"; }
 function renderSession(){
   const d=cur();
-  $("depSel").innerHTML = deps.length ? deps.map((x,i)=>{ const a=x.data, c=a.counts;
-      return `<option value="${esc(x.id)}">${esc(fmtDay(a.date))} · ${esc(a.type||"Deployment")}${a.model?" · "+esc(a.model):""}${a.location?" · "+esc(a.location):""}${a.by?" · "+esc(a.by):""}${c?` · ${c.packed+c.na}/${ITEMS.length}`:""}${i===0?" (latest)":""}</option>`; }).join("")
-    : '<option value="">No deployments yet</option>';
+  const opt=(x)=>{ const a=x.data, c=a.counts; return `<option value="${esc(x.id)}">${esc(fmtDay(a.date))} · ${esc(a.type||"Deployment")}${a.model?" · "+esc(a.model):""}${a.location?" · "+esc(a.location):""}${a.by?" · "+esc(a.by):""}${c?` · ${c.packed+c.na}/${ITEMS.length}`:""}</option>`; };
+  const groups=[["Upcoming",[]],["In progress",[]],["Completed",[]]];
+  deps.forEach(x=>{ const st=depStatus(x); groups.find(g=>g[0]===st)[1].push(x); });
+  $("depSel").innerHTML = (deps.length ? groups.filter(g=>g[1].length).map(([l,xs])=>`<optgroup label="${l}">${xs.map(opt).join("")}</optgroup>`).join("") : '<option value="">No deployments yet</option>')
+    + '<option value="__new">+ Start a new deployment…</option>';
   if (d) $("depSel").value=d.id;
   const names=[...new Set(people)].sort((a,b)=>a.localeCompare(b));
   if (d && d.data.by && !names.includes(d.data.by)) names.push(d.data.by);
@@ -390,7 +393,9 @@ function editDetails(patch){ const d=cur(); if(!d) return;
   const labels={type:"Type",by:"Checked by",date:"Date",location:"Location",model:"Scanner"};
   Object.keys(patch).forEach(k=>{ if((d.data[k]||"")!==(patch[k]||"")) logChange(d,{action:"detail",field:labels[k]||k,from:k==="date"?fmtDay(d.data[k]):d.data[k]||"",to:k==="date"?fmtDay(patch[k]):patch[k]||""}); });
   Object.assign(d.data,patch,{updatedAt:nowIso()}); renderSession(); render(); renderHist(); putDep(d,"Deployment details saved."); }
-$("depSel").addEventListener("change", ()=>{ const id=$("depSel").value; $("depSel").blur(); openDep(id); });
+$("depSel").addEventListener("change", ()=>{ const id=$("depSel").value; $("depSel").blur();
+  if (id==="__new"){ const d=cur(); $("depSel").value=d?d.id:""; $("newDep").click(); $("confirm").scrollIntoView({block:"center",behavior:"smooth"}); return; }
+  openDep(id); });
 $("histList").addEventListener("click", e=>{ const b=e.target.closest("button[data-id]"); if(b) openDep(b.dataset.id); });
 $("histType").addEventListener("change", ()=>{ histType=$("histType").value; renderHist(); });
 $("toLatest").addEventListener("click", ()=>{ if(deps[0]) openDep(deps[0].id); });
@@ -423,16 +428,16 @@ $("saveDep").addEventListener("click", async ()=>{
   if(!(await putDep(d,`Saved: ${d.data.type||"Deployment"} on ${fmtDay(d.data.date)}.`))){ d.data=prev; renderSession(); }
   else { const c=d.data.counts; logChange(d,{action:"save",to:`${c.packed} packed, ${c.na} N/A, ${c.open} open`}); renderHist(); }
 });
-$("newDep").addEventListener("click", ()=>{ if(!ready){ $("notice").textContent="Still loading the shared list. Try again in a moment."; return; } $("confirm").hidden=false; });
+$("newDep").addEventListener("click", ()=>{ if(!ready){ $("notice").textContent="Still loading the shared list. Try again in a moment."; return; } $("newDate").value=today(); $("confirm").hidden=false; });
 $("newNo").addEventListener("click", ()=>{ $("confirm").hidden=true; });
 $("newYes").addEventListener("click", async ()=>{
   $("confirm").hidden=true;
   const prevCur=cur(); const at=nowIso();
   if (prevCur && !prevCur.data.counts) prevCur.data.counts=counts();
-  const d={id:"d"+Date.now().toString(36), data:{type:"Deployment", by:me(), date:today(), createdAt:at, updatedAt:at}};
-  deps.unshift(d); viewId=null; state={}; logs=[]; dmg={}; renderSession(); render(); renderHist(); renderLog();
+  const d={id:"d"+Date.now().toString(36), data:{type:"Deployment", by:me(), date:$("newDate").value||today(), createdAt:at, updatedAt:at}};
+  deps.unshift(d); viewId=null; state={}; logs=[]; dmg={}; renderSession(); render(); renderHist(); renderLog(); renderTrailer(true);
   if (prevCur) putDep(prevCur);
-  if (await putDep(d,"New deployment started. The previous one is saved under Past deployments.")) { logChange(d,{action:"create"}); } else { deps.shift(); renderSession(); }
+  if (await putDep(d,"New deployment started. The previous one is saved in the Deployment list.")) { logChange(d,{action:"create"}); } else { deps.shift(); renderSession(); }
 });
 
 /* ---------- send to tech ---------- */
