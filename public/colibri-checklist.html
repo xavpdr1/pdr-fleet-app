@@ -171,6 +171,23 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
 .trNoteList li:first-child{border-top:0}
 .trNoteList .lt{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .trProg{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.trProg i{display:block;height:100%;background:var(--accent);width:0}
+@media (max-width:520px){header.top .qr{display:none}}
+.home{display:grid;gap:20px}
+.startCard{background:var(--surface);border:2px solid var(--accent);border-radius:10px;padding:16px;display:grid;gap:12px}
+.startCard h2{margin:0;font:700 22px var(--f-display);letter-spacing:.06em;text-transform:uppercase}
+.btn.big{font-size:17px;padding:12px 18px;justify-self:start}
+.homeLists{display:grid;gap:18px}
+.hGroup h3{margin:0 0 8px;font:700 16px var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.hGroup h3 span{font-family:var(--f-mono);font-size:12px;font-weight:500;letter-spacing:0}
+.hCards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.hCard{all:unset;box-sizing:border-box;cursor:pointer;display:grid;gap:6px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:8px;min-width:0}
+.hCard:hover{border-color:var(--accent)}
+.hCard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hCard .hc1{display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-weight:600}
+.hCard .hc2{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.hCard .bar{height:6px}
+.hEmpty{padding:12px 14px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:14px}
+.topNav{display:flex;gap:8px}
 .pwarn{font-size:12px;color:var(--accent)}
 .hfilter{display:flex;gap:8px;align-items:center;margin-bottom:10px;font-size:14px;color:var(--muted)}
 .hfilter select{font:inherit;font-size:16px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);min-width:0}
@@ -198,10 +215,27 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
     <div>
       <div class="brand"><span class="logo"><img src="/colibri-logo.jpg" alt="PDR-Team"></span></div>
       <h1>Deployment Checklist</h1>
-      <p class="sub">Tick each item as it goes into its case. Each deployment is saved as its own record.</p>
+      <p class="sub">Start a new deployment or open an earlier one. Each deployment is saved as its own record.</p>
     </div>
     <div class="qr"><img alt="QR code linking to this checklist" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAewAAAHsAQAAAAA4UaPNAAAC20lEQVR4nO2dYU7DMAyFnxH/0xvs/sfiBs4JzI8kjtMOIbSuYPYiNKUhn0KlN+/F9YIYHmj17REaIE6cOHHixIkTJ06c+Am4eNuAKkB/bZci0i/jtPNWJ078F/BircF1fjMRASA3QzEU2007c3XixK/D370nAIoCsLoJYIAr26rYYdoZqxMn/idw2WAK1O5zTIFiwc88d3XixJ+Mvx+HDJBiMjqoGwCr2xNWJ078enxqfrqX5nCApvYm+/YuiNPOWJ048evxofmWqwlNirrOvXOYlvreib8m3jUfo/eyewVQBVWsCvZB/vHViRO/HseSeyz7jmmfg2KmmD+taep7J/6a+FDvkH3r9JGg/Kbzlp8HRqKemieeD5/yDk+aRnjXPgFAi/Mz2jPOE8+KB29TDEPniFK3oXafNp7GUvPEE+IhziuatjHMzOyM2gOP/NQ88bR48PNN9jaqa0oos8Hi5z3sU/PEE+LuzAEgSr1vZhXByWBaesZ54lnxJc57GI9hP5qcJdpT88RT4sGc22pjANd/fEcwzhNPji/5+WOQn9N0eTJFP088LR5qzOomRQUQoFUaeFGZFMUosMQYPGN14sSvx7vmBSNLOYS9VOBUQdFWXYxi4iUKue+d+GviS73NTFRiyc+bhUH6eeK58an53XYVOPh5Bf088fz4od5mKS0IX/r2DlhvQ/z/4J6NRzv9YHRExD76ER+mkBv9PPG8+KHeBtO9L1WUuiD0NsSz415IZtaPtXEzLxtkm79F+Aj4I388ceI/ajFvA8wSyvm6Wn3f3jLOE8+JL3vYaHL8mazvW/dfkqLmiafE168BelGlol0u1cVYBql54jnxO2c6oQrCmU69AqGde+An3pyzOnHi1+P3NF9UxqtXHUixduJNP/rjnNWJE78ev+Pnd4NzRAdDP088MX4/b7PLxvuEucml5olnxcW+n/N14/9QI06cOHHixIkTJ078N/FPc0w4EFCnUDIAAAAASUVORK5CYII="><span>Scan to open</span></div>
   </header>
+
+  <main id="homeView" class="home">
+    <section class="startCard" aria-labelledby="startH">
+      <h2 id="startH">Start a new deployment</h2>
+      <p class="hint" style="margin:0">Opens a blank checklist. Nothing is checked until the crew ticks it while loading.</p>
+      <div class="fields">
+        <div class="field"><label for="hDate">Date</label><input type="date" id="hDate"></div>
+        <div class="field"><label for="hType">Type</label><select id="hType"><option>Deployment</option><option>DEMO</option><option>CAT Deployment</option></select></div>
+      </div>
+      <button class="btn primary big" id="hStart">Start new deployment</button>
+      <div class="notice" id="homeNotice">Loading deployments…</div>
+    </section>
+    <div id="homeLists" class="homeLists"></div>
+  </main>
+
+  <div id="depView" hidden>
+  <div class="topNav"><button class="btn" id="goHome">← All deployments</button></div>
 
   <div class="progress">
     <div class="bar" aria-hidden="true"><i class="c" id="barC"></i><i class="n" id="barN"></i></div>
@@ -272,6 +306,7 @@ a.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
   <div class="notice" id="notice">Connecting to the shared list…</div>
 
   <div id="boxes" style="display:grid;gap:16px"></div>
+  </div>
 <div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Item photo"><div class="lbTop"><button class="btn" id="lbClose">Close</button></div><img id="lbImg" alt=""><div class="cap" id="lbCap"></div><div class="lbAct" id="lbAct" hidden><button class="btn" id="lbDel">Remove photo</button><span id="lbConf" hidden>Remove this damage photo? <button class="btn" id="lbDelYes">Remove</button> <button class="btn" id="lbDelNo">Keep</button></span></div></div>
 </div>
 
@@ -300,6 +335,7 @@ let people=["Xavier Fernandez","Anton Potgieter"];
 let deps=[];          // [{id, data:{type,by,date,createdAt,updatedAt,savedAt,savedBy,counts}}], newest first
 let viewId=null;      // null = newest deployment
 try { viewId=new URLSearchParams(location.search).get("d")||null; } catch(e) {}
+let homeMode=!viewId; let depCounts={};
 let team=[];          // from the fleet app team directory
 let pending=0, ready=false;
 const LOG='colibri_log';
@@ -341,12 +377,17 @@ function renderHist(){
     const st=a.savedAt?`Saved ${fmt(a.savedAt)}${a.savedBy?" by "+esc(a.savedBy):""}`:"Not saved";
     return `<li class="${d&&x.id===d.id?"on":""}"><button data-id="${esc(x.id)}"><span class="ht">${esc(fmtDay(a.date))} · ${esc(a.type||"Deployment")}</span><span class="hs"><b>${depStatus(x)}</b> · ${a.model?esc(a.model)+" · ":""}${a.location?esc(a.location)+" · ":""}${a.by?esc(a.by)+" · ":""}${st}</span><span class="hp">${c?`${c.packed+c.na}/${ITEMS.length}`:"–"}</span></button></li>`; }).join("")
     : '<li class="empty2">No deployments of this type yet.</li>';
-  const past = d && deps[0] && d.id!==deps[0].id;
+  const past = false;
   $("pastBanner").hidden=!past;
   if (past) $("pastText").textContent=`You're viewing an earlier record: ${fmtDay(d.data.date)} · ${d.data.type||"Deployment"}. Changes here are logged with a time stamp.`;
 }
-function openDep(id){ viewId=(deps[0]&&id===deps[0].id)?null:id; state={}; logs=[]; dmg={}; logLimit=50; render(); renderLog(); renderHist(); renderTrailer(true); $("notice").textContent="Loading that deployment…"; load(true); window.scrollTo({top:0,behavior:"smooth"}); }
-const cur=()=>deps.find(d=>d.id===viewId)||deps[0]||null;
+function showMode(){ $("homeView").hidden=!homeMode; $("depView").hidden=homeMode; }
+function openDep(id, push=true){ viewId=id; homeMode=false; state={}; logs=[]; dmg={}; logLimit=50; showMode();
+  if(push){ try{ history.pushState({d:id},"","?d="+encodeURIComponent(id)); }catch(_){} }
+  render(); renderLog(); renderHist(); renderTrailer(true); renderSession(); $("notice").textContent="Loading that deployment…"; load(true); window.scrollTo(0,0); }
+function goHome(push=true){ homeMode=true; viewId=null; showMode(); if(push){ try{ history.pushState({},"",location.pathname); }catch(_){} } renderHome(); load(true); window.scrollTo(0,0); }
+window.addEventListener("popstate",()=>{ let id=null; try{ id=new URLSearchParams(location.search).get("d"); }catch(_){} if(id) openDep(id,false); else goHome(false); });
+const cur=()=>deps.find(d=>d.id===viewId)||null;
 const me=()=>(cur()&&cur().data.by)||"";
 const nowIso=()=>new Date().toISOString();
 function today(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -398,7 +439,27 @@ $("depSel").addEventListener("change", ()=>{ const id=$("depSel").value; $("depS
   openDep(id); });
 $("histList").addEventListener("click", e=>{ const b=e.target.closest("button[data-id]"); if(b) openDep(b.dataset.id); });
 $("histType").addEventListener("change", ()=>{ histType=$("histType").value; renderHist(); });
-$("toLatest").addEventListener("click", ()=>{ if(deps[0]) openDep(deps[0].id); });
+$("toLatest").addEventListener("click", ()=>goHome());
+$("goHome").addEventListener("click", ()=>goHome());
+function depLine(a){ return [a.model,a.location,a.by].filter(Boolean).map(esc).join(" · ")||"No details yet"; }
+function renderHome(){
+  if(!$("hDate").value) $("hDate").value=today();
+  const groups=[["In progress",[]],["Upcoming",[]],["Completed",[]]];
+  deps.forEach(x=>groups.find(g=>g[0]===depStatus(x))[1].push(x));
+  groups[1][1].sort((a,b)=>String(a.data.date).localeCompare(String(b.data.date)));
+  groups[2][1].sort((a,b)=>String(b.data.date).localeCompare(String(a.data.date)));
+  $("homeLists").innerHTML = groups.map(([l,xs])=>`<section class="hGroup"><h3>${l} <span>${xs.length}</span></h3>${xs.length?`<div class="hCards">${xs.map(x=>{ const a=x.data, c=depCounts[x.id]||a.counts||{packed:0,na:0,open:ITEMS.length}; const done=c.packed+c.na;
+      return `<button class="hCard" data-id="${esc(x.id)}"><span class="hc1"><span>${esc(fmtDay(a.date))} · ${esc(a.type||"Deployment")}</span><span class="trMeta">${done}/${ITEMS.length}</span></span><span class="hc2">${depLine(a)}</span><span class="bar" aria-hidden="true"><i class="c" style="width:${c.packed/ITEMS.length*100}%"></i><i class="n" style="width:${c.na/ITEMS.length*100}%"></i></span></button>`; }).join("")}</div>`:`<div class="hEmpty">${l==="In progress"?"Nothing in progress. Start a new deployment above.":l==="Upcoming"?"No upcoming deployments. Pick a future date above to plan one.":"No completed deployments yet."}</div>`}</section>`).join("");
+}
+$("homeLists").addEventListener("click", e=>{ const b=e.target.closest(".hCard"); if(b) openDep(b.dataset.id); });
+async function createDep(date,type){
+  if(!ready){ $("homeNotice").textContent="Still loading. Try again in a moment."; return; }
+  const at=nowIso(); const d={id:"d"+Date.now().toString(36), data:{type:type||"Deployment", by:"", date:date||today(), createdAt:at, updatedAt:at}};
+  deps.unshift(d); viewId=d.id;
+  if (await putDep(d,"New deployment started. Everything starts unchecked.")) { logChange(d,{action:"create"}); openDep(d.id); }
+  else { deps.shift(); $("homeNotice").textContent="Couldn't start the deployment. Check your signal and try again."; }
+}
+$("hStart").addEventListener("click", ()=>createDep($("hDate").value,$("hType").value));
 $("logMore").addEventListener("click", ()=>{ logLimit+=50; renderLog(); });
 $("deptype").addEventListener("change", ()=>editDetails({type:$("deptype").value}));
 document.querySelectorAll(".chk[data-model]").forEach(b=>b.addEventListener("click", ()=>{ const d=cur(); if(!d||!ready) return; const m=b.dataset.model; editDetails({model:(d.data.model===m)?"":m}); }));
@@ -432,12 +493,8 @@ $("newDep").addEventListener("click", ()=>{ if(!ready){ $("notice").textContent=
 $("newNo").addEventListener("click", ()=>{ $("confirm").hidden=true; });
 $("newYes").addEventListener("click", async ()=>{
   $("confirm").hidden=true;
-  const prevCur=cur(); const at=nowIso();
-  if (prevCur && !prevCur.data.counts) prevCur.data.counts=counts();
-  const d={id:"d"+Date.now().toString(36), data:{type:"Deployment", by:me(), date:$("newDate").value||today(), createdAt:at, updatedAt:at}};
-  deps.unshift(d); viewId=null; state={}; logs=[]; dmg={}; renderSession(); render(); renderHist(); renderLog(); renderTrailer(true);
-  if (prevCur) putDep(prevCur);
-  if (await putDep(d,"New deployment started. The previous one is saved in the Deployment list.")) { logChange(d,{action:"create"}); } else { deps.shift(); renderSession(); }
+  const prevCur=cur(); if (prevCur && !prevCur.data.counts){ prevCur.data.counts=counts(); putDep(prevCur); }
+  await createDep($("newDate").value||today(),"Deployment");
 });
 
 /* ---------- send to tech ---------- */
@@ -715,9 +772,15 @@ async function load(force){
     const rows = await sb('fleet_records?select=kind,id,data&kind=in.('+DEP+','+META+',person,'+PHOTO_KIND+')&deleted=eq.false');
     const nextDeps=[], nextTeam=[], nextPh={}; rows.forEach(r=>{ if(!r.data) return; if(r.kind===META && r.id==='people' && Array.isArray(r.data.names)) people=r.data.names; if(r.kind===DEP) nextDeps.push({id:r.id,data:r.data}); if(r.kind===PHOTO_KIND) nextPh[r.id]=r.data.item||''; if(r.kind==='person' && r.data.name) nextTeam.push({name:r.data.name,phone:r.data.phone||'',email:r.data.email||'',role:r.data.role||''}); }); team=nextTeam.sort((a,b)=>a.name.localeCompare(b.name)); photoOverride=nextPh;
     nextDeps.sort((a,b)=>String(b.data.createdAt||"").localeCompare(String(a.data.createdAt||"")));
-    if (!nextDeps.length){ const at=nowIso(); const d={id:"d"+Date.now().toString(36),data:{type:"Deployment",by:"",date:today(),createdAt:at,updatedAt:at}}; await upsert([{kind:DEP,id:d.id,data:d.data,deleted:false,updated_at:at}]); nextDeps.push(d); }
-    if (viewId && !nextDeps.some(d=>d.id===viewId)) viewId=null;
-    const d = nextDeps.find(x=>x.id===viewId) || nextDeps[0];
+    if (homeMode || !viewId || !nextDeps.some(x=>x.id===viewId)){
+      const cr=await sb('fleet_records?select=id,status:data->>status&kind=eq.'+KIND+'&deleted=eq.false&limit=20000');
+      const dc={}; nextDeps.forEach(x=>dc[x.id]={packed:0,na:0,open:ITEMS.length}); cr.forEach(r=>{ const i=r.id.indexOf(':'); const c=dc[r.id.slice(0,i)]; if(!c) return; if(r.status==='checked'){c.packed++;c.open--;} else if(r.status==='na'){c.na++;c.open--;} });
+      deps=nextDeps; depCounts=dc; ready=true;
+      if (!homeMode){ $("notice").textContent="That deployment wasn't found. It may have been removed."; goHome(); return; }
+      const sigH=JSON.stringify([deps,dc]); if(sigH!==lastSig){ lastSig=sigH; renderHome(); }
+      $("homeNotice").textContent=""; return;
+    }
+    const d = nextDeps.find(x=>x.id===viewId);
     const [checks, logRows, dmgRows] = await Promise.all([
       sb('fleet_records?select=id,data&kind=eq.'+KIND+'&deleted=eq.false&id=like.'+encodeURIComponent(d.id+':')+'*'),
       sb('fleet_records?select=id,data&kind=eq.'+LOG+'&deleted=eq.false&id=like.'+encodeURIComponent(d.id+':')+'*&order=updated_at.desc&limit=1000'),
@@ -728,11 +791,11 @@ async function load(force){
     logs=logRows.filter(r=>r.data).sort((a,b)=>String(b.data.at).localeCompare(String(a.data.at)));
     const sig=JSON.stringify([deps,state,people,team.length,viewId,logs.length,logs[0]&&logs[0].id,photoOverride,Object.values(dmg).map(a=>a.map(p=>p.id))]);
     ready=true; if (sig!==lastSig){ lastSig=sig; const y=window.scrollY; renderSession(); render(); renderHist(); renderLog(); renderPhotos(); renderTrailer(); if (Math.abs(window.scrollY-y)>1) window.scrollTo(0,y); }
-    if (/Connecting|Offline|Loading/.test($("notice").textContent)) $("notice").textContent = viewId ? "Viewing an earlier deployment." : "Live: ticks sync to every phone. Refreshes every 10 seconds.";
-  } catch(e){ $("notice").textContent="Offline: can't reach the shared list. It will retry automatically."; }
+    if (/Connecting|Offline|Loading/.test($("notice").textContent)) $("notice").textContent = "Live: ticks sync to every phone. Refreshes every 10 seconds.";
+  } catch(e){ $("notice").textContent=$("homeNotice").textContent="Offline: can't reach the shared list. It will retry automatically."; }
   finally { loading=false; if(again){ again=false; load(true); } }
 }
-render(); renderSession(); renderPhotos(); renderTrailer();
+showMode(); if(homeMode) renderHome(); else { render(); renderSession(); renderPhotos(); renderTrailer(); }
 load(); setInterval(()=>{ if(!document.hidden) load(); },10000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
 </script>
