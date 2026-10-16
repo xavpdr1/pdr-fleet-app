@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Colibri Unit Status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: fleet board — summary strip, one card per Colibri unit with a live status lamp, activity log below */
+:root{
+  --bg:#F2F4F8; --surface:#ffffff; --line:#d9dfe5; --fg:#1A2332; --muted:#5b6876;
+  --accent:#2E75B6; --accent-soft:#D9E1F2; --ok:#2b8a3e; --ok-soft:#e6f4ea; --off:#7a8794; --off-soft:#eceff2; --warn:#b26a00; --warn-soft:#fff3df;
+  --f-display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12171c; --surface:#1a2128; --line:#2c3640; --fg:#e7ecf1; --muted:#97a4b1;
+  --accent:#6FA8DC; --accent-soft:#1c2c3d; --ok:#5cc777; --ok-soft:#183223; --off:#8d99a5; --off-soft:#232b33; --warn:#f0b35a; --warn-soft:#3a2c14; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171c; --surface:#1a2128; --line:#2c3640; --fg:#e7ecf1; --muted:#97a4b1;
+  --accent:#6FA8DC; --accent-soft:#1c2c3d; --ok:#5cc777; --ok-soft:#183223; --off:#8d99a5; --off-soft:#232b33; --warn:#f0b35a; --warn-soft:#3a2c14; color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{max-width:100%;overflow-x:hidden}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
+[hidden]{display:none!important}
+.wrap{max-width:960px;margin:0 auto;padding:20px 16px 48px;display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
+.wrap>*{min-width:0}
+header{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;justify-content:space-between}
+.logo{background:#fff;border-radius:6px;padding:8px 12px;display:inline-flex;border:1px solid var(--line);margin-bottom:8px}
+.logo img{height:44px;width:auto;display:block}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(30px,7vw,44px);line-height:1;margin:0 0 6px;text-transform:uppercase;letter-spacing:.02em}
+.sub{color:var(--muted);margin:0;max-width:56ch}
+.btn{font:500 14px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 12px;border-radius:6px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+.btn:focus-visible,.unit:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn:disabled{opacity:.5;cursor:default}
+.summary{display:flex;flex-wrap:wrap;gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;flex:1 1 90px;max-width:180px;display:grid;gap:2px}
+.stat b{font:700 28px var(--f-display);line-height:1;font-variant-numeric:tabular-nums}
+.stat span{font:600 12px var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stat.on b{color:var(--ok)}
+.bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+.notice{font-size:13px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.unit{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--off);border-radius:8px;padding:12px 14px;display:grid;gap:8px;min-width:0}
+.unit.on{border-left-color:var(--ok)}
+.unit.stale{border-left-color:var(--warn)}
+.uTop{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.uTop h2{margin:0;font:700 22px var(--f-display);letter-spacing:.04em;text-transform:uppercase;overflow-wrap:anywhere}
+.pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.pill i{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block}
+.pill.on{background:var(--ok-soft);color:var(--ok)}
+.pill.on i{animation:pulse 2s ease-in-out infinite}
+.pill.off{background:var(--off-soft);color:var(--off)}
+.pill.stale{background:var(--warn-soft);color:var(--warn)}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.pill.on i{animation:none}}
+.meta{font-size:13px;color:var(--muted)}
+.pcs{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.pcs li{display:flex;justify-content:space-between;gap:8px;font-size:13px;border-top:1px solid var(--line);padding-top:4px}
+.pcs li span:first-child{font-family:var(--f-mono);font-size:12px;overflow-wrap:anywhere;min-width:0}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;background:var(--off)}
+.dot.on{background:var(--ok)}.dot.stale{background:var(--warn)}
+.empty{padding:14px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:14px}
+section.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:10px}
+section.panel h2{margin:0;font:700 18px var(--f-display);letter-spacing:.08em;text-transform:uppercase}
+.log{list-style:none;margin:0;padding:0;display:grid}
+.log li{display:grid;gap:2px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.log li:first-child{border-top:0}
+.log .lt{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%);background:var(--ok);color:#fff;font-weight:600;padding:12px 18px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:20;max-width:calc(100vw - 32px)}
+.hint{font-size:13px;color:var(--muted);margin:0}
+</style>
+</head><body>
+<div class="wrap">
+  <header>
+    <div>
+      <span class="logo"><img src="/colibri-logo.jpg" alt="PDR-Team"></span>
+      <h1>Colibri Unit Status</h1>
+      <p class="sub">Each Colibri PC checks in every minute while it's on. A unit shows Online when it has checked in within the last 3 minutes.</p>
+    </div>
+    <button class="btn" id="alertBtn">Turn on alerts on this device</button>
+  </header>
+
+  <div class="summary">
+    <div class="stat on"><b id="sOn">–</b><span>Online</span></div>
+    <div class="stat"><b id="sOff">–</b><span>Offline</span></div>
+    <div class="stat"><b id="sAll">–</b><span>Units</span></div>
+  </div>
+
+  <div class="bar"><span class="notice" id="notice">Connecting…</span></div>
+
+  <div class="grid" id="units"></div>
+
+  <section class="panel">
+    <h2>Activity</h2>
+    <p class="hint">Times the units' PCs started up, newest first.</p>
+    <ol class="log" id="log"></ol>
+  </section>
+</div>
+<div class="wrap" style="padding-top:0"><section class="panel">
+    <h2>Add a unit</h2>
+    <p class="hint">On each Colibri PC, download the <a href="/colibri-checkin.ps1" download style="color:var(--accent);font-weight:600">check-in script</a>, then in PowerShell (Run as administrator) run:</p>
+    <pre style="margin:0;padding:10px;border-radius:6px;background:var(--bg);border:1px solid var(--line);font:12px/1.5 var(--f-mono);white-space:pre-wrap;overflow-wrap:anywhere">powershell -ExecutionPolicy Bypass -File .\colibri-checkin.ps1 -Install -Unit "Colibri 19" -Role "Control cabinet"</pre>
+    <p class="hint">Use the unit name exactly as it appears above. The unit shows Online within a minute.</p>
+  </section></div>
+<div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+<script>
+const SB_URL='https://jedolnkjmlrruipkgqyd.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y';
+const ONLINE_MS=3*60*1000, STALE_MS=10*60*1000;
+const $=id=>document.getElementById(id);
+async function sb(path){
+  const ctl=new AbortController(), tm=setTimeout(()=>ctl.abort(),10000);
+  try{ const r=await fetch(`${SB_URL}/rest/v1/${path}`,{signal:ctl.signal,headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}});
+    if(!r.ok) throw new Error(r.status); const d=r.headers.get('date'); if(d) skew=Date.now()-new Date(d).getTime(); return r.json(); } finally{ clearTimeout(tm); }
+}
+let skew=0; const now=()=>Date.now()-skew;
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function ago(ms){ if(ms<0) ms=0; const s=Math.round(ms/1000); if(s<60) return "just now"; const m=Math.round(s/60); if(m<60) return m+" min ago"; const h=Math.round(m/60); if(h<48) return h+" hr ago"; return Math.round(h/24)+" days ago"; }
+function fmtFull(iso){ try{ const d=new Date(iso); return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+", "+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); }catch(e){ return iso; } }
+function stateOf(t){ const age=now()-t; return age<=ONLINE_MS?"on":age<=STALE_MS?"stale":"off"; }
+const LABEL={on:"Online",stale:"Not responding",off:"Offline"};
+
+let prev=null; // unit -> state, for alerts
+async function load(){
+  try{
+    const [units, beats, evs] = await Promise.all([
+      sb('colibri_units?select=number,location&order=number.asc'),
+      sb('fleet_records?select=id,data&kind=eq.colibri_hb&deleted=eq.false'),
+      sb('fleet_records?select=id,data&kind=eq.colibri_unitev&deleted=eq.false&order=updated_at.desc&limit=60')]);
+    const byUnit={};
+    units.forEach(u=>byUnit[u.number]={name:u.number,location:u.location||"",pcs:[]});
+    beats.forEach(r=>{ const d=r.data||{}; if(!d.unit) return; (byUnit[d.unit]=byUnit[d.unit]||{name:d.unit,location:"",pcs:[],unregistered:true}).pcs.push(d); });
+    const list=Object.values(byUnit).map(u=>{ const last=Math.max(0,...u.pcs.map(p=>new Date(p.at).getTime()||0)); u.last=last; u.state=last?stateOf(last):"off"; u.pcs.sort((a,b)=>String(a.pc).localeCompare(String(b.pc))); return u; });
+    const order={on:0,stale:1,off:2}; list.sort((a,b)=>order[a.state]-order[b.state]||a.name.localeCompare(b.name,undefined,{numeric:true}));
+    $("sOn").textContent=list.filter(u=>u.state==="on").length; $("sOff").textContent=list.filter(u=>u.state!=="on").length; $("sAll").textContent=list.length;
+    $("units").innerHTML = list.length ? list.map(u=>`<article class="unit ${u.state}">
+        <div class="uTop"><h2>${esc(u.name)}</h2><span class="pill ${u.state}"><i></i>${LABEL[u.state]}</span></div>
+        <div class="meta">${u.location?esc(u.location)+" · ":""}${u.last?"Last check-in "+ago(now()-u.last)+" ("+esc(fmtFull(new Date(u.last).toISOString()))+")":"Never checked in. The check-in script isn't installed yet."}${u.unregistered?" · Not in the unit list":""}</div>
+        ${u.pcs.length?`<ul class="pcs">${u.pcs.map(p=>{ const t=new Date(p.at).getTime(), s=stateOf(t); return `<li><span><i class="dot ${s}"></i>${esc(p.pc||"PC")}${p.role?" · "+esc(p.role):""}</span><span>${LABEL[s]} · ${ago(now()-t)}</span></li>`; }).join("")}</ul>`:""}
+      </article>`).join("") : '<div class="empty">No units yet. Add units in the Colibri Maintenance app, or install the check-in script on a unit\'s PC.</div>';
+    $("log").innerHTML = evs.length ? evs.map(r=>{ const d=r.data||{}; return `<li><span class="lt">${esc(fmtFull(d.at))}</span><span><b>${esc(d.unit)}</b> came online${d.pc?" ("+esc(d.pc)+")":""}</span></li>`; }).join("") : '<li class="hint">No activity yet. Entries appear when a unit\'s PC starts up with the check-in script installed.</li>';
+    // alerts: unit went from not-online to online since the last refresh
+    const cur={}; list.forEach(u=>cur[u.name]=u.state);
+    if(prev){ list.forEach(u=>{ if(u.state==="on" && prev[u.name]!=="on") alertOnline(u.name); }); }
+    prev=cur;
+    $("notice").textContent="Live. Refreshes every 20 seconds. Updated "+new Date().toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit",second:"2-digit"})+".";
+  }catch(e){ $("notice").textContent="Can't reach the server right now. It will retry automatically."; }
+}
+function alertOnline(name){
+  const msg=`${name} is online.`;
+  $("toast").textContent=msg; $("toast").hidden=false; clearTimeout(alertOnline.t); alertOnline.t=setTimeout(()=>$("toast").hidden=true,8000);
+  try{ if("Notification" in window && Notification.permission==="granted") new Notification("Colibri Unit Status",{body:msg,icon:"/icon-192.png",tag:"colibri-"+name}); }catch(_){}
+}
+function syncAlertBtn(){
+  const b=$("alertBtn");
+  if(!("Notification" in window)){ b.textContent="Alerts show on this page while it's open"; b.disabled=true; return; }
+  if(Notification.permission==="granted"){ b.textContent="Alerts on for this device"; b.disabled=true; }
+  else if(Notification.permission==="denied"){ b.textContent="Alerts blocked in browser settings"; b.disabled=true; }
+}
+$("alertBtn").addEventListener("click", async ()=>{ try{ await Notification.requestPermission(); }catch(_){} syncAlertBtn(); });
+syncAlertBtn();
+load(); setInterval(()=>{ if(!document.hidden) load(); },20000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
+</script>
+</body></html>
