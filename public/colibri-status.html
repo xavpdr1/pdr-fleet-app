@@ -7,17 +7,17 @@
 /* Layout: fleet board — summary strip, one card per Colibri unit with a live status lamp, activity log below */
 :root{
   --bg:#F2F4F8; --surface:#ffffff; --line:#d9dfe5; --fg:#1A2332; --muted:#5b6876;
-  --accent:#2E75B6; --accent-soft:#D9E1F2; --ok:#2b8a3e; --ok-soft:#e6f4ea; --off:#7a8794; --off-soft:#eceff2; --warn:#b26a00; --warn-soft:#fff3df;
+  --accent:#2E75B6; --accent-soft:#D9E1F2; --ok:#2b8a3e; --ok-soft:#e6f4ea; --off:#7a8794; --off-soft:#eceff2; --warn:#b26a00; --warn-soft:#fff3df; --bad:#c62828;
   --f-display:"Barlow Condensed","Arial Narrow",sans-serif;
   --f-body:"IBM Plex Sans",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#12171c; --surface:#1a2128; --line:#2c3640; --fg:#e7ecf1; --muted:#97a4b1;
-  --accent:#6FA8DC; --accent-soft:#1c2c3d; --ok:#5cc777; --ok-soft:#183223; --off:#8d99a5; --off-soft:#232b33; --warn:#f0b35a; --warn-soft:#3a2c14; color-scheme:dark}}
+  --accent:#6FA8DC; --accent-soft:#1c2c3d; --ok:#5cc777; --ok-soft:#183223; --off:#8d99a5; --off-soft:#232b33; --warn:#f0b35a; --warn-soft:#3a2c14; --bad:#ff6b6b; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#12171c; --surface:#1a2128; --line:#2c3640; --fg:#e7ecf1; --muted:#97a4b1;
-  --accent:#6FA8DC; --accent-soft:#1c2c3d; --ok:#5cc777; --ok-soft:#183223; --off:#8d99a5; --off-soft:#232b33; --warn:#f0b35a; --warn-soft:#3a2c14; color-scheme:dark}
+  --accent:#6FA8DC; --accent-soft:#1c2c3d; --ok:#5cc777; --ok-soft:#183223; --off:#8d99a5; --off-soft:#232b33; --warn:#f0b35a; --warn-soft:#3a2c14; --bad:#ff6b6b; color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html,body{max-width:100%;overflow-x:hidden}
@@ -70,6 +70,15 @@ section.panel h2{margin:0;font:700 18px var(--f-display);letter-spacing:.08em;te
 .log .lt{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%);background:var(--ok);color:#fff;font-weight:600;padding:12px 18px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:20;max-width:calc(100vw - 32px)}
 .hint{font-size:13px;color:var(--muted);margin:0}
+.mn{display:grid;gap:5px;font-size:13px}
+.mnTop{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.mnTop b{font:700 16px var(--f-display);letter-spacing:.04em}
+.mn.ok .mnTop b{color:var(--ok)} .mn.warn .mnTop b{color:var(--warn)} .mn.bad .mnTop b{color:var(--bad)} .mn.na .mnTop b{color:var(--muted)}
+.cells{display:flex;gap:2px}
+.cells i{flex:1;height:8px;border-radius:2px;background:var(--off-soft)}
+.mn.ok .cells i.u{background:var(--ok)} .mn.warn .cells i.u{background:var(--warn)} .mn.bad .cells i.u{background:var(--bad)} .mn.na .cells i.u{background:var(--off)}
+.mn .why{color:var(--muted)}
+.stat.warn b{color:var(--warn)}
 .geo{font-size:13px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
 .geo a{color:var(--accent);font-weight:600;text-decoration:none}
 .geo a:hover{text-decoration:underline}
@@ -89,6 +98,7 @@ section.panel h2{margin:0;font:700 18px var(--f-display);letter-spacing:.08em;te
   <div class="summary">
     <div class="stat on"><b id="sOn">–</b><span>Online</span></div>
     <div class="stat"><b id="sOff">–</b><span>Offline</span></div>
+    <div class="stat warn"><b id="sMin">–</b><span>Minions down</span></div>
     <div class="stat"><b id="sAll">–</b><span>Units</span></div>
   </div>
 
@@ -125,6 +135,20 @@ function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
 function ago(ms){ if(ms<0) ms=0; const s=Math.round(ms/1000); if(s<60) return "just now"; const m=Math.round(s/60); if(m<60) return m+" min ago"; const h=Math.round(m/60); if(h<48) return h+" hr ago"; return Math.round(h/24)+" days ago"; }
 function fmtFull(iso){ try{ const d=new Date(iso); return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+", "+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); }catch(e){ return iso; } }
 function stateOf(t){ const age=now()-t; return age<=ONLINE_MS?"on":age<=STALE_MS?"stale":"off"; }
+const expectedMinions=name=>/\bXL/i.test(name)?17:13;
+function minionInfo(u){
+  const exp=expectedMinions(u.name);
+  const rep=u.pcs.filter(p=>p.minions&&typeof p.minions.up==="number").sort((a,b)=>new Date(b.at)-new Date(a.at))[0];
+  if(!rep) return {exp,up:null,cls:"na",label:"Not reported",why:u.pcs.length?"Run the latest installer (v1.3) on this unit to report minions.":""};
+  const up=Math.min(rep.minions.up,exp), down=exp-up;
+  if(u.state!=="on") return {exp,up,cls:"na",label:`${up}/${exp}`,why:"Last known count (unit is not online)."};
+  if(down===0) return {exp,up,cls:"ok",label:`${up}/${exp}`,why:"All minions up."};
+  return {exp,up,down,cls:up<exp/2?"bad":"warn",label:`${up}/${exp}`,why:`${down} minion${down>1?"s":""} down.`};
+}
+function minionHTML(m){
+  const cells=Array.from({length:m.exp},(_,i)=>`<i class="${m.up!=null&&i<m.up?"u":""}"></i>`).join("");
+  return `<div class="mn ${m.cls}" role="group" aria-label="Minions ${m.label}"><div class="mnTop"><span>Minions</span><b>${m.label}</b></div><div class="cells">${cells}</div>${m.why?`<span class="why">${m.why}</span>`:""}</div>`;
+}
 const LABEL={on:"Online",stale:"Not responding",off:"Offline"};
 const ST={Alabama:"AL",Alaska:"AK",Arizona:"AZ",Arkansas:"AR",California:"CA",Colorado:"CO",Connecticut:"CT",Delaware:"DE",Florida:"FL",Georgia:"GA",Hawaii:"HI",Idaho:"ID",Illinois:"IL",Indiana:"IN",Iowa:"IA",Kansas:"KS",Kentucky:"KY",Louisiana:"LA",Maine:"ME",Maryland:"MD",Massachusetts:"MA",Michigan:"MI",Minnesota:"MN",Mississippi:"MS",Missouri:"MO",Montana:"MT",Nebraska:"NE",Nevada:"NV","New Hampshire":"NH","New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC","North Dakota":"ND",Ohio:"OH",Oklahoma:"OK",Oregon:"OR",Pennsylvania:"PA","Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD",Tennessee:"TN",Texas:"TX",Utah:"UT",Vermont:"VT",Virginia:"VA",Washington:"WA","West Virginia":"WV",Wisconsin:"WI",Wyoming:"WY","District of Columbia":"DC"};
 function geoPlace(g){ if(!g||!g.city) return ""; const r=g.country==="US"?(ST[g.region]||g.region):[g.region,g.country].filter(Boolean).join(", "); return [g.city,r].filter(Boolean).join(", "); }
@@ -140,7 +164,7 @@ function geoLine(g,typed){
   return `<div class="geo"><span>Check-in location:</span>${link}${tags}</div>`;
 }
 
-let prev=null; // unit -> state, for alerts
+let prev=null, prevM=null; // unit -> state / minion count, for alerts
 async function load(){
   try{
     const [units, beats, evs] = await Promise.all([
@@ -150,27 +174,32 @@ async function load(){
     const byUnit={};
     units.forEach(u=>byUnit[u.number]={name:u.number,location:u.location||"",pcs:[]});
     beats.forEach(r=>{ const d=r.data||{}; if(!d.unit) return; (byUnit[d.unit]=byUnit[d.unit]||{name:d.unit,location:"",pcs:[],unregistered:true}).pcs.push(d); });
-    const list=Object.values(byUnit).map(u=>{ const last=Math.max(0,...u.pcs.map(p=>new Date(p.at).getTime()||0)); u.last=last; u.state=last?stateOf(last):"off"; u.pcs.sort((a,b)=>String(a.pc).localeCompare(String(b.pc))); const lg=u.pcs.filter(p=>p.geo&&p.geo.city).sort((a,b)=>new Date(b.at)-new Date(a.at))[0]; u.geo=lg?lg.geo:null; return u; });
+    const list=Object.values(byUnit).map(u=>{ const last=Math.max(0,...u.pcs.map(p=>new Date(p.at).getTime()||0)); u.last=last; u.state=last?stateOf(last):"off"; u.pcs.sort((a,b)=>String(a.pc).localeCompare(String(b.pc))); const lg=u.pcs.filter(p=>p.geo&&p.geo.city).sort((a,b)=>new Date(b.at)-new Date(a.at))[0]; u.geo=lg?lg.geo:null; u.mn=minionInfo(u); return u; });
     const order={on:0,stale:1,off:2}; list.sort((a,b)=>order[a.state]-order[b.state]||a.name.localeCompare(b.name,undefined,{numeric:true}));
-    $("sOn").textContent=list.filter(u=>u.state==="on").length; $("sOff").textContent=list.filter(u=>u.state!=="on").length; $("sAll").textContent=list.length;
+    $("sOn").textContent=list.filter(u=>u.state==="on").length; $("sOff").textContent=list.filter(u=>u.state!=="on").length; $("sAll").textContent=list.length; $("sMin").textContent=list.reduce((n,u)=>n+(u.mn.down||0),0);
     $("units").innerHTML = list.length ? list.map(u=>`<article class="unit ${u.state}">
         <div class="uTop"><h2>${esc(u.name)}</h2><span class="pill ${u.state}"><i></i>${LABEL[u.state]}</span></div>
         <div class="meta">${u.location?esc(u.location)+" · ":""}${u.last?"Last check-in "+ago(now()-u.last)+" ("+esc(fmtFull(new Date(u.last).toISOString()))+")":"Never checked in. The check-in script isn't installed yet."}${u.unregistered?" · Not in the unit list":""}</div>
         ${geoLine(u.geo,u.location)}
+        ${minionHTML(u.mn)}
         ${u.pcs.length?`<ul class="pcs">${u.pcs.map(p=>{ const t=new Date(p.at).getTime(), s=stateOf(t); return `<li><span><i class="dot ${s}"></i>${esc(p.pc||"PC")}${p.role?" · "+esc(p.role):""}</span><span>${LABEL[s]} · ${ago(now()-t)}</span></li>`; }).join("")}</ul>`:""}
       </article>`).join("") : '<div class="empty">No units yet. Add units in the Colibri Maintenance app, or install the check-in script on a unit\'s PC.</div>';
     $("log").innerHTML = evs.length ? evs.map(r=>{ const d=r.data||{}; return `<li><span class="lt">${esc(fmtFull(d.at))}</span><span><b>${esc(d.unit)}</b> came online${d.pc?" ("+esc(d.pc)+")":""}${geoPlace(d.geo)?" · "+esc(geoPlace(d.geo))+(isStarlink(d.geo)?" (Starlink, approximate)":""):""}</span></li>`; }).join("") : '<li class="hint">No activity yet. Entries appear when a unit\'s PC starts up with the check-in script installed.</li>';
     // alerts: unit went from not-online to online since the last refresh
     const cur={}; list.forEach(u=>cur[u.name]=u.state);
+    const curM={}; list.forEach(u=>{ if(u.state==="on"&&u.mn.up!=null) curM[u.name]=u.mn.up; });
+    if(prevM){ list.forEach(u=>{ const a=prevM[u.name], b=curM[u.name]; if(a!=null&&b!=null&&a!==b) notify(b<a?`${u.name}: ${u.mn.exp-b} minion${u.mn.exp-b>1?"s":""} down (${b}/${u.mn.exp}).`:`${u.name}: minions back up (${b}/${u.mn.exp}).`, b<a); }); }
+    prevM=curM;
     if(prev){ list.forEach(u=>{ if(u.state==="on" && prev[u.name]!=="on") alertOnline(u.name); }); }
     prev=cur;
     $("notice").textContent="Live. Refreshes every 20 seconds. Updated "+new Date().toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit",second:"2-digit"})+".";
   }catch(e){ $("notice").textContent="Can't reach the server right now. It will retry automatically."; }
 }
-function alertOnline(name){
-  const msg=`${name} is online.`;
+function alertOnline(name){ notify(`${name} is online.`); }
+function notify(msg,bad){
+  $("toast").style.background=bad?"#9a5b00":"";
   $("toast").textContent=msg; $("toast").hidden=false; clearTimeout(alertOnline.t); alertOnline.t=setTimeout(()=>$("toast").hidden=true,8000);
-  try{ if("Notification" in window && Notification.permission==="granted") new Notification("Colibri Unit Status",{body:msg,icon:"/icon-192.png",tag:"colibri-"+name}); }catch(_){}
+  try{ if("Notification" in window && Notification.permission==="granted") new Notification("Colibri Unit Status",{body:msg,icon:"/icon-192.png",tag:"colibri-"+msg}); }catch(_){}
 }
 function syncAlertBtn(){
   const b=$("alertBtn");
