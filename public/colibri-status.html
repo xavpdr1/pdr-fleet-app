@@ -79,6 +79,11 @@ section.panel h2{margin:0;font:700 18px var(--f-display);letter-spacing:.08em;te
 .mn.ok .cells i.u{background:var(--ok)} .mn.warn .cells i.u{background:var(--warn)} .mn.bad .cells i.u{background:var(--bad)} .mn.na .cells i.u{background:var(--off)}
 .mn .why{color:var(--muted)}
 .cells i.d{background:var(--bad)}
+.sn{display:grid;gap:4px;font-size:13px;border-top:1px dashed var(--line);padding-top:6px}
+.sn.ok .mnTop b{color:var(--ok)} .sn.warn .mnTop b{color:var(--warn)}
+.sn .why{color:var(--muted)}
+.snl{margin:0;padding-left:18px;color:var(--fg)}
+
 .mn.warn .why,.mn.bad .why{color:var(--fg);font-weight:500}
 .stat.warn b{color:var(--warn)}
 .geo{font-size:13px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
@@ -150,6 +155,26 @@ function minionInfo(u){
   const nd=Math.max(down,downNames.length);
   return {exp,up,down:nd,named,downNames,cls:up<exp/2?"bad":"warn",label:`${up}/${exp}`,why:downNames.length?`Down: ${downNames.join(", ")}`:`${nd} minion${nd>1?"s":""} down.`};
 }
+function sensorInfo(u){
+  const agents=u.pcs.filter(p=>p.role==="Minion"&&p.sensors);
+  if(!agents.length) return null;
+  const core=u.pcs.filter(p=>p.minions&&Array.isArray(p.minions.named)).sort((a,b)=>new Date(b.at)-new Date(a.at))[0];
+  const nameOf=ip=>{ const n=core&&core.minions.named.find(x=>x.ip===ip); return n?n.n:null; };
+  const issues=[];
+  agents.forEach(a=>{
+    const nm=nameOf(a.ip)||a.pc;
+    const t=new Date(a.at).getTime();
+    if(stateOf(t)!=="on"){ if(u.state==="on") issues.push(`${nm}: sensor check not reporting`); return; }
+    (a.sensors.missing||[]).forEach(d=>issues.push(`${nm}: ${d} missing`));
+    (a.sensors.portsDown||[]).forEach(d=>issues.push(`${nm}: port ${d} disconnected`));
+  });
+  return {count:agents.length,issues};
+}
+function sensorHTML(si){
+  if(!si) return "";
+  const ok=!si.issues.length;
+  return `<div class="sn ${ok?"ok":"warn"}"><div class="mnTop"><span>Sensors</span><b>${ok?"All OK":si.issues.length+" issue"+(si.issues.length>1?"s":"")}</b></div>${ok?`<span class="why">${si.count} minion${si.count>1?"s":""} checked</span>`:`<ul class="snl">${si.issues.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`}</div>`;
+}
 function minionHTML(m){
   const cells=m.named&&m.cls!=="na"
     ? m.named.map(x=>`<i class="${x.up?"u":"d"}" title="${esc(x.n)}${x.up?"":" (down)"}"></i>`).join("")
@@ -181,7 +206,7 @@ async function load(){
     const byUnit={};
     units.forEach(u=>byUnit[u.number]={name:u.number,location:u.location||"",pcs:[]});
     beats.forEach(r=>{ const d=r.data||{}; if(!d.unit) return; (byUnit[d.unit]=byUnit[d.unit]||{name:d.unit,location:"",pcs:[],unregistered:true}).pcs.push(d); });
-    const list=Object.values(byUnit).map(u=>{ const last=Math.max(0,...u.pcs.map(p=>new Date(p.at).getTime()||0)); u.last=last; u.state=last?stateOf(last):"off"; u.pcs.sort((a,b)=>String(a.pc).localeCompare(String(b.pc))); const lg=u.pcs.filter(p=>p.geo&&p.geo.city).sort((a,b)=>new Date(b.at)-new Date(a.at))[0]; u.geo=lg?lg.geo:null; u.mn=minionInfo(u); return u; });
+    const list=Object.values(byUnit).map(u=>{ const last=Math.max(0,...u.pcs.map(p=>new Date(p.at).getTime()||0)); u.last=last; u.state=last?stateOf(last):"off"; u.pcs.sort((a,b)=>String(a.pc).localeCompare(String(b.pc))); const lg=u.pcs.filter(p=>p.geo&&p.geo.city).sort((a,b)=>new Date(b.at)-new Date(a.at))[0]; u.geo=lg?lg.geo:null; u.mn=minionInfo(u); u.si=sensorInfo(u); return u; });
     const order={on:0,stale:1,off:2}; list.sort((a,b)=>order[a.state]-order[b.state]||a.name.localeCompare(b.name,undefined,{numeric:true}));
     $("sOn").textContent=list.filter(u=>u.state==="on").length; $("sOff").textContent=list.filter(u=>u.state!=="on").length; $("sAll").textContent=list.length; $("sMin").textContent=list.reduce((n,u)=>n+(u.mn.down||0),0);
     $("units").innerHTML = list.length ? list.map(u=>`<article class="unit ${u.state}">
@@ -189,7 +214,8 @@ async function load(){
         <div class="meta">${u.location?esc(u.location)+" · ":""}${u.last?"Last check-in "+ago(now()-u.last)+" ("+esc(fmtFull(new Date(u.last).toISOString()))+")":"Never checked in. The check-in script isn't installed yet."}${u.unregistered?" · Not in the unit list":""}</div>
         ${geoLine(u.geo,u.location)}
         ${minionHTML(u.mn)}
-        ${u.pcs.length?`<ul class="pcs">${u.pcs.map(p=>{ const t=new Date(p.at).getTime(), s=stateOf(t); return `<li><span><i class="dot ${s}"></i>${esc(p.pc||"PC")}${p.role?" · "+esc(p.role):""}</span><span>${LABEL[s]} · ${ago(now()-t)}</span></li>`; }).join("")}</ul>`:""}
+        ${sensorHTML(u.si)}
+        ${u.pcs.filter(p=>p.role!=="Minion").length?`<ul class="pcs">${u.pcs.filter(p=>p.role!=="Minion").map(p=>{ const t=new Date(p.at).getTime(), s=stateOf(t); return `<li><span><i class="dot ${s}"></i>${esc(p.pc||"PC")}${p.role?" · "+esc(p.role):""}</span><span>${LABEL[s]} · ${ago(now()-t)}</span></li>`; }).join("")}</ul>`:""}
       </article>`).join("") : '<div class="empty">No units yet. Add units in the Colibri Maintenance app, or install the check-in script on a unit\'s PC.</div>';
     $("log").innerHTML = evs.length ? evs.map(r=>{ const d=r.data||{}; return `<li><span class="lt">${esc(fmtFull(d.at))}</span><span><b>${esc(d.unit)}</b> came online${d.pc?" ("+esc(d.pc)+")":""}${geoPlace(d.geo)?" · "+esc(geoPlace(d.geo))+(isStarlink(d.geo)?" (Starlink, approximate)":""):""}</span></li>`; }).join("") : '<li class="hint">No activity yet. Entries appear when a unit\'s PC starts up with the check-in script installed.</li>';
     // alerts: unit went from not-online to online since the last refresh
