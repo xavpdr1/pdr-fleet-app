@@ -78,6 +78,8 @@ section.panel h2{margin:0;font:700 18px var(--f-display);letter-spacing:.08em;te
 .cells i{flex:1;height:8px;border-radius:2px;background:var(--off-soft)}
 .mn.ok .cells i.u{background:var(--ok)} .mn.warn .cells i.u{background:var(--warn)} .mn.bad .cells i.u{background:var(--bad)} .mn.na .cells i.u{background:var(--off)}
 .mn .why{color:var(--muted)}
+.cells i.d{background:var(--bad)}
+.mn.warn .why,.mn.bad .why{color:var(--fg);font-weight:500}
 .stat.warn b{color:var(--warn)}
 .geo{font-size:13px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
 .geo a{color:var(--accent);font-weight:600;text-decoration:none}
@@ -140,14 +142,19 @@ function minionInfo(u){
   const exp=expectedMinions(u.name);
   const rep=u.pcs.filter(p=>p.minions&&typeof p.minions.up==="number").sort((a,b)=>new Date(b.at)-new Date(a.at))[0];
   if(!rep) return {exp,up:null,cls:"na",label:"Not reported",why:u.pcs.length?"Run the latest installer (v1.3) on this unit to report minions.":""};
+  const named=Array.isArray(rep.minions.named)&&rep.minions.named.length?rep.minions.named.slice().sort((a,b)=>(parseInt(String(a.n).split("-").pop())||0)-(parseInt(String(b.n).split("-").pop())||0)||String(a.n).localeCompare(String(b.n))):null;
   const up=Math.min(rep.minions.up,exp), down=exp-up;
-  if(u.state!=="on") return {exp,up,cls:"na",label:`${up}/${exp}`,why:"Last known count (unit is not online)."};
-  if(down===0) return {exp,up,cls:"ok",label:`${up}/${exp}`,why:"All minions up."};
-  return {exp,up,down,cls:up<exp/2?"bad":"warn",label:`${up}/${exp}`,why:`${down} minion${down>1?"s":""} down.`};
+  const downNames=named?named.filter(x=>!x.up).map(x=>x.n):[];
+  if(u.state!=="on") return {exp,up,named,downNames:[],cls:"na",label:`${up}/${exp}`,why:"Last known count (unit is not online)."};
+  if(down===0&&!downNames.length) return {exp,up,named,downNames,cls:"ok",label:`${up}/${exp}`,why:"All minions up."};
+  const nd=Math.max(down,downNames.length);
+  return {exp,up,down:nd,named,downNames,cls:up<exp/2?"bad":"warn",label:`${up}/${exp}`,why:downNames.length?`Down: ${downNames.join(", ")}`:`${nd} minion${nd>1?"s":""} down.`};
 }
 function minionHTML(m){
-  const cells=Array.from({length:m.exp},(_,i)=>`<i class="${m.up!=null&&i<m.up?"u":""}"></i>`).join("");
-  return `<div class="mn ${m.cls}" role="group" aria-label="Minions ${m.label}"><div class="mnTop"><span>Minions</span><b>${m.label}</b></div><div class="cells">${cells}</div>${m.why?`<span class="why">${m.why}</span>`:""}</div>`;
+  const cells=m.named&&m.cls!=="na"
+    ? m.named.map(x=>`<i class="${x.up?"u":"d"}" title="${esc(x.n)}${x.up?"":" (down)"}"></i>`).join("")
+    : Array.from({length:m.exp},(_,i)=>`<i class="${m.up!=null&&i<m.up?"u":""}"></i>`).join("");
+  return `<div class="mn ${m.cls}" role="group" aria-label="Minions ${m.label}"><div class="mnTop"><span>Minions</span><b>${m.label}</b></div><div class="cells">${cells}</div>${m.why?`<span class="why">${esc(m.why)}</span>`:""}</div>`;
 }
 const LABEL={on:"Online",stale:"Not responding",off:"Offline"};
 const ST={Alabama:"AL",Alaska:"AK",Arizona:"AZ",Arkansas:"AR",California:"CA",Colorado:"CO",Connecticut:"CT",Delaware:"DE",Florida:"FL",Georgia:"GA",Hawaii:"HI",Idaho:"ID",Illinois:"IL",Indiana:"IN",Iowa:"IA",Kansas:"KS",Kentucky:"KY",Louisiana:"LA",Maine:"ME",Maryland:"MD",Massachusetts:"MA",Michigan:"MI",Minnesota:"MN",Mississippi:"MS",Missouri:"MO",Montana:"MT",Nebraska:"NE",Nevada:"NV","New Hampshire":"NH","New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC","North Dakota":"ND",Ohio:"OH",Oklahoma:"OK",Oregon:"OR",Pennsylvania:"PA","Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD",Tennessee:"TN",Texas:"TX",Utah:"UT",Vermont:"VT",Virginia:"VA",Washington:"WA","West Virginia":"WV",Wisconsin:"WI",Wyoming:"WY","District of Columbia":"DC"};
