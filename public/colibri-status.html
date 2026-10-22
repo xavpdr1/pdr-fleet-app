@@ -123,7 +123,7 @@ section.panel h2{margin:0;font:700 18px var(--f-display);letter-spacing:.08em;te
 <script>
 const SB_URL='https://jedolnkjmlrruipkgqyd.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y';
-const ONLINE_MS=3*60*1000, STALE_MS=10*60*1000;
+const ONLINE_MS=2*60*1000, STALE_MS=4*60*1000;
 const $=id=>document.getElementById(id);
 async function sb(path){
   const ctl=new AbortController(), tm=setTimeout(()=>ctl.abort(),10000);
