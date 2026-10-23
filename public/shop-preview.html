@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Colibri at Your Shop · PDR-Team</title>
+<meta name="description" content="See where a Colibri vehicle scanner would fit at your shop: find your location, view the arch life-size with your phone, and send us photos.">
+<link rel="icon" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+/* Layout: three numbered steps down one column (find shop -> see it life-size -> send photos); the steps are a real sequence */
+:root{
+  --bg:#F2F4F8; --surface:#ffffff; --line:#d9dfe5; --fg:#1A2332; --muted:#5b6876;
+  --accent:#2E75B6; --accent-ink:#1F4E79; --accent-soft:#D9E1F2; --ok:#2b8a3e; --warn:#b26a00;
+  --f-display:"Barlow Condensed","Arial Narrow",sans-serif; --f-body:"IBM Plex Sans",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12171c;--surface:#1a2128;--line:#2c3640;--fg:#e7ecf1;--muted:#97a4b1;--accent:#6FA8DC;--accent-ink:#a9cbec;--accent-soft:#1c2c3d;--ok:#5cc777;--warn:#f0b35a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12171c;--surface:#1a2128;--line:#2c3640;--fg:#e7ecf1;--muted:#97a4b1;--accent:#6FA8DC;--accent-ink:#a9cbec;--accent-soft:#1c2c3d;--ok:#5cc777;--warn:#f0b35a;color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+html,body{max-width:100%;overflow-x:hidden}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 var(--f-body)}
+[hidden]{display:none!important}
+.wrap{max-width:880px;margin:0 auto;padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:22px;grid-template-columns:minmax(0,1fr)}
+.wrap>*{min-width:0}
+.logo{background:#fff;border-radius:6px;padding:8px 12px;display:inline-flex;border:1px solid var(--line)}
+.logo img{height:40px;width:auto;display:block}
+h1{font:700 clamp(32px,8vw,52px)/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;margin:14px 0 8px;text-wrap:balance}
+.lede{color:var(--muted);margin:0;max-width:60ch}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;min-width:0}
+.stepHead{display:flex;gap:12px;align-items:baseline}
+.num{font:700 15px var(--f-mono);color:var(--accent);border:2px solid var(--accent);border-radius:50%;width:30px;height:30px;display:inline-grid;place-items:center;flex:0 0 30px}
+h2{margin:0;font:700 24px/1.1 var(--f-display);letter-spacing:.03em;text-transform:uppercase}
+.hint{font-size:14px;color:var(--muted);margin:0}
+label{font-size:14px;font-weight:600;display:grid;gap:4px}
+input,textarea,select{font:inherit;font-size:16px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+input:focus-visible,textarea:focus-visible,select:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>input{flex:1 1 220px}
+.btn{font:600 15px var(--f-body);border:1px solid var(--accent);background:var(--accent);color:#fff;padding:10px 16px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.btn.ghost{background:transparent;color:var(--accent-ink);border-color:var(--line)}
+.btn:disabled{opacity:.55;cursor:default}
+#map{height:min(60vh,440px);border-radius:8px;border:1px solid var(--line);background:var(--bg)}
+.mapTools{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:14px}
+.mapTools input[type=range]{width:160px;padding:0}
+.tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.tabs button{font:600 14px var(--f-body);background:transparent;color:var(--fg);border:0;padding:8px 14px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--accent);color:#fff}
+model-viewer{width:100%;height:min(62vh,460px);background:linear-gradient(var(--accent-soft),var(--bg));border-radius:8px;border:1px solid var(--line);--poster-color:transparent}
+.arBtn{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font:700 16px var(--f-body);background:var(--accent);color:#fff;border:0;border-radius:999px;padding:12px 20px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.dims{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.dim{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.dim b{display:block;font:700 22px var(--f-display);font-variant-numeric:tabular-nums}
+.dim span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap}
+.thumbs figure{margin:0;position:relative}
+.thumbs img{width:96px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block}
+.thumbs button{position:absolute;top:2px;right:2px;border:0;border-radius:50%;width:24px;height:24px;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;line-height:1}
+.drop{border:2px dashed var(--line);border-radius:8px;padding:16px;text-align:center;color:var(--muted);cursor:pointer}
+.drop:hover{border-color:var(--accent)}
+.msg{font-size:15px;font-weight:600;margin:0}
+.msg.ok{color:var(--ok)} .msg.err{color:var(--warn)}
+footer{font-size:13px;color:var(--muted);text-align:center}
+.leaflet-container{font:13px var(--f-body)}
+</style>
+</head><body>
+<div class="wrap">
+  <header>
+    <span class="logo"><img src="/colibri-logo.jpg" alt="PDR-Team"></span>
+    <h1>See the Colibri at your shop</h1>
+    <p class="lede">The Colibri is a drive-through scanner arch that maps hail and dent damage in minutes. Find your shop, see the arch life-size with your phone, and send us a few photos. We'll tell you where it fits best.</p>
+  </header>
+
+  <section class="step" aria-labelledby="s1">
+    <div class="stepHead"><span class="num">1</span><h2 id="s1">Find your shop</h2></div>
+    <form class="row" id="addrForm">
+      <input id="addr" type="text" autocomplete="street-address" placeholder="Shop address, city, state" aria-label="Shop address">
+      <button class="btn" type="submit" id="findBtn">Find my shop</button>
+    </form>
+    <p class="msg err" id="addrMsg" hidden></p>
+    <div id="map" role="region" aria-label="Aerial map of your shop"></div>
+    <div class="mapTools">
+      <label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" id="fpOn" style="width:auto" checked> Show scanner footprint</label>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:500">Turn <input type="range" id="fpRot" min="0" max="179" value="0"></label>
+      <a id="svLink" class="btn ghost" href="#" target="_blank" rel="noopener" hidden>Open Street View</a>
+    </div>
+    <p class="hint">Tap the map to move the blue outline. It shows the arch plus the drive-through lane, to scale.</p>
+  </section>
+
+  <section class="step" aria-labelledby="s2">
+    <div class="stepHead"><span class="num">2</span><h2 id="s2">See it life-size</h2></div>
+    <div class="row" style="align-items:center;justify-content:space-between">
+      <div class="tabs" role="group" aria-label="Scanner model">
+        <button type="button" data-m="xl" aria-pressed="true">Colibri XL</button>
+        <button type="button" data-m="std" aria-pressed="false">Colibri</button>
+      </div>
+      <span class="hint" id="arHint">On a phone, tap “View in your shop” and point at the floor.</span>
+    </div>
+    <div style="position:relative">
+      <model-viewer id="mv" src="/colibri-xl.glb" alt="3D model of the Colibri XL scanner arch with its drive-through lane"
+        camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05" camera-orbit="35deg 70deg auto"
+        ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed" ar-placement="floor">
+        <button slot="ar-button" class="arBtn">View in your shop</button>
+      </model-viewer>
+    </div>
+    <div class="dims" id="dims"></div>
+    <p class="hint">Sizes are approximate. The light-blue strip on the floor is the lane a vehicle drives through during a scan.</p>
+  </section>
+
+  <section class="step" aria-labelledby="s3">
+    <div class="stepHead"><span class="num">3</span><h2 id="s3">Send us your space</h2></div>
+    <p class="hint">Add a few photos of the bay or lot where the scanner would go: one from each end and one from the side helps most.</p>
+    <form id="leadForm" class="grid2" novalidate>
+      <div style="grid-column:1/-1;display:grid;gap:10px">
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Add photos">Tap to add photos, or drop them here (up to 8)</div>
+        <input type="file" id="files" accept="image/*" multiple hidden>
+        <div class="thumbs" id="thumbs"></div>
+      </div>
+      <label>Your name<input id="fName" autocomplete="name" required></label>
+      <label>Shop name<input id="fShop" autocomplete="organization" required></label>
+      <label>Phone<input id="fPhone" type="tel" autocomplete="tel"></label>
+      <label>Email<input id="fEmail" type="email" autocomplete="email" required></label>
+      <label style="grid-column:1/-1">Anything we should know? (ceiling height, door size, power)<textarea id="fNotes" rows="3"></textarea></label>
+      <div style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <button class="btn" type="submit" id="sendBtn">Send to PDR-Team</button>
+        <p class="msg" id="sendMsg" role="status" aria-live="polite"></p>
+      </div>
+    </form>
+  </section>
+
+  <footer>PDR-Team USA · Colibri vehicle damage scanning</footer>
+</div>
+
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const SB_URL='https://jedolnkjmlrruipkgqyd.supabase.co', SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y';
+const $=id=>document.getElementById(id);
+// Approximate outer sizes in meters (estimates until confirmed); lane = drive-through length shown on the floor
+const MODELS={ xl:{name:"Colibri XL",src:"/colibri-xl.glb",w:4.2,h:3.3,d:1.0,lane:7.0}, std:{name:"Colibri",src:"/colibri.glb",w:3.6,h:2.9,d:0.9,lane:7.0} };
+let model="xl", place=null;
+const ft=m=>{ const i=Math.round(m*39.3701); return `${Math.floor(i/12)}′ ${i%12}″`; };
+function showDims(){ const m=MODELS[model]; $("dims").innerHTML=[["Width",m.w],["Height",m.h],["Arch depth",m.d],["Lane length",m.lane]].map(([k,v])=>`<div class="dim"><b>${ft(v)}</b><span>${k} · ${v.toFixed(1)} m</span></div>`).join(""); }
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>{ model=b.dataset.m; document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-pressed",x===b)); $("mv").src=MODELS[model].src; $("mv").alt=`3D model of the ${MODELS[model].name} scanner arch with its drive-through lane`; showDims(); drawFootprint(); }));
+showDims();
+
+// ---- map (Esri aerial imagery, OpenStreetMap address search) ----
+const map=L.map("map",{zoomControl:true}).setView([32.95,-96.99],5);
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:20,maxNativeZoom:19,attribution:"Imagery © Esri, Maxar, Earthstar Geographics"}).addTo(map);
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",{maxZoom:20,maxNativeZoom:19,opacity:.85}).addTo(map);
+let marker=null, fp=null, center=null;
+function drawFootprint(){
+  if(fp){ map.removeLayer(fp); fp=null; }
+  if(!center||!$("fpOn").checked) return;
+  const m=MODELS[model], a=(+$("fpRot").value)*Math.PI/180, lat=center.lat*Math.PI/180;
+  const mLat=1/111320, mLng=1/(111320*Math.cos(lat));
+  const pts=[[-m.w/2,-m.lane/2],[m.w/2,-m.lane/2],[m.w/2,m.lane/2],[-m.w/2,m.lane/2]].map(([x,y])=>{ const rx=x*Math.cos(a)-y*Math.sin(a), ry=x*Math.sin(a)+y*Math.cos(a); return [center.lat+ry*mLat, center.lng+rx*mLng]; });
+  const ax=[[-m.w/2,-m.d/2],[m.w/2,-m.d/2],[m.w/2,m.d/2],[-m.w/2,m.d/2]].map(([x,y])=>{ const rx=x*Math.cos(a)-y*Math.sin(a), ry=x*Math.sin(a)+y*Math.cos(a); return [center.lat+ry*mLat, center.lng+rx*mLng]; });
+  fp=L.layerGroup([L.polygon(pts,{color:"#6FA8DC",weight:2,fillOpacity:.18}),L.polygon(ax,{color:"#ffffff",weight:2,fillColor:"#1F4E79",fillOpacity:.9})]).addTo(map);
+}
+$("fpOn").addEventListener("change",drawFootprint); $("fpRot").addEventListener("input",drawFootprint);
+map.on("click",e=>{ center=e.latlng; drawFootprint(); });
+$("addrForm").addEventListener("submit",async e=>{
+  e.preventDefault(); const q=$("addr").value.trim(); if(!q) return;
+  $("findBtn").disabled=true; $("addrMsg").hidden=true;
+  try{
+    const r=await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us,ca,mx&q="+encodeURIComponent(q),{headers:{"Accept-Language":"en"}});
+    const j=await r.json(); if(!j.length) throw new Error("none");
+    const p=L.latLng(+j[0].lat,+j[0].lon); place={lat:p.lat,lng:p.lng,label:j[0].display_name};
+    map.setView(p,19); if(marker) marker.remove(); marker=L.marker(p).addTo(map); center=p; drawFootprint();
+    const sv=$("svLink"); sv.href=`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${p.lat},${p.lng}`; sv.hidden=false;
+  }catch(err){ $("addrMsg").textContent="We couldn't find that address. Try adding the city and state, or tap your shop on the map."; $("addrMsg").hidden=false; }
+  finally{ $("findBtn").disabled=false; }
+});
+
+// ---- photos ----
+let photos=[];
+function shrink(file){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ const k=Math.min(1,1600/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(img.src); res(c.toDataURL("image/jpeg",.8)); }; img.onerror=rej; img.src=URL.createObjectURL(file); }); }
+async function addFiles(list){ for(const f of [...list]){ if(photos.length>=8) break; if(!f.type.startsWith("image/")) continue; try{ photos.push(await shrink(f)); }catch(_){} } renderThumbs(); }
+function renderThumbs(){ $("thumbs").innerHTML=photos.map((p,i)=>`<figure><img src="${p}" alt="Shop photo ${i+1}"><button type="button" aria-label="Remove photo ${i+1}" data-i="${i}">×</button></figure>`).join(""); }
+$("thumbs").addEventListener("click",e=>{ const i=e.target.dataset.i; if(i!=null){ photos.splice(+i,1); renderThumbs(); } });
+$("drop").addEventListener("click",()=>$("files").click());
+$("drop").addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); $("files").click(); } });
+$("files").addEventListener("change",e=>{ addFiles(e.target.files); e.target.value=""; });
+["dragover","dragenter"].forEach(t=>$("drop").addEventListener(t,e=>{ e.preventDefault(); }));
+$("drop").addEventListener("drop",e=>{ e.preventDefault(); addFiles(e.dataTransfer.files); });
+
+// ---- send ----
+async function put(rows){ const r=await fetch(`${SB_URL}/rest/v1/fleet_records?on_conflict=kind,id`,{method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify(rows)}); if(!r.ok) throw new Error(r.status); }
+$("leadForm").addEventListener("submit",async e=>{
+  e.preventDefault(); const msg=$("sendMsg"); msg.className="msg";
+  const name=$("fName").value.trim(), shop=$("fShop").value.trim(), email=$("fEmail").value.trim();
+  if(!name||!shop||!/^\S+@\S+\.\S+$/.test(email)){ msg.className="msg err"; msg.textContent="Please add your name, shop name and a valid email."; return; }
+  $("sendBtn").disabled=true; msg.textContent="Sending…";
+  const id=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
+  const at=new Date().toISOString();
+  try{
+    for(let i=0;i<photos.length;i++) await put([{kind:"shop_lead_img",id:`${id}|${i}`,data:{lead:id,i,img:photos[i]},deleted:false,updated_at:at}]);
+    await put([{kind:"shop_lead",id,data:{name,shop,email,phone:$("fPhone").value.trim(),notes:$("fNotes").value.trim(),address:$("addr").value.trim(),place,model:MODELS[model].name,footprint:center?{lat:center.lat,lng:center.lng,rot:+$("fpRot").value}:null,photos:photos.length,at,status:"new"},deleted:false,updated_at:at}]);
+    msg.className="msg ok"; msg.textContent="Sent. Thanks! PDR-Team will reach out about fitting a Colibri at your shop.";
+    photos=[]; renderThumbs(); $("leadForm").reset();
+  }catch(err){ msg.className="msg err"; msg.textContent="That didn't go through. Check your connection and try again."; }
+  finally{ $("sendBtn").disabled=false; }
+});
+</script>
+</body></html>
