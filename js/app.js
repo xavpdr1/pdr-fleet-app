@@ -1966,9 +1966,11 @@ const app = {
     endUsage(assetId, confirmed) {
         const asset = this.vehicles.find(v => v.id === assetId) || this.trailers.find(t => t.id === assetId);
         if (!asset || !this.currentUsage[assetId]) return;
-        if (asset.type !== 'trailer' && !confirmed) { this.openTrip(assetId, 'in'); return; }
-
         const usage = this.currentUsage[assetId];
+        // Only vehicles that were checked out with mileage/gas need the check-in form.
+        // A plain USE (name + location) just ends and goes back to available.
+        const wasCheckedOut = usage.startMileage != null || usage.startFuel;
+        if (asset.type !== 'trailer' && wasCheckedOut && !confirmed) { this.openTrip(assetId, 'in'); return; }
         const endTime = new Date();
 
         // Update usage log with end time
@@ -1985,6 +1987,7 @@ const app = {
         this.saveToLocalStorage();
 
         this.renderFleetList();
+        if (document.getElementById('assetDetailPage')?.classList.contains('active')) this.showAssetDetail(assetId);
 
         alert(`✓ ${asset.name} usage ended for ${usage.userName}`);
     },
