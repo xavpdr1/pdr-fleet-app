@@ -5,7 +5,7 @@
 #   Find test: powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -FindTest   (finds Automatic Start, does NOT press it)
 param([switch]$Install, [switch]$Uninstall, [string]$Unit, [string]$Pin, [switch]$FindTest)
 
-$Version  = "1.2"
+$Version  = "1.3"
 $SB_URL   = "https://jedolnkjmlrruipkgqyd.supabase.co"
 $SB_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y"
 $Home_    = Join-Path $env:ProgramData "ColibriScanRemote"
@@ -32,52 +32,105 @@ function Get-Hash([string]$s) {
 
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 Add-Type @"
-using System; using System.Runtime.InteropServices;
+using System; using System.Text; using System.Collections.Generic; using System.Runtime.InteropServices;
 public static class CsrNative {
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+  [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
+  public delegate bool EnumProc(IntPtr h, IntPtr p);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc f, IntPtr p);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT p);
+  [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT p);
+  [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr h, uint f);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
   [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
   [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, UIntPtr e);
+  [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, uint f, UIntPtr e);
+  public static List<IntPtr> TopWindows() {
+    var l = new List<IntPtr>();
+    EnumWindows((h, p) => { if (IsWindowVisible(h)) l.Add(h); return true; }, IntPtr.Zero);
+    return l;
+  }
+  public static string Title(IntPtr h) { var sb = new StringBuilder(512); GetWindowText(h, sb, 512); return sb.ToString(); }
 }
 "@
 
-# Finds the Automatic Start button in a window whose title contains "Colibri". Returns @{ el; win } or $null.
-function Find-NewScan {
-  $AE = [Windows.Automation.AutomationElement]
-  $nameCond = New-Object Windows.Automation.PropertyCondition($AE::NameProperty, $ButtonText, [Windows.Automation.PropertyConditionFlags]::IgnoreCase)
-  for ($try = 1; $try -le 4; $try++) {
-    $wins = $AE::RootElement.FindAll([Windows.Automation.TreeScope]::Children, [Windows.Automation.Condition]::TrueCondition)
-    foreach ($w in $wins) {
-      $title = ""; try { $title = [string]$w.Current.Name } catch {}
-      if ($title -notmatch '(?i)colibri' -or $title -match '(?i)colibri core|minion|update') { continue }
-      try {
-        $h = [IntPtr]$w.Current.NativeWindowHandle
-        if ($h -ne [IntPtr]::Zero -and [CsrNative]::IsIconic($h)) { [CsrNative]::ShowWindow($h, 9) | Out-Null; Start-Sleep -Milliseconds 400 }
-        $el = $w.FindFirst([Windows.Automation.TreeScope]::Descendants, $nameCond)
-        if ($el) { return @{ el = $el; win = $w } }
-      } catch {}
-    }
-    Start-Sleep -Milliseconds 600   # Chrome-based windows build their button list on the first request
-  }
-  return $null
+function Get-WinInfo([IntPtr]$h) {
+  $procId = [uint32]0; [CsrNative]::GetWindowThreadProcessId($h, [ref]$procId) | Out-Null
+  $pn = ""; try { $pn = (Get-Process -Id $procId -ErrorAction Stop).ProcessName } catch {}
+  $r = New-Object CsrNative+RECT; [CsrNative]::GetWindowRect($h, [ref]$r) | Out-Null
+  return [pscustomobject]@{ hwnd = $h; title = [CsrNative]::Title($h); proc = $pn; L = $r.L; T = $r.T; W = ($r.R - $r.L); H = ($r.B - $r.T) }
 }
 
-function Press-NewScan {
-  $f = Find-NewScan
-  if (-not $f) { return "Could not find the Automatic Start button. Fill in the scan form on the PC so Automatic Start is showing." }
-  try { $f.el.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); return "ok" } catch {}
-  try {
-    $h = [IntPtr]$f.win.Current.NativeWindowHandle
-    if ($h -ne [IntPtr]::Zero) { [CsrNative]::SetForegroundWindow($h) | Out-Null; Start-Sleep -Milliseconds 250 }
-    $r = $f.el.Current.BoundingRectangle
-    if ($r.Width -le 0) { return "The Automatic Start button is not visible on screen." }
-    [CsrNative]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)) | Out-Null
-    Start-Sleep -Milliseconds 80
-    [CsrNative]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 60
-    [CsrNative]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+# Visible top-level windows, for the failure report.
+function Get-WindowList {
+  $out = @()
+  foreach ($h in [CsrNative]::TopWindows()) { $i = Get-WinInfo $h; if ($i.title -and $i.W -gt 50) { $out += ("{0} [{1}]" -f $i.title, $i.proc) } }
+  return $out
+}
+
+# The Colibri GUI window: the taught program if known, else a window titled "Colibri" that is not a browser/console.
+function Find-ColibriWindow($cfg) {
+  $skipProc = '(?i)^(msedge|chrome|firefox|teams|ms-teams|explorer|powershell|pwsh|cmd|conhost|windowsterminal|anydesk|notepad)$'
+  $best = $null
+  foreach ($h in [CsrNative]::TopWindows()) {
+    $i = Get-WinInfo $h
+    if ($i.W -lt 200 -or $i.H -lt 200 -and -not [CsrNative]::IsIconic($h)) { continue }
+    $match = $false
+    if ($cfg -and $cfg.button -and $cfg.button.proc) { $match = ($i.proc -eq $cfg.button.proc) }
+    else { $match = ($i.title -match '(?i)colibri' -and $i.title -notmatch '(?i)colibri core|minion|update' -and $i.proc -notmatch $skipProc) }
+    if ($match -and (-not $best -or ($i.W * $i.H) -gt ($best.W * $best.H))) { $best = $i }
+  }
+  return $best
+}
+
+function Bring-ToFront([IntPtr]$h) {
+  if ([CsrNative]::IsIconic($h)) { [CsrNative]::ShowWindow($h, 9) | Out-Null; Start-Sleep -Milliseconds 500 }
+  [CsrNative]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [CsrNative]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)   # lets us take the foreground
+  [CsrNative]::SetForegroundWindow($h) | Out-Null
+  Start-Sleep -Milliseconds 300
+}
+
+function Click-At([int]$x, [int]$y) {
+  [CsrNative]::SetCursorPos($x, $y) | Out-Null; Start-Sleep -Milliseconds 80
+  [CsrNative]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 60
+  [CsrNative]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+}
+
+# Teach: the user hovers the mouse over Automatic Start and presses Enter; we store where it is inside the Colibri window.
+function Teach-Button {
+  Write-Host ""
+  Write-Host "TEACH THE BUTTON" -ForegroundColor Cyan
+  Write-Host "1. Open the scan form in the Colibri window so Automatic Start is showing."
+  Write-Host "2. Move the mouse over the Automatic Start button. Do NOT click it."
+  Write-Host "3. Leave the mouse there and press Enter on the keyboard."
+  Write-Host "(Type S and press Enter to skip.)"
+  $a = Read-Host "Ready"
+  if ($a -match '^(?i)s') { return $null }
+  $pt = New-Object CsrNative+POINT; [CsrNative]::GetCursorPos([ref]$pt) | Out-Null
+  $root = [CsrNative]::GetAncestor([CsrNative]::WindowFromPoint($pt), 2)
+  $i = Get-WinInfo $root
+  if ($i.W -le 0 -or $i.proc -match '(?i)^(powershell|cmd|conhost|windowsterminal|explorer)$') { Write-Host "The mouse wasn't over the Colibri window. Run the installer again to retry." -ForegroundColor Red; return $null }
+  $b = [ordered]@{ proc = $i.proc; title = $i.title; fx = [math]::Round(($pt.X - $i.L) / $i.W, 4); fy = [math]::Round(($pt.Y - $i.T) / $i.H, 4); w = $i.W; h = $i.H }
+  Write-Host ("Saved: Automatic Start in '{0}' ({1}), {2:P0} across, {3:P0} down." -f $i.title, $i.proc, $b.fx, $b.fy) -ForegroundColor Green
+  return $b
+}
+
+function Press-NewScan($cfg) {
+  if ($cfg -and $cfg.button) {
+    $w = Find-ColibriWindow $cfg
+    if (-not $w) { return "The Colibri window ($($cfg.button.proc)) isn't open on the PC." }
+    Bring-ToFront $w.hwnd
+    $w = Get-WinInfo $w.hwnd
+    Click-At ([int]($w.L + $cfg.button.fx * $w.W)) ([int]($w.T + $cfg.button.fy * $w.H))
     return "ok"
-  } catch { return "Click failed: $($_.Exception.Message)" }
+  }
+  return "The button position hasn't been taught yet. Run the installer on the PC again and do the TEACH step."
 }
 
 function Get-ListenerPids {
@@ -108,8 +161,9 @@ function Handle-Commands($cfg) {
     if ($age -gt $MaxAgeSec)            { $status = "expired"; $msg = "Too old, ignored." }
     elseif ([string]$d.pin -ne $cfg.pinHash) { $status = "denied";  $msg = "Wrong PIN." }
     else {
-      $res = Press-NewScan
-      if ($res -eq "ok") { $status = "started"; $msg = "Automatic Start pressed on $env:COMPUTERNAME." } else { $msg = $res }
+      $res = "ok"; try { $res = Press-NewScan $cfg } catch { $res = "Error: $($_.Exception.Message)" }
+      if ($res -eq "ok") { $status = "started"; $msg = "Automatic Start pressed on $env:COMPUTERNAME." }
+      else { $msg = $res; try { Write-Log ("windows: " + ((Get-WindowList) -join " | ")) } catch {}; $script:checkNow = $true }
     }
     Write-Log "command $($r.id): $status $msg"
     $now = Now-Iso
@@ -119,9 +173,11 @@ function Handle-Commands($cfg) {
 }
 
 if ($FindTest) {
-  $f = Find-NewScan
-  if ($f) { Write-Host "Found the Automatic Start button in '$($f.win.Current.Name)'. (Not pressed.)" -ForegroundColor Green; exit 0 }
-  Write-Host "Could not find the Automatic Start button. Open the scan form in the Colibri window and try again." -ForegroundColor Red; exit 1
+  $c = $null; try { $c = Get-Content $CfgPath -Raw | ConvertFrom-Json } catch {}
+  $w = Find-ColibriWindow $c
+  if ($w) { Write-Host "Colibri window: '$($w.title)' ($($w.proc))" -ForegroundColor Green } else { Write-Host "Colibri window not found." -ForegroundColor Red }
+  Write-Host "Open windows:"; Get-WindowList | ForEach-Object { Write-Host "  $_" }
+  exit 0
 }
 
 if ($Install -or $Uninstall) {
@@ -131,11 +187,20 @@ if ($Install -or $Uninstall) {
   foreach ($lp in (Get-ListenerPids)) { Stop-Process -Id $lp -Force -ErrorAction SilentlyContinue }
   if ($Uninstall) { Write-Host "Colibri scan remote removed." -ForegroundColor Green; exit 0 }
   if (-not $Unit) { Write-Host "Add the unit name, for example -Unit ""Colibri 20""" -ForegroundColor Red; exit 1 }
-  while (-not ($Pin -match '^\d{4,8}$')) { $Pin = Read-Host "Choose a PIN for the phone remote (4 to 8 digits)" }
+  $oldCfg = $null; try { $oldCfg = Get-Content $CfgPath -Raw | ConvertFrom-Json } catch {}
+  $pinHash = $null
+  while (-not $pinHash) {
+    if (-not $Pin) { $Pin = Read-Host ("Choose a PIN for the phone remote (4 to 8 digits)" + $(if ($oldCfg) { ", or just press Enter to keep the current PIN" } else { "" })) }
+    if (-not $Pin -and $oldCfg -and $oldCfg.pinHash) { $pinHash = $oldCfg.pinHash }
+    elseif ($Pin -match '^\d{4,8}$') { $pinHash = Get-Hash $Pin }
+    else { $Pin = "" }
+  }
   New-Item -ItemType Directory -Path $Home_ -Force | Out-Null
   $dest = Join-Path $Home_ "colibri-scan-remote.ps1"
   if ($PSCommandPath -ne $dest) { Copy-Item -Path $PSCommandPath -Destination $dest -Force }
-  @{ unit = $Unit; pinHash = (Get-Hash $Pin) } | ConvertTo-Json | Set-Content -Path $CfgPath -Encoding UTF8
+  $button = Teach-Button
+  if (-not $button -and $oldCfg -and $oldCfg.button) { $button = $oldCfg.button; Write-Host "Keeping the button position taught before." -ForegroundColor Yellow }
+  [ordered]@{ unit = $Unit; pinHash = $pinHash; button = $button } | ConvertTo-Json -Depth 4 | Set-Content -Path $CfgPath -Encoding UTF8
   $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
   $exe  = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
   $act  = New-ScheduledTaskAction -Execute $exe -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$dest`""
@@ -155,9 +220,7 @@ if ($Install -or $Uninstall) {
   }
   if ($started) { Write-Host "Listener is running." -ForegroundColor Green }
   else { Write-Host "The listener did not start. Send Claude a photo of this window." -ForegroundColor Red; if (Test-Path $LogPath) { Get-Content $LogPath -Tail 8 } }
-  $f = Find-NewScan
-  if ($f) { Write-Host "Found the Automatic Start button. (Not pressed.)" -ForegroundColor Green }
-  else    { Write-Host "OK: Automatic Start isn't showing right now. That's fine; it only needs to be showing when a scan is started." -ForegroundColor Yellow }
+  if (-not $button) { Write-Host "No button position taught yet: the phone remote won't work until you run this again and do the TEACH step." -ForegroundColor Red }
   try { Send-Ready (Get-Content $CfgPath -Raw | ConvertFrom-Json) "installed"; Write-Host "Installed. The phone remote for $Unit is ready." -ForegroundColor Green }
   catch { Write-Host "Installed, but couldn't reach the internet right now ($($_.Exception.Message))." -ForegroundColor Yellow }
   exit 0
@@ -194,7 +257,8 @@ Write-Log "listener started v$Version for $($cfg.unit)"
 $lastReady = [DateTime]::MinValue
 $lastUpd   = Get-Date
 while ($true) {
-  if (((Get-Date) - $lastUpd).TotalMinutes -ge 10) { $lastUpd = Get-Date; Check-Update }
+  if ($script:checkNow -or ((Get-Date) - $lastUpd).TotalMinutes -ge 10) { $script:checkNow = $false; $lastUpd = Get-Date; Check-Update }
+  try { $cfg = Get-Content $CfgPath -Raw | ConvertFrom-Json } catch {}
   try {
     if (((Get-Date) - $lastReady).TotalSeconds -ge 30) { Send-Ready $cfg "listening"; $lastReady = Get-Date }
     Handle-Commands $cfg
