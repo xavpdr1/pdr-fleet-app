@@ -8,7 +8,7 @@ if %errorlevel% neq 0 (
 )
 echo.
 echo Installing the phone scan remote for Colibri XL05 on this PC (%COMPUTERNAME%).
-echo Keep the Colibri window open on its Home screen.
+echo Keep the Colibri window open.
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$t=[IO.File]::ReadAllText('%~f0'); $i=$t.LastIndexOf('#PS1-START'); $s=$t.Substring($t.IndexOf([char]10,$i)+1); $p=Join-Path $env:TEMP 'colibri-scan-remote.ps1'; [IO.File]::WriteAllText($p,$s); & powershell -NoProfile -ExecutionPolicy Bypass -File $p -Install -Unit 'Colibri XL05'"
 echo.
@@ -18,20 +18,21 @@ pause
 exit /b
 #PS1-START
 # Colibri scan remote - runs on a Colibri unit's MAIN PC (the one with the Colibri window).
-# Watches for "Start scan" presses from the phone page (scan.html) and clicks New Scan in the Colibri window.
+# Watches for "Start scan" presses from the phone page (scan.html) and presses Automatic Start in the Colibri window.
 #   Install:   powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -Install -Unit "Colibri 20"
 #   Uninstall: powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -Uninstall
-#   Find test: powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -FindTest   (finds the button, does NOT press it)
+#   Find test: powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -FindTest   (finds Automatic Start, does NOT press it)
 param([switch]$Install, [switch]$Uninstall, [string]$Unit, [string]$Pin, [switch]$FindTest)
 
-$Version  = "1.1"
+$Version  = "1.2"
 $SB_URL   = "https://jedolnkjmlrruipkgqyd.supabase.co"
 $SB_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y"
 $Home_    = Join-Path $env:ProgramData "ColibriScanRemote"
 $CfgPath  = Join-Path $Home_ "config.json"
 $LogPath  = Join-Path $Home_ "remote.log"
 $TaskName = "Colibri Scan Remote"
-$ButtonText = "New Scan"
+$ButtonText = "Automatic Start"
+$UpdateUrl  = "https://tangerine-smakager-bdebcf.netlify.app/downloads/colibri-scan-remote.ps1"
 $MaxAgeSec  = 45
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -60,7 +61,7 @@ public static class CsrNative {
 }
 "@
 
-# Finds the New Scan button in a window whose title contains "Colibri". Returns @{ el; win } or $null.
+# Finds the Automatic Start button in a window whose title contains "Colibri". Returns @{ el; win } or $null.
 function Find-NewScan {
   $AE = [Windows.Automation.AutomationElement]
   $nameCond = New-Object Windows.Automation.PropertyCondition($AE::NameProperty, $ButtonText, [Windows.Automation.PropertyConditionFlags]::IgnoreCase)
@@ -83,13 +84,13 @@ function Find-NewScan {
 
 function Press-NewScan {
   $f = Find-NewScan
-  if (-not $f) { return "Could not find the New Scan button. Is the Colibri window open on the Home screen?" }
+  if (-not $f) { return "Could not find the Automatic Start button. Fill in the scan form on the PC so Automatic Start is showing." }
   try { $f.el.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); return "ok" } catch {}
   try {
     $h = [IntPtr]$f.win.Current.NativeWindowHandle
     if ($h -ne [IntPtr]::Zero) { [CsrNative]::SetForegroundWindow($h) | Out-Null; Start-Sleep -Milliseconds 250 }
     $r = $f.el.Current.BoundingRectangle
-    if ($r.Width -le 0) { return "The New Scan button is not visible on screen." }
+    if ($r.Width -le 0) { return "The Automatic Start button is not visible on screen." }
     [CsrNative]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)) | Out-Null
     Start-Sleep -Milliseconds 80
     [CsrNative]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 60
@@ -127,7 +128,7 @@ function Handle-Commands($cfg) {
     elseif ([string]$d.pin -ne $cfg.pinHash) { $status = "denied";  $msg = "Wrong PIN." }
     else {
       $res = Press-NewScan
-      if ($res -eq "ok") { $status = "started"; $msg = "New Scan pressed on $env:COMPUTERNAME." } else { $msg = $res }
+      if ($res -eq "ok") { $status = "started"; $msg = "Automatic Start pressed on $env:COMPUTERNAME." } else { $msg = $res }
     }
     Write-Log "command $($r.id): $status $msg"
     $now = Now-Iso
@@ -138,8 +139,8 @@ function Handle-Commands($cfg) {
 
 if ($FindTest) {
   $f = Find-NewScan
-  if ($f) { Write-Host "Found the New Scan button in '$($f.win.Current.Name)'. (Not pressed.)" -ForegroundColor Green; exit 0 }
-  Write-Host "Could not find the New Scan button. Open the Colibri window on its Home screen and try again." -ForegroundColor Red; exit 1
+  if ($f) { Write-Host "Found the Automatic Start button in '$($f.win.Current.Name)'. (Not pressed.)" -ForegroundColor Green; exit 0 }
+  Write-Host "Could not find the Automatic Start button. Open the scan form in the Colibri window and try again." -ForegroundColor Red; exit 1
 }
 
 if ($Install -or $Uninstall) {
@@ -174,17 +175,34 @@ if ($Install -or $Uninstall) {
   if ($started) { Write-Host "Listener is running." -ForegroundColor Green }
   else { Write-Host "The listener did not start. Send Claude a photo of this window." -ForegroundColor Red; if (Test-Path $LogPath) { Get-Content $LogPath -Tail 8 } }
   $f = Find-NewScan
-  if ($f) { Write-Host "Found the New Scan button. (Not pressed.)" -ForegroundColor Green }
-  else    { Write-Host "Note: the New Scan button wasn't found right now. Leave the Colibri window open on its Home screen." -ForegroundColor Yellow }
+  if ($f) { Write-Host "Found the Automatic Start button. (Not pressed.)" -ForegroundColor Green }
+  else    { Write-Host "OK: Automatic Start isn't showing right now. That's fine; it only needs to be showing when a scan is started." -ForegroundColor Yellow }
   try { Send-Ready (Get-Content $CfgPath -Raw | ConvertFrom-Json) "installed"; Write-Host "Installed. The phone remote for $Unit is ready." -ForegroundColor Green }
   catch { Write-Host "Installed, but couldn't reach the internet right now ($($_.Exception.Message))." -ForegroundColor Yellow }
   exit 0
 }
 
+# Every 10 minutes: if the site has a newer version, replace this file and restart.
+function Check-Update {
+  try {
+    $txt = (Invoke-WebRequest -Uri $UpdateUrl -UseBasicParsing -TimeoutSec 20).Content
+    if ($txt -is [byte[]]) { $txt = [Text.Encoding]::UTF8.GetString($txt) }
+    if ($txt -notmatch '\$Version\s*=\s*"([\d.]+)"') { return }
+    if ([version]$Matches[1] -le [version]$Version) { return }
+    if ($txt -notmatch 'function Press-NewScan') { return }
+    $me = $PSCommandPath
+    [IO.File]::WriteAllText($me, $txt)
+    Write-Log "updated $Version -> $($Matches[1]); restarting"
+    $exe = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    Start-Process -FilePath $exe -ArgumentList "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$me`"" -WindowStyle Hidden
+    $mutex.ReleaseMutex(); exit 0
+  } catch { Write-Log "update check failed: $($_.Exception.Message)" }
+}
+
 # ---- Listener (started by the scheduled task when the user logs on) ----
 try {
   $mutex = New-Object Threading.Mutex($false, "Global\ColibriScanRemote")
-  if (-not $mutex.WaitOne(0)) { Write-Log "another listener is already running"; exit 0 }
+  if (-not $mutex.WaitOne(20000)) { Write-Log "another listener is already running"; exit 0 }
   $cfg = Get-Content $CfgPath -Raw | ConvertFrom-Json
 } catch {
   Write-Log "listener failed to start: $($_.Exception.Message)"
@@ -193,7 +211,9 @@ try {
 }
 Write-Log "listener started v$Version for $($cfg.unit)"
 $lastReady = [DateTime]::MinValue
+$lastUpd   = Get-Date
 while ($true) {
+  if (((Get-Date) - $lastUpd).TotalMinutes -ge 10) { $lastUpd = Get-Date; Check-Update }
   try {
     if (((Get-Date) - $lastReady).TotalSeconds -ge 30) { Send-Ready $cfg "listening"; $lastReady = Get-Date }
     Handle-Commands $cfg
