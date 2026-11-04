@@ -146,7 +146,7 @@ const expectedMinions=name=>/\bXL/i.test(name)?17:13;
 function minionInfo(u){
   const exp=expectedMinions(u.name);
   const rep=u.pcs.filter(p=>p.minions&&typeof p.minions.up==="number").sort((a,b)=>new Date(b.at)-new Date(a.at))[0];
-  if(!rep) return {exp,up:null,cls:"na",label:"Not reported",why:u.pcs.length?"Run the latest installer (v1.3) on this unit to report minions.":""};
+  if(!rep) return {exp,up:null,cls:"na",label:"Not reported",why:u.pcs.length?"Run this unit's installer from the links page to report minions.":""};
   const named=Array.isArray(rep.minions.named)&&rep.minions.named.length?rep.minions.named.slice().sort((a,b)=>(parseInt(String(a.n).split("-").pop())||0)-(parseInt(String(b.n).split("-").pop())||0)||String(a.n).localeCompare(String(b.n))):null;
   const up=Math.min(rep.minions.up,exp), down=exp-up;
   const downNames=named?named.filter(x=>!x.up).map(x=>x.n):[];
