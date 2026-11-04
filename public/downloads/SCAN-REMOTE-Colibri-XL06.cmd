@@ -24,7 +24,7 @@ exit /b
 #   Find test: powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -FindTest   (finds the button, does NOT press it)
 param([switch]$Install, [switch]$Uninstall, [string]$Unit, [string]$Pin, [switch]$FindTest)
 
-$Version  = "1.0"
+$Version  = "1.1"
 $SB_URL   = "https://jedolnkjmlrruipkgqyd.supabase.co"
 $SB_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y"
 $Home_    = Join-Path $env:ProgramData "ColibriScanRemote"
@@ -98,6 +98,10 @@ function Press-NewScan {
   } catch { return "Click failed: $($_.Exception.Message)" }
 }
 
+function Get-ListenerPids {
+  @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match 'ColibriScanRemote\\colibri-scan-remote\.ps1' -and $_.CommandLine -notmatch '-Install' -and $_.ProcessId -ne $PID } | ForEach-Object { $_.ProcessId })
+}
+
 function SB-Headers { @{ apikey = $SB_KEY; Authorization = "Bearer $SB_KEY" } }
 function SB-Upsert($row) {
   $h = SB-Headers; $h.Prefer = "resolution=merge-duplicates,return=minimal"
@@ -142,7 +146,7 @@ if ($Install -or $Uninstall) {
   $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
   if (-not $isAdmin) { Write-Host "Please run as administrator." -ForegroundColor Red; exit 1 }
   if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) { Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue; Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false }
-  Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match 'colibri-scan-remote\.ps1' -and $_.ProcessId -ne $PID } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  foreach ($lp in (Get-ListenerPids)) { Stop-Process -Id $lp -Force -ErrorAction SilentlyContinue }
   if ($Uninstall) { Write-Host "Colibri scan remote removed." -ForegroundColor Green; exit 0 }
   if (-not $Unit) { Write-Host "Add the unit name, for example -Unit ""Colibri 20""" -ForegroundColor Red; exit 1 }
   while (-not ($Pin -match '^\d{4,8}$')) { $Pin = Read-Host "Choose a PIN for the phone remote (4 to 8 digits)" }
@@ -160,6 +164,15 @@ if ($Install -or $Uninstall) {
   catch { Write-Host "INSTALL FAILED: $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
   Start-ScheduledTask -TaskName $TaskName
   Write-Host ""
+  $started = $false
+  for ($i = 0; $i -lt 10 -and -not $started; $i++) { Start-Sleep -Seconds 1; $started = [bool](Get-ListenerPids) }
+  if (-not $started) {
+    Write-Log "scheduled task did not start the listener; starting it directly"
+    Start-Process -FilePath $exe -ArgumentList "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$dest`"" -WindowStyle Hidden
+    for ($i = 0; $i -lt 10 -and -not $started; $i++) { Start-Sleep -Seconds 1; $started = [bool](Get-ListenerPids) }
+  }
+  if ($started) { Write-Host "Listener is running." -ForegroundColor Green }
+  else { Write-Host "The listener did not start. Send Claude a photo of this window." -ForegroundColor Red; if (Test-Path $LogPath) { Get-Content $LogPath -Tail 8 } }
   $f = Find-NewScan
   if ($f) { Write-Host "Found the New Scan button. (Not pressed.)" -ForegroundColor Green }
   else    { Write-Host "Note: the New Scan button wasn't found right now. Leave the Colibri window open on its Home screen." -ForegroundColor Yellow }
@@ -169,15 +182,21 @@ if ($Install -or $Uninstall) {
 }
 
 # ---- Listener (started by the scheduled task when the user logs on) ----
-$mutex = New-Object Threading.Mutex($false, "Global\ColibriScanRemote")
-if (-not $mutex.WaitOne(0)) { exit 0 }
-$cfg = Get-Content $CfgPath -Raw | ConvertFrom-Json
+try {
+  $mutex = New-Object Threading.Mutex($false, "Global\ColibriScanRemote")
+  if (-not $mutex.WaitOne(0)) { Write-Log "another listener is already running"; exit 0 }
+  $cfg = Get-Content $CfgPath -Raw | ConvertFrom-Json
+} catch {
+  Write-Log "listener failed to start: $($_.Exception.Message)"
+  try { $c = Get-Content $CfgPath -Raw | ConvertFrom-Json; Send-Ready $c ("start failed: " + $_.Exception.Message) } catch {}
+  exit 1
+}
 Write-Log "listener started v$Version for $($cfg.unit)"
 $lastReady = [DateTime]::MinValue
 while ($true) {
   try {
     if (((Get-Date) - $lastReady).TotalSeconds -ge 30) { Send-Ready $cfg "listening"; $lastReady = Get-Date }
     Handle-Commands $cfg
-  } catch { Write-Log "loop error: $($_.Exception.Message)"; Start-Sleep -Seconds 5 }
+  } catch { Write-Log "loop error: $($_.Exception.Message)"; try { Send-Ready $cfg ("error: " + $_.Exception.Message); $lastReady = Get-Date } catch {}; Start-Sleep -Seconds 5 }
   Start-Sleep -Seconds 2
 }
