@@ -7,6 +7,7 @@ if %errorlevel% neq 0 (
   exit /b
 )
 echo.
+echo Phone scan remote INSTALLER version 1.3 - with TEACH step
 echo Installing the phone scan remote for Colibri XL04 on this PC (%COMPUTERNAME%).
 echo Keep the Colibri window open.
 echo.
