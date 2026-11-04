@@ -1,116 +1,270 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="icon" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Scan Remote">
 <title>Scan Remote</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
-/* Layout: one-thumb remote — unit + PIN on top, one huge round button in the middle, result line under it */
-:root{--bg:#F2F4F8;--surface:#fff;--line:#d9dfe5;--fg:#1A2332;--muted:#5b6876;--accent:#2E75B6;--ok:#2b8a3e;--ok-soft:#e6f4ea;--bad:#c62828;--bad-soft:#fdecea;--warn:#b26a00;
-  --f-display:"Barlow Condensed","Arial Narrow",sans-serif;--f-body:"IBM Plex Sans",system-ui,sans-serif}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12171c;--surface:#1a2128;--line:#2c3640;--fg:#e7ecf1;--muted:#97a4b1;--accent:#6FA8DC;--ok:#5cc777;--ok-soft:#183223;--bad:#ff6b6b;--bad-soft:#3a1c1c;--warn:#f0b35a;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#12171c;--surface:#1a2128;--line:#2c3640;--fg:#e7ecf1;--muted:#97a4b1;--accent:#6FA8DC;--ok:#5cc777;--ok-soft:#183223;--bad:#ff6b6b;--bad-soft:#3a1c1c;--warn:#f0b35a;color-scheme:dark}
+/* Layout: one-thumb remote — unit/PIN strip, vehicle form with photo buttons, big full-width start button pinned at the bottom */
+:root{--bg:#F2F4F8;--surface:#fff;--line:#d9dfe5;--fg:#1A2332;--muted:#5b6876;--accent:#2E75B6;--accent-soft:#D9E1F2;--ok:#2b8a3e;--bad:#c62828;--warn:#b26a00;
+  --f-display:"Barlow Condensed","Arial Narrow",sans-serif;--f-body:"IBM Plex Sans",system-ui,sans-serif;--f-mono:"IBM Plex Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12171c;--surface:#1a2128;--line:#2c3640;--fg:#e7ecf1;--muted:#97a4b1;--accent:#6FA8DC;--accent-soft:#1c2c3d;--ok:#5cc777;--bad:#ff6b6b;--warn:#f0b35a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12171c;--surface:#1a2128;--line:#2c3640;--fg:#e7ecf1;--muted:#97a4b1;--accent:#6FA8DC;--accent-soft:#1c2c3d;--ok:#5cc777;--bad:#ff6b6b;--warn:#f0b35a;color-scheme:dark}
 *{box-sizing:border-box}
 html,body{max-width:100%;overflow-x:hidden}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 var(--f-body);min-height:100vh;min-height:100dvh;-webkit-tap-highlight-color:transparent}
-.wrap{max-width:440px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));display:grid;gap:18px;min-height:100vh;min-height:100dvh;grid-template-rows:auto auto 1fr auto}
-h1{font:700 34px/1 var(--f-display);text-transform:uppercase;letter-spacing:.03em;margin:0}
-.row{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:10px}
-label{display:grid;gap:4px;font:600 12px var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-select,input{font:500 18px var(--f-body);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
-input{letter-spacing:.3em}
-select:focus-visible,input:focus-visible,.go:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 var(--f-body);-webkit-tap-highlight-color:transparent}
+.wrap{max-width:460px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) 16px 150px;display:grid;gap:14px}
+h1{font:700 32px/1 var(--f-display);text-transform:uppercase;letter-spacing:.03em;margin:0}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.top a{font-size:14px;color:var(--accent)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:10px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+label{display:grid;gap:4px;font:600 12px var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);min-width:0}
+select,input{font:500 17px var(--f-body);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+input.code{font-family:var(--f-mono);text-transform:uppercase;letter-spacing:.04em}
+#pin{letter-spacing:.3em}
+select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ready{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
 .ready.on .dot{background:var(--ok)} .ready.off .dot{background:var(--bad)}
-.center{display:grid;place-items:center;align-content:center;gap:18px}
-.go{width:min(72vw,280px);aspect-ratio:1;border-radius:50%;border:0;background:var(--accent);color:#fff;font:700 40px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.18),inset 0 -6px 0 rgba(0,0,0,.15);transition:transform .08s}
-.go:active{transform:scale(.96)}
-.go:disabled{opacity:.6;cursor:default}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:12px}
+.withcam{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+.cam{font:600 14px var(--f-body);border:1px solid var(--accent);background:var(--accent-soft);color:var(--fg);border-radius:8px;padding:0 12px;height:46px;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.cam svg{width:18px;height:18px}
+.cam:disabled{opacity:.5}
+.hint{font-size:13px;color:var(--muted);margin-top:-6px;min-height:1em}
+.hint.ok{color:var(--ok)} .hint.warn{color:var(--warn)} .hint.bad{color:var(--bad)}
+.clear{justify-self:start;font:500 14px var(--f-body);background:none;border:0;color:var(--accent);padding:0;cursor:pointer}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:12px 16px max(14px,env(safe-area-inset-bottom))}
+.bar .in{max-width:460px;margin:0 auto;display:grid;gap:8px}
+.go{width:100%;height:72px;border-radius:14px;border:0;background:var(--accent);color:#fff;font:700 30px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;box-shadow:inset 0 -5px 0 rgba(0,0,0,.15);transition:transform .08s}
+.go:active{transform:scale(.98)} .go:disabled{opacity:.6}
 .go.ok{background:var(--ok)} .go.bad{background:var(--bad)}
-.msg{min-height:3em;text-align:center;font-size:17px;max-width:32ch}
+.msg{text-align:center;font-size:15px;min-height:1.4em}
 .msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
-.foot{font-size:13px;color:var(--muted);text-align:center}
-.foot a{color:var(--accent)}
+.hidden{display:none}
 </style></head><body>
 <div class="wrap">
-  <h1>Scan Remote</h1>
-  <div style="display:grid;gap:10px">
-    <div class="row">
-      <label>Unit<select id="unit"><option value="">Loading…</option></select></label>
-      <label>PIN<input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="••••"></label>
+  <div class="top"><h1>Scan Remote</h1><a href="/colibri-status.html">Unit status</a></div>
+  <div class="row">
+    <label>Unit<select id="unit"><option value="">Loading…</option></select></label>
+    <label>PIN<input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="••••"></label>
+  </div>
+  <div class="ready" id="ready"><span class="dot"></span><span id="readyTxt">Checking the unit…</span></div>
+
+  <div class="card">
+    <div class="withcam">
+      <label>License plate<input id="plate" class="code" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
+      <button class="cam" type="button" data-for="plate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Photo</button>
     </div>
-    <div class="ready" id="ready"><span class="dot"></span><span id="readyTxt">Checking the unit…</span></div>
+    <div class="hint" id="plateHint"></div>
+    <div class="withcam">
+      <label>VIN<input id="vin" class="code" maxlength="17" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
+      <button class="cam" type="button" data-for="vin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Photo</button>
+    </div>
+    <div class="hint" id="vinHint"></div>
+    <label>Claim No.<input id="claim" maxlength="40" autocomplete="off"></label>
+    <div class="two">
+      <label>Car brand<input id="brand" maxlength="40" autocomplete="off"></label>
+      <label>Car model<input id="model" maxlength="40" autocomplete="off"></label>
+    </div>
+    <button class="clear" id="clear" type="button">Clear form</button>
   </div>
-  <div class="center">
-    <button class="go" id="go" type="button">Start<br>scan</button>
-    <div class="msg" id="msg">Pick the unit, enter the PIN, press the button.</div>
-  </div>
-  <div class="foot">Presses <b>Automatic Start</b> on the unit's main PC. Fill in the scan form there first. <a href="/colibri-status.html">Unit status</a></div>
+  <input type="file" id="file" accept="image/*" capture="environment" class="hidden">
 </div>
+<div class="bar"><div class="in">
+  <div class="msg" id="msg">Fill in what you have, then press Start.</div>
+  <button class="go" id="go" type="button">Start scan</button>
+</div></div>
 <script>
 const SB_URL='https://jedolnkjmlrruipkgqyd.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y';
 const H={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY};
 const $=id=>document.getElementById(id);
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
-let busy=false, readyTimer=null;
+const FIELDS=['plate','vin','claim','brand','model'];
+let busy=false, readyTimer=null, autoFilled={brand:'',model:''};
 
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 function say(t,cls){const m=$('msg');m.textContent=t;m.className='msg'+(cls?' '+cls:'');}
+function hint(id,t,cls){const h=$(id+'Hint');h.textContent=t||'';h.className='hint'+(cls?' '+cls:'');}
 function flash(cls){const g=$('go');g.classList.remove('ok','bad');if(cls){g.classList.add(cls);setTimeout(()=>g.classList.remove(cls),2500);}}
+function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector('script[src="'+src+'"]'))return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('load '+src));document.head.appendChild(s);});}
 
-async function loadUnits(){
-  const sel=$('unit');
-  try{
-    const r=await fetch(SB_URL+'/rest/v1/colibri_units?select=number&order=number.asc',{headers:H});
-    const list=(await r.json()).map(x=>x.number).filter(Boolean);
-    sel.innerHTML='<option value="">Choose…</option>'+list.map(n=>`<option>${n.replace(/</g,'&lt;')}</option>`).join('');
-    const last=store.get('scanUnit'); if(last&&list.includes(last)) sel.value=last;
-  }catch(e){sel.innerHTML='<option value="">Couldn\'t load units</option>';}
-  const p=store.get('scanPin'); if(p) $('pin').value=p;
-  checkReady();
+/* ---------- VIN helpers ---------- */
+const VIN_MAP={A:1,B:2,C:3,D:4,E:5,F:6,G:7,H:8,J:1,K:2,L:3,M:4,N:5,P:7,R:9,S:2,T:3,U:4,V:5,W:6,X:7,Y:8,Z:9};
+const VIN_W=[8,7,6,5,4,3,2,10,0,9,8,7,6,5,4,3,2];
+function vinCheckOk(v){if(!/^[A-HJ-NPR-Z0-9]{17}$/.test(v))return false;let s=0;for(let i=0;i<17;i++){const c=v[i];s+=(/\d/.test(c)?+c:VIN_MAP[c])*VIN_W[i];}const r=s%11;return v[8]===(r===10?'X':String(r));}
+function vinFromText(t,ocr){
+  let u=String(t||'').toUpperCase();
+  const cands=[];
+  const scan=str=>{for(let i=0;i+17<=str.length;i++){const w=str.slice(i,i+17);if(/^[A-HJ-NPR-Z0-9]{17}$/.test(w))cands.push(w);}};
+  for(const tok of u.split(/[^A-Z0-9]+/)){let x=tok;if(x.length===18&&x[0]==='I')x=x.slice(1);if(ocr)x=x.replace(/O|Q/g,'0').replace(/I/g,'1');scan(x);}
+  if(ocr){scan(u.replace(/[^A-Z0-9]/g,'').replace(/O|Q/g,'0').replace(/I/g,'1'));}
+  return cands.find(vinCheckOk)||cands[0]||'';
 }
 
-async function checkReady(){
-  clearTimeout(readyTimer);
-  const u=$('unit').value, el=$('ready'), t=$('readyTxt');
-  if(!u){el.className='ready';t.textContent='Choose a unit.';return;}
-  try{
-    const r=await fetch(SB_URL+'/rest/v1/fleet_records?select=data,updated_at&kind=eq.colibri_remote&id=eq.'+encodeURIComponent(u),{headers:H});
-    const rows=await r.json();
-    if(!rows.length){el.className='ready off';t.textContent='Remote not installed on '+u+' yet.';}
-    else{
-      const age=(Date.now()-new Date(rows[0].updated_at).getTime())/1000;
-      if(age<90){el.className='ready on';t.textContent=u+' is ready.';}
-      else{el.className='ready off';t.textContent=u+' isn\'t answering (main PC off or logged out).';}
+/* ---------- image helpers ---------- */
+function fileToCanvas(file,max=1800){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c);};img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('image'));};img.src=url;});}
+function grayCopy(src){const c=document.createElement('canvas');c.width=src.width;c.height=src.height;const x=c.getContext('2d');x.drawImage(src,0,0);const d=x.getImageData(0,0,c.width,c.height),p=d.data;let lo=255,hi=0;for(let i=0;i<p.length;i+=4){const g=(p[i]*299+p[i+1]*587+p[i+2]*114)/1000;p[i]=g;if(g<lo)lo=g;if(g>hi)hi=g;}const k=hi>lo?255/(hi-lo):1;for(let i=0;i<p.length;i+=4){const g=(p[i]-lo)*k;p[i]=p[i+1]=p[i+2]=g;}x.putImageData(d,0,0);return c;}
+
+/* ---------- barcode (VIN) ---------- */
+async function readBarcodes(canvas){
+  const out=[];
+  if('BarcodeDetector' in window){try{const fm=await BarcodeDetector.getSupportedFormats();const want=['code_39','code_128','data_matrix','qr_code','pdf417'].filter(f=>fm.includes(f));if(want.length){const r=await new BarcodeDetector({formats:want}).detect(canvas);r.forEach(b=>out.push(b.rawValue));}}catch(e){}}
+  if(!out.length){try{
+    await loadScript('https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js');
+    const hints=new Map();hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.DATA_MATRIX,ZXing.BarcodeFormat.QR_CODE,ZXing.BarcodeFormat.PDF_417]);
+    const reader=new ZXing.MultiFormatReader();reader.setHints(hints);
+    for(const c of [canvas,grayCopy(canvas)]){try{const lum=new ZXing.HTMLCanvasElementLuminanceSource(c);const r=reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum)));if(r){out.push(r.getText());break;}}catch(e){}}
+  }catch(e){}}
+  return out;
+}
+
+/* ---------- OCR ---------- */
+let ocrWorker=null;
+async function getOcr(){if(ocrWorker)return ocrWorker;await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');ocrWorker=await Tesseract.createWorker('eng');return ocrWorker;}
+function wordsOf(data){if(data.words&&data.words.length)return data.words;const w=[];(data.blocks||[]).forEach(b=>(b.paragraphs||[]).forEach(p=>(p.lines||[]).forEach(l=>(l.words||[]).forEach(x=>w.push(x)))));return w;}
+async function ocr(canvas,whitelist,psm){const w=await getOcr();await w.setParameters({tessedit_char_whitelist:whitelist,tessedit_pageseg_mode:String(psm)});const r=await w.recognize(canvas,{},{text:true,blocks:true});return r.data;}
+
+function plateFromOcr(data){
+  const words=wordsOf(data).map(w=>({t:String(w.text||'').toUpperCase().replace(/[^A-Z0-9]/g,''),h:(w.bbox?w.bbox.y1-w.bbox.y0:0),y:(w.bbox?(w.bbox.y0+w.bbox.y1)/2:0),x:(w.bbox?w.bbox.x0:0),c:w.confidence||0})).filter(w=>w.t);
+  words.sort((a,b)=>a.y-b.y||a.x-b.x);
+  const cands=[];
+  for(let i=0;i<words.length;i++){let t='',h=0,c=0;for(let j=i;j<Math.min(words.length,i+3);j++){if(j>i&&Math.abs(words[j].y-words[i].y)>words[i].h*0.6)break;t+=words[j].t;h=Math.max(h,words[j].h);c+=words[j].c;if(t.length>=4&&t.length<=8)cands.push({t,h,c:c/(j-i+1)});}}
+  cands.forEach(k=>{k.s=k.h*(/\d/.test(k.t)&&/[A-Z]/.test(k.t)?1.6:/\d/.test(k.t)?1.2:0.7)*(k.t.length>=6&&k.t.length<=7?1.25:1)*(0.5+k.c/200);});
+  cands.sort((a,b)=>b.s-a.s);
+  return cands.length?cands[0].t:'';
+}
+
+function otsu(c){const x=c.getContext('2d'),d=x.getImageData(0,0,c.width,c.height),p=d.data,h=new Array(256).fill(0);for(let i=0;i<p.length;i+=4)h[p[i]|0]++;const n=p.length/4;let sum=0;for(let i=0;i<256;i++)sum+=i*h[i];let sB=0,wB=0,best=0,th=128;for(let i=0;i<256;i++){wB+=h[i];if(!wB)continue;const wF=n-wB;if(!wF)break;sB+=i*h[i];const mB=sB/wB,mF=(sum-sB)/wF,v=wB*wF*(mB-mF)*(mB-mF);if(v>best){best=v;th=i;}}for(let i=0;i<p.length;i+=4){const g=p[i]>th?255:0;p[i]=p[i+1]=p[i+2]=g;}x.putImageData(d,0,0);return c;}
+function cropBand(src,y0,y1,x0,x1,targetH){const h=Math.max(1,y1-y0),w=Math.max(1,x1-x0),k=targetH/h;const c=document.createElement('canvas');c.width=Math.round(w*k)+40;c.height=targetH+40;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(src,x0,y0,w,h,20,20,c.width-40,targetH);return c;}
+const PLATE_WL='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+async function readPlate(canvas){
+  const g=grayCopy(canvas);
+  const d1=await ocr(g,PLATE_WL,11);
+  const words=wordsOf(d1).filter(w=>w.bbox&&String(w.text||'').replace(/[^A-Za-z0-9]/g,'').length>=2);
+  const cands=[];const first=plateFromOcr(d1);if(first)cands.push({t:first,c:20});
+  const tall=words.sort((a,b)=>(b.bbox.y1-b.bbox.y0)-(a.bbox.y1-a.bbox.y0))[0];
+  if(tall){
+    const hh=tall.bbox.y1-tall.bbox.y0;
+    const y0=Math.max(0,tall.bbox.y0-hh*0.3),y1=Math.min(g.height,tall.bbox.y1+hh*0.3);
+    const x0=Math.max(0,tall.bbox.x0-hh*3),x1=Math.min(g.width,tall.bbox.x1+hh*3);
+    for(const th of [48,72]){
+      for(const bin of [false,true]){
+        let c=cropBand(g,y0,y1,x0,x1,th);if(bin)c=otsu(c);
+        const d=await ocr(c,PLATE_WL,7);
+        const t=String(d.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+        if(t.length>=4&&t.length<=8)cands.push({t,c:(d.confidence||0)+(t.length>=6&&t.length<=7?15:0)+(/\d/.test(t)&&/[A-Z]/.test(t)?10:0)});
+      }
     }
+  }
+  cands.sort((a,b)=>b.c-a.c);
+  return cands.length?cands[0].t:'';
+}
+
+/* ---------- photo flow ---------- */
+let target='';
+document.querySelectorAll('.cam').forEach(b=>b.addEventListener('click',()=>{target=b.dataset.for;$('file').value='';$('file').click();}));
+$('file').addEventListener('change',async()=>{
+  const f=$('file').files[0];if(!f||!target)return;const which=target;
+  const btns=document.querySelectorAll('.cam');btns.forEach(b=>b.disabled=true);
+  try{
+    const canvas=await fileToCanvas(f);
+    if(which==='vin'){
+      hint('vin','Looking for the VIN barcode…');
+      let v='';for(const raw of await readBarcodes(canvas)){v=vinFromText(raw,false);if(v)break;}
+      if(!v){hint('vin','No barcode found. Reading the VIN text… (first time can take ~15 s)');const d=await ocr(grayCopy(canvas),'ABCDEFGHJKLMNPRSTUVWXYZ0123456789',11);v=vinFromText(d.text,true);}
+      if(v){$('vin').value=v;onVin();if(!vinCheckOk(v))hint('vin','Read '+v+', but it may be off by a character. Please check it.','warn');}
+      else hint('vin','Couldn\'t read a VIN. Try closer, straight on, no glare, or type it.','bad');
+    }else{
+      hint('plate','Reading the plate… (first time can take ~15 s)');
+      const p=await readPlate(canvas);
+      if(p){$('plate').value=p;hint('plate','Read '+p+'. Please check it.','warn');}
+      else hint('plate','Couldn\'t read the plate. Fill the photo with the plate, straight on, or type it.','bad');
+    }
+  }catch(e){hint(which,'Couldn\'t process that photo ('+e.message+').','bad');}
+  finally{btns.forEach(b=>b.disabled=false);saveDraft();}
+});
+
+/* ---------- VIN lookup (NHTSA) ---------- */
+let vinTimer=null,lastLookup='';
+function titleCase(s){return String(s||'').toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase());}
+function onVin(){
+  const v=$('vin').value.toUpperCase().replace(/[^A-Z0-9]/g,'');if($('vin').value!==v)$('vin').value=v;
+  clearTimeout(vinTimer);
+  if(v.length<17){hint('vin',v.length?v.length+' of 17 characters':'');return;}
+  if(!vinCheckOk(v))hint('vin','That VIN doesn\'t pass the check digit. Please double-check it.','warn');
+  vinTimer=setTimeout(()=>lookupVin(v),300);
+}
+async function lookupVin(v){
+  if(v===lastLookup)return;lastLookup=v;
+  try{
+    const r=await fetch('https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/'+v+'?format=json');
+    const x=((await r.json()).Results||[])[0]||{};
+    if(!x.Make){hint('vin',vinCheckOk(v)?'VIN looks valid, but the lookup found no vehicle.':'VIN not recognized. Please double-check it.','warn');return;}
+    const make=titleCase(x.Make),model=x.Model||'';
+    if(!$('brand').value||$('brand').value===autoFilled.brand){$('brand').value=make;autoFilled.brand=make;}
+    if(!$('model').value||$('model').value===autoFilled.model){$('model').value=model;autoFilled.model=model;}
+    hint('vin',[x.ModelYear,make,model,x.Trim].filter(Boolean).join(' '),'ok');saveDraft();
+  }catch(e){hint('vin','Couldn\'t look up the VIN right now.','warn');}
+}
+
+/* ---------- form state ---------- */
+function vals(){const o={};FIELDS.forEach(k=>o[k]=$(k).value.trim());o.plate=o.plate.toUpperCase();o.vin=o.vin.toUpperCase();return o;}
+function saveDraft(){store.set('scanDraft',JSON.stringify(vals()));}
+function clearForm(){FIELDS.forEach(k=>$(k).value='');autoFilled={brand:'',model:''};lastLookup='';hint('plate','');hint('vin','');saveDraft();}
+FIELDS.forEach(k=>$(k).addEventListener('input',()=>{if(k==='vin')onVin();if(k==='plate')$('plate').value=$('plate').value.toUpperCase().replace(/[^A-Z0-9 -]/g,'');saveDraft();}));
+$('clear').addEventListener('click',clearForm);
+
+/* ---------- units / ready ---------- */
+async function loadUnits(){
+  const sel=$('unit');
+  try{const r=await fetch(SB_URL+'/rest/v1/colibri_units?select=number&order=number.asc',{headers:H});const list=(await r.json()).map(x=>x.number).filter(Boolean);
+    sel.innerHTML='<option value="">Choose…</option>'+list.map(n=>`<option>${n.replace(/</g,'&lt;')}</option>`).join('');
+    const last=store.get('scanUnit');if(last&&list.includes(last))sel.value=last;}catch(e){sel.innerHTML='<option value="">Couldn\'t load units</option>';}
+  const p=store.get('scanPin');if(p)$('pin').value=p;
+  try{const d=JSON.parse(store.get('scanDraft')||'{}');FIELDS.forEach(k=>{if(d[k])$(k).value=d[k];});}catch(e){}
+  checkReady();
+}
+async function checkReady(){
+  clearTimeout(readyTimer);const u=$('unit').value,el=$('ready'),t=$('readyTxt');
+  if(!u){el.className='ready';t.textContent='Choose a unit.';return;}
+  try{const r=await fetch(SB_URL+'/rest/v1/fleet_records?select=data,updated_at&kind=eq.colibri_remote&id=eq.'+encodeURIComponent(u),{headers:H});const rows=await r.json();
+    if(!rows.length){el.className='ready off';t.textContent='Remote not installed on '+u+' yet.';}
+    else{const age=(Date.now()-new Date(rows[0].updated_at).getTime())/1000;
+      if(age<90){el.className='ready on';t.textContent=u+' is ready. Keep the scan form open on its PC.';}
+      else{el.className='ready off';t.textContent=u+' isn\'t answering (main PC off or logged out).';}}
   }catch(e){el.className='ready';t.textContent='No connection.';}
   readyTimer=setTimeout(checkReady,15000);
 }
 
+/* ---------- start ---------- */
 async function start(){
-  if(busy) return;
-  const u=$('unit').value, pin=$('pin').value.trim();
+  if(busy)return;
+  const u=$('unit').value,pin=$('pin').value.trim(),f=vals();
   if(!u){say('Choose a unit first.','bad');return;}
   if(!/^\d{4,8}$/.test(pin)){say('Enter the PIN (4 to 8 digits).','bad');return;}
-  store.set('scanUnit',u); store.set('scanPin',pin);
-  busy=true; $('go').disabled=true; say('Sending…');
-  if(navigator.vibrate) navigator.vibrate(30);
-  const at=new Date().toISOString(), id=u+'|'+at;
+  const anyField=FIELDS.some(k=>f[k]);
+  if(anyField&&!f.plate){say('Add the license plate (it\'s required on the PC).','bad');$('plate').focus();return;}
+  store.set('scanUnit',u);store.set('scanPin',pin);
+  busy=true;$('go').disabled=true;say(anyField?'Sending details…':'Sending…');
+  if(navigator.vibrate)navigator.vibrate(30);
+  const at=new Date().toISOString(),id=u+'|'+at;
   try{
-    const row={kind:'colibri_cmd',id,deleted:false,updated_at:at,data:{unit:u,cmd:'new_scan',status:'new',at,by:'phone',pin:await sha(pin)}};
+    const row={kind:'colibri_cmd',id,deleted:false,updated_at:at,data:{unit:u,cmd:'new_scan',status:'new',at,by:'phone',pin:await sha(pin),fields:anyField?f:null}};
     const r=await fetch(SB_URL+'/rest/v1/fleet_records',{method:'POST',headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(row)});
-    if(!r.ok) throw new Error('send '+r.status);
+    if(!r.ok)throw new Error('send '+r.status);
     say('Waiting for '+u+'…');
     const t0=Date.now();
-    while(Date.now()-t0<20000){
+    while(Date.now()-t0<30000){
       await new Promise(res=>setTimeout(res,1000));
       const q=await fetch(SB_URL+'/rest/v1/fleet_records?select=data&kind=eq.colibri_cmd&id=eq.'+encodeURIComponent(id),{headers:H});
       const d=((await q.json())[0]||{}).data||{};
-      if(d.status==='started'){say('Scan started ✓','ok');flash('ok');if(navigator.vibrate)navigator.vibrate([60,60,60]);return;}
+      if(d.status==='started'){const extra=(d.msg||'').match(/\(not filled.*\)/);say('Scan started ✓'+(extra?' '+extra[0]:''),'ok');flash('ok');if(navigator.vibrate)navigator.vibrate([60,60,60]);if(anyField)clearForm();return;}
       if(d.status==='denied'){say('Wrong PIN.','bad');flash('bad');return;}
       if(d.status&&d.status!=='new'){say(d.msg||('Didn\'t start ('+d.status+').'),'bad');flash('bad');return;}
     }
@@ -118,7 +272,6 @@ async function start(){
   }catch(e){say('Couldn\'t send. Check your connection.','bad');flash('bad');}
   finally{busy=false;$('go').disabled=false;checkReady();}
 }
-
 $('unit').addEventListener('change',()=>{store.set('scanUnit',$('unit').value);checkReady();});
 $('go').addEventListener('click',start);
 loadUnits();

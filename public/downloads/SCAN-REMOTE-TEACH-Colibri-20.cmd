@@ -7,7 +7,7 @@ if %errorlevel% neq 0 (
   exit /b
 )
 echo.
-echo Phone scan remote INSTALLER version 1.3 - with TEACH step
+echo Phone scan remote INSTALLER version 1.4 - teaches the scan form
 echo Installing the phone scan remote for Colibri 20 on this PC (%COMPUTERNAME%).
 echo Keep the Colibri window open.
 echo.
@@ -25,7 +25,7 @@ exit /b
 #   Find test: powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -FindTest   (finds Automatic Start, does NOT press it)
 param([switch]$Install, [switch]$Uninstall, [string]$Unit, [string]$Pin, [switch]$FindTest)
 
-$Version  = "1.3"
+$Version  = "1.4"
 $SB_URL   = "https://jedolnkjmlrruipkgqyd.supabase.co"
 $SB_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y"
 $Home_    = Join-Path $env:ProgramData "ColibriScanRemote"
@@ -122,35 +122,90 @@ function Click-At([int]$x, [int]$y) {
   [CsrNative]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
 }
 
-# Teach: the user hovers the mouse over Automatic Start and presses Enter; we store where it is inside the Colibri window.
-function Teach-Button {
+$FieldList = @(
+  @{ key = "plate"; label = "LICENSE PLATE box" },
+  @{ key = "vin";   label = "VIN box" },
+  @{ key = "claim"; label = "CLAIM NO. box" },
+  @{ key = "brand"; label = "CAR BRAND box" },
+  @{ key = "model"; label = "CAR MODEL box" }
+)
+
+# Teach one spot: the user hovers the mouse over it and presses Enter; we store where it is inside the Colibri window.
+function Teach-Point([string]$label, $old) {
   Write-Host ""
-  Write-Host "TEACH THE BUTTON" -ForegroundColor Cyan
-  Write-Host "1. Open the scan form in the Colibri window so Automatic Start is showing."
-  Write-Host "2. Move the mouse over the Automatic Start button. Do NOT click it."
-  Write-Host "3. Leave the mouse there and press Enter on the keyboard."
-  Write-Host "(Type S and press Enter to skip.)"
-  $a = Read-Host "Ready"
-  if ($a -match '^(?i)s') { return $null }
-  $pt = New-Object CsrNative+POINT; [CsrNative]::GetCursorPos([ref]$pt) | Out-Null
-  $root = [CsrNative]::GetAncestor([CsrNative]::WindowFromPoint($pt), 2)
-  $i = Get-WinInfo $root
-  if ($i.W -le 0 -or $i.proc -match '(?i)^(powershell|cmd|conhost|windowsterminal|explorer)$') { Write-Host "The mouse wasn't over the Colibri window. Run the installer again to retry." -ForegroundColor Red; return $null }
-  $b = [ordered]@{ proc = $i.proc; title = $i.title; fx = [math]::Round(($pt.X - $i.L) / $i.W, 4); fy = [math]::Round(($pt.Y - $i.T) / $i.H, 4); w = $i.W; h = $i.H }
-  Write-Host ("Saved: Automatic Start in '{0}' ({1}), {2:P0} across, {3:P0} down." -f $i.title, $i.proc, $b.fx, $b.fy) -ForegroundColor Green
-  return $b
+  Write-Host ("Move the mouse over the " + $label + " (don't click), then press Enter.") -ForegroundColor Cyan
+  if ($old) { Write-Host "   K + Enter = keep the spot saved before.   S + Enter = skip." }
+  else      { Write-Host "   S + Enter = skip." }
+  while ($true) {
+    $a = Read-Host "   Ready"
+    if ($a -match '^(?i)k' -and $old) { Write-Host "   Kept." -ForegroundColor Yellow; return $old }
+    if ($a -match '^(?i)s') { Write-Host "   Skipped." -ForegroundColor Yellow; return $null }
+    $pt = New-Object CsrNative+POINT; [CsrNative]::GetCursorPos([ref]$pt) | Out-Null
+    $root = [CsrNative]::GetAncestor([CsrNative]::WindowFromPoint($pt), 2)
+    $i = Get-WinInfo $root
+    if ($i.W -le 0 -or $i.proc -match '(?i)^(powershell|cmd|conhost|windowsterminal|explorer)$') { Write-Host "   The mouse wasn't over the Colibri window. Try again." -ForegroundColor Red; continue }
+    $b = [ordered]@{ proc = $i.proc; title = $i.title; fx = [math]::Round(($pt.X - $i.L) / $i.W, 4); fy = [math]::Round(($pt.Y - $i.T) / $i.H, 4); w = $i.W; h = $i.H }
+    Write-Host ("   Saved ({0:P0} across, {1:P0} down)." -f $b.fx, $b.fy) -ForegroundColor Green
+    return $b
+  }
 }
 
-function Press-NewScan($cfg) {
-  if ($cfg -and $cfg.button) {
-    $w = Find-ColibriWindow $cfg
-    if (-not $w) { return "The Colibri window ($($cfg.button.proc)) isn't open on the PC." }
-    Bring-ToFront $w.hwnd
-    $w = Get-WinInfo $w.hwnd
-    Click-At ([int]($w.L + $cfg.button.fx * $w.W)) ([int]($w.T + $cfg.button.fy * $w.H))
-    return "ok"
+function Teach-All($oldCfg) {
+  Write-Host ""
+  Write-Host "TEACH THE SCAN FORM" -ForegroundColor Cyan
+  Write-Host "First open the scan form in the Colibri window (License Plate, VIN ... Automatic Start)."
+  Write-Host "Make the Colibri window the size you normally use it (maximized is best) and keep it that way."
+  $oldF = $null; if ($oldCfg -and $oldCfg.fields) { $oldF = $oldCfg.fields }
+  $fields = [ordered]@{}
+  foreach ($f in $FieldList) {
+    $old = $null; if ($oldF -and $oldF.($f.key)) { $old = $oldF.($f.key) }
+    $p = Teach-Point $f.label $old
+    if ($p) { $fields[$f.key] = $p }
   }
-  return "The button position hasn't been taught yet. Run the installer on the PC again and do the TEACH step."
+  $oldB = $null; if ($oldCfg -and $oldCfg.button) { $oldB = $oldCfg.button }
+  $btn = Teach-Point "AUTOMATIC START button" $oldB
+  return @{ fields = $fields; button = $btn }
+}
+
+function Esc-Keys([string]$t) {
+  return (($t.ToCharArray() | ForEach-Object { if ('+^%~(){}[]'.IndexOf($_) -ge 0) { '{' + $_ + '}' } else { [string]$_ } }) -join '')
+}
+
+function Clean-Value($v) {
+  if ($null -eq $v) { return "" }
+  $t = ([string]$v) -replace '[\x00-\x1F]', ' '
+  $t = $t.Trim(); if ($t.Length -gt 40) { $t = $t.Substring(0, 40) }
+  return $t
+}
+
+function Press-NewScan($cfg, $vals) {
+  if (-not ($cfg -and $cfg.button)) { return "The Automatic Start button hasn't been taught yet. Run the installer on the PC again." }
+  $w = Find-ColibriWindow $cfg
+  if (-not $w) { return "The Colibri window ($($cfg.button.proc)) isn't open on the PC." }
+  Bring-ToFront $w.hwnd
+  $w = Get-WinInfo $w.hwnd
+  $at = { param($p) @([int]($w.L + $p.fx * $w.W), [int]($w.T + $p.fy * $w.H)) }
+  $note = ""
+  $any = $false; foreach ($f in $FieldList) { if ((Clean-Value $vals.($f.key)) -ne "") { $any = $true } }
+  if ($any) {
+    Add-Type -AssemblyName System.Windows.Forms
+    $notTaught = @()
+    # bottom-up, so a suggestion list under a box never covers the next box we click
+    foreach ($f in @($FieldList)[($FieldList.Count - 1)..0]) {
+      $v = Clean-Value $vals.($f.key)
+      $p = $null; if ($cfg.fields) { $p = $cfg.fields.($f.key) }
+      if (-not $p) { if ($v) { $notTaught += $f.key }; continue }
+      $xy = & $at $p; Click-At $xy[0] $xy[1]; Start-Sleep -Milliseconds 200
+      [System.Windows.Forms.SendKeys]::SendWait("^a"); Start-Sleep -Milliseconds 60
+      [System.Windows.Forms.SendKeys]::SendWait("{DEL}"); Start-Sleep -Milliseconds 60
+      if ($v) { [System.Windows.Forms.SendKeys]::SendWait((Esc-Keys $v)) }
+      Start-Sleep -Milliseconds 250
+    }
+    [System.Windows.Forms.SendKeys]::SendWait("{TAB}"); Start-Sleep -Milliseconds 500
+    if ($notTaught.Count) { $note = " (not filled, box not taught: " + ($notTaught -join ", ") + ")" }
+  }
+  $xy = & $at $cfg.button; Click-At $xy[0] $xy[1]
+  return "ok$note"
 }
 
 function Get-ListenerPids {
@@ -181,8 +236,8 @@ function Handle-Commands($cfg) {
     if ($age -gt $MaxAgeSec)            { $status = "expired"; $msg = "Too old, ignored." }
     elseif ([string]$d.pin -ne $cfg.pinHash) { $status = "denied";  $msg = "Wrong PIN." }
     else {
-      $res = "ok"; try { $res = Press-NewScan $cfg } catch { $res = "Error: $($_.Exception.Message)" }
-      if ($res -eq "ok") { $status = "started"; $msg = "Automatic Start pressed on $env:COMPUTERNAME." }
+      $res = "ok"; try { $res = Press-NewScan $cfg $d.fields } catch { $res = "Error: $($_.Exception.Message)" }
+      if ($res -like "ok*") { $status = "started"; $msg = "Automatic Start pressed on $env:COMPUTERNAME." + $res.Substring(2) }
       else { $msg = $res; try { Write-Log ("windows: " + ((Get-WindowList) -join " | ")) } catch {}; $script:checkNow = $true }
     }
     Write-Log "command $($r.id): $status $msg"
@@ -218,9 +273,9 @@ if ($Install -or $Uninstall) {
   New-Item -ItemType Directory -Path $Home_ -Force | Out-Null
   $dest = Join-Path $Home_ "colibri-scan-remote.ps1"
   if ($PSCommandPath -ne $dest) { Copy-Item -Path $PSCommandPath -Destination $dest -Force }
-  $button = Teach-Button
-  if (-not $button -and $oldCfg -and $oldCfg.button) { $button = $oldCfg.button; Write-Host "Keeping the button position taught before." -ForegroundColor Yellow }
-  [ordered]@{ unit = $Unit; pinHash = $pinHash; button = $button } | ConvertTo-Json -Depth 4 | Set-Content -Path $CfgPath -Encoding UTF8
+  $t = Teach-All $oldCfg
+  $button = $t.button
+  [ordered]@{ unit = $Unit; pinHash = $pinHash; button = $button; fields = $t.fields } | ConvertTo-Json -Depth 5 | Set-Content -Path $CfgPath -Encoding UTF8
   $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
   $exe  = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
   $act  = New-ScheduledTaskAction -Execute $exe -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$dest`""
@@ -240,7 +295,7 @@ if ($Install -or $Uninstall) {
   }
   if ($started) { Write-Host "Listener is running." -ForegroundColor Green }
   else { Write-Host "The listener did not start. Send Claude a photo of this window." -ForegroundColor Red; if (Test-Path $LogPath) { Get-Content $LogPath -Tail 8 } }
-  if (-not $button) { Write-Host "No button position taught yet: the phone remote won't work until you run this again and do the TEACH step." -ForegroundColor Red }
+  if (-not $button) { Write-Host "Automatic Start wasn't taught: the phone remote won't work until you run this again." -ForegroundColor Red }
   try { Send-Ready (Get-Content $CfgPath -Raw | ConvertFrom-Json) "installed"; Write-Host "Installed. The phone remote for $Unit is ready." -ForegroundColor Green }
   catch { Write-Host "Installed, but couldn't reach the internet right now ($($_.Exception.Message))." -ForegroundColor Yellow }
   exit 0
