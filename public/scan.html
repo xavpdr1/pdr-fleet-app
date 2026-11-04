@@ -191,6 +191,21 @@ async function readPlate(canvas){
   return cands.length?cands[0].t:'';
 }
 
+/* ---------- cloud plate reader (Plate Recognizer via /api/plate) ---------- */
+let cloudOff=false;
+function toJpeg(src,max=1280){const k=Math.min(1,max/Math.max(src.width,src.height));const c=document.createElement('canvas');c.width=Math.round(src.width*k);c.height=Math.round(src.height*k);c.getContext('2d').drawImage(src,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.85);}
+async function cloudPlate(canvas){
+  if(cloudOff)return null;
+  try{
+    const r=await fetch('/api/plate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:toJpeg(canvas)})});
+    const d=await r.json().catch(()=>({}));
+    if(r.status===503||r.status===404||d.error==='token rejected'){cloudOff=true;return null;}
+    if(!r.ok||!d.ok)return null;
+    return d;
+  }catch(e){return null;}
+}
+function plateNote(d){return 'Read '+d.plate+(d.state?' ('+d.state+')':'')+'. Please check it.'+(d.alternates&&d.alternates.length?' Could also be '+d.alternates.join(', ')+'.':'');}
+
 /* ---------- photo flow ---------- */
 let target='';
 function pickFile(which){target=which;$('file').value='';$('file').click();}
@@ -261,8 +276,12 @@ async function camLoop(){
           if(v&&cam.running){$('cvRead').textContent=v;if(vinCheckOk(v)||stable(v)){acceptCam(v);break;}}
           else if(cam.tick%3===0&&cam.running){const d=await ocr(grayCopy(grabGuide(90)),'ABCDEFGHJKLMNPRSTUVWXYZ0123456789',7);const t=vinFromText(d.text,true);if(t&&cam.running){$('cvRead').textContent=t;if(vinCheckOk(t)&&stable(t)){acceptCam(t);break;}}}
         }else{
-          const c=grabGuide(180);const t=await plateFromCrop(c,false);
-          if(cam.running){$('cvRead').textContent=t||'Looking for the plate…';if(t&&stable(t)){acceptCam(t);break;}}
+          if(!cloudOff&&Date.now()-(cam.lastCloud||0)>2500){
+            cam.lastCloud=Date.now();const cd=await cloudPlate(grabFull());
+            if(cd&&cd.plate&&cam.running){$('cvRead').textContent=cd.plate;acceptCam(cd.plate,plateNote(cd),'warn');break;}
+          }
+          if(cloudOff){const c=grabGuide(180);const t=await plateFromCrop(c,false);
+            if(cam.running){$('cvRead').textContent=t||'Looking for the plate…';if(t&&stable(t)){acceptCam(t);break;}}}
         }
       }catch(e){}
       cam.busy=false;
@@ -282,8 +301,10 @@ $('cvSnap').addEventListener('click',async()=>{
       if(v){acceptCam(v,vinCheckOk(v)?'':'Read '+v+', but it may be off by a character. Please check it.','warn');}
       else $('cvRead').textContent='No VIN found. Move closer and hold still.';
     }else{
-      const t=await plateFromCrop(grabGuide(180),true);
-      if(t)acceptCam(t);else $('cvRead').textContent='No plate found. Fill the box with the plate.';
+      const cd=await cloudPlate(grabFull());
+      if(cd&&cd.plate){acceptCam(cd.plate,plateNote(cd),'warn');}
+      else{const t=await plateFromCrop(grabGuide(180),true);
+        if(t)acceptCam(t);else $('cvRead').textContent='No plate found. Fill the box with the plate.';}
     }
   }catch(e){$('cvRead').textContent='Couldn\'t read that. Try again.';}
   cam.busy=false;
@@ -301,7 +322,10 @@ $('file').addEventListener('change',async()=>{
       if(v){$('vin').value=v;onVin();if(!vinCheckOk(v))hint('vin','Read '+v+', but it may be off by a character. Please check it.','warn');}
       else hint('vin','Couldn\'t read a VIN. Try closer, straight on, no glare, or type it.','bad');
     }else{
-      hint('plate','Reading the plate… (first time can take ~15 s)');
+      hint('plate','Reading the plate…');
+      const cd=await cloudPlate(canvas);
+      if(cd&&cd.plate){$('plate').value=cd.plate;hint('plate',plateNote(cd),'warn');return;}
+      if(!cloudOff&&cd)hint('plate','Reading the plate…');
       const p=await readPlate(canvas);
       if(p){$('plate').value=p;hint('plate','Read '+p+'. Please check it.','warn');}
       else hint('plate','Couldn\'t read the plate. Fill the photo with the plate, straight on, or type it.','bad');
