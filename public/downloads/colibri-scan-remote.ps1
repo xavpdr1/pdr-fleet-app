@@ -5,7 +5,7 @@
 #   Find test: powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -FindTest   (finds Automatic Start, does NOT press it)
 param([switch]$Install, [switch]$Uninstall, [string]$Unit, [string]$Pin, [switch]$FindTest)
 
-$Version  = "1.4"
+$Version  = "1.5"
 $SB_URL   = "https://jedolnkjmlrruipkgqyd.supabase.co"
 $SB_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y"
 $Home_    = Join-Path $env:ProgramData "ColibriScanRemote"
@@ -51,6 +51,10 @@ public static class CsrNative {
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
   [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, UIntPtr e);
   [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, uint f, UIntPtr e);
+  [DllImport("user32.dll")] public static extern IntPtr GetDC(IntPtr h);
+  [DllImport("user32.dll")] public static extern int ReleaseDC(IntPtr h, IntPtr dc);
+  [DllImport("gdi32.dll")] public static extern uint GetPixel(IntPtr dc, int x, int y);
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   public static List<IntPtr> TopWindows() {
     var l = new List<IntPtr>();
     EnumWindows((h, p) => { if (IsWindowVisible(h)) l.Add(h); return true; }, IntPtr.Zero);
@@ -59,6 +63,7 @@ public static class CsrNative {
   public static string Title(IntPtr h) { var sb = new StringBuilder(512); GetWindowText(h, sb, 512); return sb.ToString(); }
 }
 "@
+try { [CsrNative]::SetProcessDPIAware() | Out-Null } catch {}
 
 function Get-WinInfo([IntPtr]$h) {
   $procId = [uint32]0; [CsrNative]::GetWindowThreadProcessId($h, [ref]$procId) | Out-Null
@@ -158,6 +163,33 @@ function Clean-Value($v) {
   return $t
 }
 
+# Color of the Start/Cancel button: blue = Automatic Start (ready), red = Cancel Scan (scanning).
+function Get-ButtonColor([int]$x, [int]$y) {
+  $dc = [CsrNative]::GetDC([IntPtr]::Zero); $r = 0; $g = 0; $b = 0; $n = 0
+  try { foreach ($dx in -6, 0, 6) { foreach ($dy in -3, 0, 3) { $c = [CsrNative]::GetPixel($dc, $x + $dx, $y + $dy); if ($c -eq 0xFFFFFFFF) { continue }; $r += $c -band 0xFF; $g += ($c -shr 8) -band 0xFF; $b += ($c -shr 16) -band 0xFF; $n++ } } }
+  finally { [CsrNative]::ReleaseDC([IntPtr]::Zero, $dc) | Out-Null }
+  if ($n -eq 0) { return @{ kind = "unknown"; rgb = "" } }
+  $r = [int]($r / $n); $g = [int]($g / $n); $b = [int]($b / $n)
+  $kind = "other"
+  if ($r -gt 140 -and $r -gt $g + 60 -and $r -gt $b + 60) { $kind = "red" }
+  elseif ($b -gt 110 -and $b -gt $r + 40) { $kind = "blue" }
+  return @{ kind = $kind; rgb = "$r,$g,$b" }
+}
+
+function Press-Cancel($cfg) {
+  if (-not ($cfg -and $cfg.button)) { return "The Start/Cancel button hasn't been taught yet. Run the installer on the PC again." }
+  $w = Find-ColibriWindow $cfg
+  if (-not $w) { return "The Colibri window ($($cfg.button.proc)) isn't open on the PC." }
+  Bring-ToFront $w.hwnd
+  $w = Get-WinInfo $w.hwnd
+  $x = [int]($w.L + $cfg.button.fx * $w.W); $y = [int]($w.T + $cfg.button.fy * $w.H)
+  $col = Get-ButtonColor $x $y
+  if ($col.kind -eq "blue") { return "No scan is running on the PC." }
+  if ($col.kind -ne "red") { return "Couldn't tell whether a scan is running (button color $($col.rgb)). Nothing pressed." }
+  Click-At $x $y
+  return "ok"
+}
+
 function Press-NewScan($cfg, $vals) {
   if (-not ($cfg -and $cfg.button)) { return "The Automatic Start button hasn't been taught yet. Run the installer on the PC again." }
   $w = Find-ColibriWindow $cfg
@@ -166,6 +198,9 @@ function Press-NewScan($cfg, $vals) {
   $w = Get-WinInfo $w.hwnd
   $at = { param($p) @([int]($w.L + $p.fx * $w.W), [int]($w.T + $p.fy * $w.H)) }
   $note = ""
+  $bxy = & $at $cfg.button
+  $col = Get-ButtonColor $bxy[0] $bxy[1]
+  if ($col.kind -eq "red") { return "A scan is already running on the PC. Press Cancel first." }
   $any = $false; foreach ($f in $FieldList) { if ((Clean-Value $vals.($f.key)) -ne "") { $any = $true } }
   if ($any) {
     Add-Type -AssemblyName System.Windows.Forms
@@ -216,8 +251,12 @@ function Handle-Commands($cfg) {
     if ($age -gt $MaxAgeSec)            { $status = "expired"; $msg = "Too old, ignored." }
     elseif ([string]$d.pin -ne $cfg.pinHash) { $status = "denied";  $msg = "Wrong PIN." }
     else {
-      $res = "ok"; try { $res = Press-NewScan $cfg $d.fields } catch { $res = "Error: $($_.Exception.Message)" }
-      if ($res -like "ok*") { $status = "started"; $msg = "Automatic Start pressed on $env:COMPUTERNAME." + $res.Substring(2) }
+      $res = "ok"
+      try { if ($d.cmd -eq "cancel") { $res = Press-Cancel $cfg } else { $res = Press-NewScan $cfg $d.fields } } catch { $res = "Error: $($_.Exception.Message)" }
+      if ($res -like "ok*") {
+        if ($d.cmd -eq "cancel") { $status = "cancelled"; $msg = "Cancel Scan pressed on $env:COMPUTERNAME." }
+        else { $status = "started"; $msg = "Automatic Start pressed on $env:COMPUTERNAME." + $res.Substring(2) }
+      }
       else { $msg = $res; try { Write-Log ("windows: " + ((Get-WindowList) -join " | ")) } catch {}; $script:checkNow = $true }
     }
     Write-Log "command $($r.id): $status $msg"
