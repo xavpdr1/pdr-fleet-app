@@ -147,7 +147,7 @@ function minionInfo(u){
   const exp=expectedMinions(u.name);
   const rep=u.pcs.filter(p=>p.minions&&typeof p.minions.up==="number").sort((a,b)=>new Date(b.at)-new Date(a.at))[0];
   if(!rep) return {exp,up:null,cls:"na",label:"Not reported",why:u.pcs.length?"Run this unit's installer from the links page to report minions.":""};
-  const named=Array.isArray(rep.minions.named)&&rep.minions.named.length?rep.minions.named.slice().sort((a,b)=>(parseInt(String(a.n).split("-").pop())||0)-(parseInt(String(b.n).split("-").pop())||0)||String(a.n).localeCompare(String(b.n))):null;
+  const named=Array.isArray(rep.minions.named)&&rep.minions.named.length?rep.minions.named.map(x=>({...x,n:String(x.n).replace(/\bLOVER\b/gi,"LOWER")})).sort((a,b)=>(parseInt(String(a.n).split("-").pop())||0)-(parseInt(String(b.n).split("-").pop())||0)||String(a.n).localeCompare(String(b.n))):null;
   const up=Math.min(rep.minions.up,exp), down=exp-up;
   const downNames=named?named.filter(x=>!x.up).map(x=>x.n):[];
   if(u.state!=="on") return {exp,up,named,downNames:[],cls:"na",label:`${up}/${exp}`,why:"Last known count (unit is not online)."};
@@ -159,7 +159,7 @@ function sensorInfo(u){
   const agents=u.pcs.filter(p=>p.role==="Minion"&&p.sensors);
   if(!agents.length) return null;
   const core=u.pcs.filter(p=>p.minions&&Array.isArray(p.minions.named)).sort((a,b)=>new Date(b.at)-new Date(a.at))[0];
-  const nameOf=ip=>{ const n=core&&core.minions.named.find(x=>x.ip===ip); return n?n.n:null; };
+  const nameOf=ip=>{ const n=core&&core.minions.named.find(x=>x.ip===ip); return n?String(n.n).replace(/\bLOVER\b/gi,"LOWER"):null; };
   const issues=[];
   agents.forEach(a=>{
     const nm=nameOf(a.ip)||a.pc;
