@@ -381,8 +381,9 @@ async function checkReady(){
     if(!rows.length){setCancel(false);el.className='ready off';t.textContent='Remote not installed on '+u+' yet.';}
     else{const age=(Date.now()-new Date(rows[0].updated_at).getTime())/1000;
       const ver=String((rows[0].data||{}).ver||'0');setCancel(age<90&&verAtLeast(ver,'1.5'));
-      if(age<90){el.className='ready on';t.textContent=u+' is ready. Keep the scan form open on its PC.';}
-      else{el.className='ready off';t.textContent=u+' isn\'t answering (main PC off or logged out).';}}
+      if(age<90&&(rows[0].data||{}).note==='locked'){el.className='ready off';t.textContent=u+'\'s PC screen is locked. Unlock it so the remote can press buttons.';}
+      else if(age<90){el.className='ready on';t.textContent=u+' is ready. Keep the scan form open on its PC.';}
+      else{el.className='ready off';t.textContent=u+' isn\'t answering. It restarts itself within 5 minutes; if not, run its repair file on the PC.';}}
   }catch(e){el.className='ready';t.textContent='No connection.';}
   readyTimer=setTimeout(checkReady,15000);
 }

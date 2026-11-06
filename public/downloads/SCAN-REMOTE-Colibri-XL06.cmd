@@ -7,7 +7,7 @@ if %errorlevel% neq 0 (
   exit /b
 )
 echo.
-echo Phone scan remote INSTALLER version 1.5 - teaches the scan form
+echo Phone scan remote INSTALLER version 1.6 - teaches the scan form
 echo Installing the phone scan remote for Colibri XL06 on this PC (%COMPUTERNAME%).
 echo Keep the Colibri window open.
 echo.
@@ -23,14 +23,15 @@ exit /b
 #   Install:   powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -Install -Unit "Colibri 20"
 #   Uninstall: powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -Uninstall
 #   Find test: powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -FindTest   (finds Automatic Start, does NOT press it)
-param([switch]$Install, [switch]$Uninstall, [string]$Unit, [string]$Pin, [switch]$FindTest)
+param([switch]$Install, [switch]$Uninstall, [string]$Unit, [string]$Pin, [switch]$FindTest, [switch]$Repair)
 
-$Version  = "1.5"
+$Version  = "1.6"
 $SB_URL   = "https://jedolnkjmlrruipkgqyd.supabase.co"
 $SB_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y"
 $Home_    = Join-Path $env:ProgramData "ColibriScanRemote"
 $CfgPath  = Join-Path $Home_ "config.json"
 $LogPath  = Join-Path $Home_ "remote.log"
+$BeatPath = Join-Path $Home_ "beat.txt"
 $TaskName = "Colibri Scan Remote"
 $ButtonText = "Automatic Start"
 $UpdateUrl  = "https://tangerine-smakager-bdebcf.netlify.app/downloads/colibri-scan-remote.ps1"
@@ -243,6 +244,21 @@ function Press-NewScan($cfg, $vals) {
   return "ok$note"
 }
 
+# Starts at logon AND every 5 minutes, so a closed or crashed listener comes back on its own.
+function Register-RemoteTask([string]$dest, [string]$user) {
+  $exe  = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+  $act  = New-ScheduledTaskAction -Execute $exe -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$dest`""
+  $t1   = New-ScheduledTaskTrigger -AtLogOn -User $user
+  try { $t2 = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5) }
+  catch { $t2 = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650) }
+  $pri  = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Highest
+  $set  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
+  if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false }
+  Register-ScheduledTask -TaskName $TaskName -Action $act -Trigger @($t1, $t2) -Principal $pri -Settings $set -ErrorAction Stop | Out-Null
+}
+
+function Test-Locked { return [bool](Get-Process -Name LogonUI -ErrorAction SilentlyContinue) }
+
 function Get-ListenerPids {
   @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match 'ColibriScanRemote\\colibri-scan-remote\.ps1' -and $_.CommandLine -notmatch '-Install' -and $_.ProcessId -ne $PID } | ForEach-Object { $_.ProcessId })
 }
@@ -270,6 +286,7 @@ function Handle-Commands($cfg) {
     $age = 999; try { $age = ((Get-Date).ToUniversalTime() - [DateTime]::Parse($d.at).ToUniversalTime()).TotalSeconds } catch {}
     if ($age -gt $MaxAgeSec)            { $status = "expired"; $msg = "Too old, ignored." }
     elseif ([string]$d.pin -ne $cfg.pinHash) { $status = "denied";  $msg = "Wrong PIN." }
+    elseif (Test-Locked) { $status = "failed"; $msg = "The PC screen is locked or signed out. Unlock it so the remote can press the buttons." }
     else {
       $res = "ok"
       try { if ($d.cmd -eq "cancel") { $res = Press-Cancel $cfg } else { $res = Press-NewScan $cfg $d.fields } } catch { $res = "Error: $($_.Exception.Message)" }
@@ -302,7 +319,8 @@ if ($Install -or $Uninstall) {
   if ($Uninstall) { Write-Host "Colibri scan remote removed." -ForegroundColor Green; exit 0 }
   if (-not $Unit) { Write-Host "Add the unit name, for example -Unit ""Colibri 20""" -ForegroundColor Red; exit 1 }
   $oldCfg = $null; try { $oldCfg = Get-Content $CfgPath -Raw | ConvertFrom-Json } catch {}
-  $pinHash = $null
+  if ($Repair -and -not ($oldCfg -and $oldCfg.pinHash -and $oldCfg.button)) { Write-Host "Nothing to repair yet: run the normal installer for this unit first." -ForegroundColor Red; exit 1 }
+  $pinHash = $null; if ($Repair) { $pinHash = $oldCfg.pinHash }
   while (-not $pinHash) {
     if (-not $Pin) { $Pin = Read-Host ("Choose a PIN for the phone remote (4 to 8 digits)" + $(if ($oldCfg) { ", or just press Enter to keep the current PIN" } else { "" })) }
     if (-not $Pin -and $oldCfg -and $oldCfg.pinHash) { $pinHash = $oldCfg.pinHash }
@@ -312,16 +330,13 @@ if ($Install -or $Uninstall) {
   New-Item -ItemType Directory -Path $Home_ -Force | Out-Null
   $dest = Join-Path $Home_ "colibri-scan-remote.ps1"
   if ($PSCommandPath -ne $dest) { Copy-Item -Path $PSCommandPath -Destination $dest -Force }
-  $t = Teach-All $oldCfg
+  if ($Repair) { $t = @{ fields = $oldCfg.fields; button = $oldCfg.button }; Write-Host "Keeping the PIN and the taught spots." -ForegroundColor Green }
+  else { $t = Teach-All $oldCfg }
   $button = $t.button
   [ordered]@{ unit = $Unit; pinHash = $pinHash; button = $button; fields = $t.fields } | ConvertTo-Json -Depth 5 | Set-Content -Path $CfgPath -Encoding UTF8
   $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
   $exe  = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-  $act  = New-ScheduledTaskAction -Execute $exe -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$dest`""
-  $trg  = New-ScheduledTaskTrigger -AtLogOn -User $user
-  $pri  = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Highest
-  $set  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
-  try { Register-ScheduledTask -TaskName $TaskName -Action $act -Trigger $trg -Principal $pri -Settings $set -ErrorAction Stop | Out-Null }
+  try { Register-RemoteTask $dest $user }
   catch { Write-Host "INSTALL FAILED: $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
   Start-ScheduledTask -TaskName $TaskName
   Write-Host ""
@@ -358,9 +373,16 @@ function Check-Update {
 }
 
 # ---- Listener (started by the scheduled task when the user logs on) ----
+function Get-Mutex([int]$ms) { try { return $mutex.WaitOne($ms) } catch [Threading.AbandonedMutexException] { Write-Log "previous listener had crashed; taking over"; return $true } }
 try {
   $mutex = New-Object Threading.Mutex($false, "Global\ColibriScanRemote")
-  if (-not $mutex.WaitOne(20000)) { Write-Log "another listener is already running"; exit 0 }
+  if (-not (Get-Mutex 20000)) {
+    $age = 9999; try { $age = ((Get-Date) - (Get-Item $BeatPath).LastWriteTime).TotalSeconds } catch {}
+    if ($age -lt 120) { exit 0 }
+    Write-Log "other listener stopped responding ($([int]$age) s); replacing it"
+    foreach ($lp in (Get-ListenerPids)) { Stop-Process -Id $lp -Force -ErrorAction SilentlyContinue }
+    if (-not (Get-Mutex 15000)) { Write-Log "could not take over"; exit 0 }
+  }
   $cfg = Get-Content $CfgPath -Raw | ConvertFrom-Json
 } catch {
   Write-Log "listener failed to start: $($_.Exception.Message)"
@@ -368,13 +390,21 @@ try {
   exit 1
 }
 Write-Log "listener started v$Version for $($cfg.unit)"
+# older installs only started at logon: add the every-5-minutes restart (the listener runs elevated, so it can)
+try {
+  $tk = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+  if (@($tk.Triggers).Count -lt 2) { Register-RemoteTask $PSCommandPath ([Security.Principal.WindowsIdentity]::GetCurrent().Name); Write-Log "scheduled task upgraded: restarts every 5 minutes" }
+} catch { Write-Log "task check failed: $($_.Exception.Message)" }
 $lastReady = [DateTime]::MinValue
 $lastUpd   = Get-Date
 while ($true) {
   if ($script:checkNow -or ((Get-Date) - $lastUpd).TotalMinutes -ge 10) { $script:checkNow = $false; $lastUpd = Get-Date; Check-Update }
   try { $cfg = Get-Content $CfgPath -Raw | ConvertFrom-Json } catch {}
+  try { [IO.File]::WriteAllText($BeatPath, (Get-Date).ToString("o")) } catch {}
+  $locked = Test-Locked
+  if ($locked -ne $script:wasLocked) { $script:wasLocked = $locked; $lastReady = [DateTime]::MinValue }
   try {
-    if (((Get-Date) - $lastReady).TotalSeconds -ge 30) { Send-Ready $cfg "listening"; $lastReady = Get-Date }
+    if (((Get-Date) - $lastReady).TotalSeconds -ge 30) { Send-Ready $cfg $(if ($locked) { "locked" } else { "listening" }); $lastReady = Get-Date }
     Handle-Commands $cfg
   } catch { Write-Log "loop error: $($_.Exception.Message)"; try { Send-Ready $cfg ("error: " + $_.Exception.Message); $lastReady = Get-Date } catch {}; Start-Sleep -Seconds 5 }
   Start-Sleep -Seconds 2
