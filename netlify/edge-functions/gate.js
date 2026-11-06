@@ -73,7 +73,11 @@ export default async (req, context) => {
   const url = new URL(req.url);
   const path = url.pathname;
   const password = Netlify.env.get("SITE_PASSWORD");
-  if (!password) return context.next(); // not set up yet: behave like before
+  if (!password) { // not set up yet: behave like before
+    const res = await context.next();
+    res.headers.set("x-pdr-gate", "off");
+    return res;
+  }
 
   if (path === "/__logout") {
     return new Response(null, { status: 303, headers: { location: "/__login", "set-cookie": `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` } });
@@ -94,7 +98,11 @@ export default async (req, context) => {
     return loginPage(safeNext(url.searchParams.get("next") || ""), false);
   }
 
-  if (PUBLIC.some((r) => r.test(path))) return context.next();
+  if (PUBLIC.some((r) => r.test(path))) {
+    const res = await context.next();
+    res.headers.set("x-pdr-gate", "public");
+    return res;
+  }
 
   const have = readCookie(req, COOKIE);
   if (have && same(have, await tokenFor(password))) {
