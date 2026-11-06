@@ -7,7 +7,7 @@ if %errorlevel% neq 0 (
   exit /b
 )
 echo.
-echo Phone scan remote INSTALLER version 1.6 - teaches the scan form
+echo Phone scan remote INSTALLER version 1.7 - teaches the scan form
 echo Installing the phone scan remote for Colibri 20 on this PC (%COMPUTERNAME%).
 echo Keep the Colibri window open.
 echo.
@@ -25,7 +25,7 @@ exit /b
 #   Find test: powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -FindTest   (finds Automatic Start, does NOT press it)
 param([switch]$Install, [switch]$Uninstall, [string]$Unit, [string]$Pin, [switch]$FindTest, [switch]$Repair)
 
-$Version  = "1.6"
+$Version  = "1.7"
 $SB_URL   = "https://jedolnkjmlrruipkgqyd.supabase.co"
 $SB_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y"
 $Home_    = Join-Path $env:ProgramData "ColibriScanRemote"
@@ -197,6 +197,25 @@ function Get-ButtonColor([int]$x, [int]$y) {
   return @{ kind = $kind; rgb = "$r,$g,$b" }
 }
 
+# On a failure, save a small picture of the Colibri window so the problem can be seen remotely.
+function Save-Shot($w, [string]$unit, [string]$why) {
+  try {
+    Add-Type -AssemblyName System.Drawing
+    $bmp = New-Object Drawing.Bitmap ([int]$w.W), ([int]$w.H)
+    $g = [Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen([int]$w.L, [int]$w.T, 0, 0, $bmp.Size); $g.Dispose()
+    $k = [math]::Min(1.0, 900.0 / $w.W)
+    $sm = New-Object Drawing.Bitmap ([int]($w.W * $k)), ([int]($w.H * $k))
+    $g2 = [Drawing.Graphics]::FromImage($sm); $g2.InterpolationMode = "HighQualityBicubic"; $g2.DrawImage($bmp, 0, 0, $sm.Width, $sm.Height); $g2.Dispose(); $bmp.Dispose()
+    $enc = [Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq "image/jpeg" }
+    $ep = New-Object Drawing.Imaging.EncoderParameters 1; $ep.Param[0] = New-Object Drawing.Imaging.EncoderParameter ([Drawing.Imaging.Encoder]::Quality), ([long]70)
+    $ms = New-Object IO.MemoryStream; $sm.Save($ms, $enc, $ep); $sm.Dispose()
+    $now = Now-Iso
+    SB-Upsert ([ordered]@{ kind = "colibri_diag"; id = "$unit|shot|$now"; deleted = $false; updated_at = $now
+      data = [ordered]@{ unit = $unit; pc = $env:COMPUTERNAME; why = $why; at = $now; ver = $Version; img = ("data:image/jpeg;base64," + [Convert]::ToBase64String($ms.ToArray())) } })
+    Write-Log "saved screenshot: $why"
+  } catch { Write-Log "screenshot failed: $($_.Exception.Message)" }
+}
+
 function Press-Cancel($cfg) {
   if (-not ($cfg -and $cfg.button)) { return "The Start/Cancel button hasn't been taught yet. Run the installer on the PC again." }
   $w = Find-ColibriWindow $cfg
@@ -240,8 +259,19 @@ function Press-NewScan($cfg, $vals) {
     [System.Windows.Forms.SendKeys]::SendWait("{TAB}"); Start-Sleep -Milliseconds 500
     if ($notTaught.Count) { $note = " (not filled, box not taught: " + ($notTaught -join ", ") + ")" }
   }
-  $xy = & $at $cfg.button; Click-At $xy[0] $xy[1]
-  return "ok$note"
+  # press, then confirm the scan really started (button turns red); press once more if it's still blue
+  for ($try = 1; $try -le 2; $try++) {
+    Bring-ToFront $w.hwnd
+    Click-At $bxy[0] $bxy[1]
+    for ($i = 0; $i -lt 20; $i++) {
+      Start-Sleep -Milliseconds 400
+      $now = Get-ButtonColor $bxy[0] $bxy[1]
+      if ($now.kind -eq "red") { return ("ok" + $note + $(if ($try -gt 1) { " (needed a second press)" } else { "" })) }
+    }
+    if ($now.kind -ne "blue") { break }   # not blue and not red: don't press blindly again
+  }
+  Save-Shot $w $cfg.unit "start did not take"
+  return "Pressed Automatic Start, but the scan didn't start (button color $($col.rgb) before, $($now.rgb) after)."
 }
 
 # Starts at logon AND every 5 minutes, so a closed or crashed listener comes back on its own.
