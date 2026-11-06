@@ -20,6 +20,9 @@ h1{font:700 clamp(28px,7vw,40px)/1 var(--f-display);text-transform:uppercase;mar
 .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
 .top h2{margin:0;font:700 22px var(--f-display);text-transform:uppercase;letter-spacing:.03em;overflow-wrap:anywhere}
 .pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;border:0;cursor:pointer}
+.acts{display:flex;gap:8px;align-items:center}
+.del{font:500 13px var(--f-body);padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.del:hover{color:#c0392b;border-color:#c0392b}
 .pill.new{background:var(--new-soft);color:var(--new)} .pill.contacted{background:var(--ok-soft);color:var(--ok)}
 .meta{font-size:14px;color:var(--muted);overflow-wrap:anywhere}
 .meta b{color:var(--fg);font-weight:600}
@@ -55,7 +58,7 @@ function render(){
   document.getElementById("sub").textContent=`${leads.length} request${leads.length===1?"":"s"}. Newest first. Tap the status to mark contacted.`;
   document.getElementById("list").innerHTML=leads.length?leads.map(l=>{ const d=l.data, st=d.status==="contacted"?"contacted":"new";
     const map=d.place?`https://www.google.com/maps/search/?api=1&query=${d.place.lat},${d.place.lng}`:(d.address?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.address)}`:"");
-    return `<article class="card"><div class="top"><h2>${esc(d.shop)}</h2><button class="pill ${st}" data-id="${esc(l.id)}">${st==="new"?"New":"Contacted"}</button></div>
+    return `<article class="card"><div class="top"><h2>${esc(d.shop)}</h2><div class="acts"><button class="pill ${st}" data-id="${esc(l.id)}">${st==="new"?"New":"Contacted"}</button><button class="del" data-del="${esc(l.id)}">Remove</button></div></div>
       <div class="meta"><b>${esc(d.name)}</b> · ${esc(d.email)}${d.phone?" · "+esc(d.phone):""} · ${esc(when(d.at))}</div>
       <div class="meta">${esc(d.address||"No address entered")}${map?` · <a href="${map}" target="_blank" rel="noopener">Map</a>`:""} · Interested in: <b>${esc(d.model||"")}</b></div>
       ${d.notes?`<div class="meta">Notes: ${esc(d.notes)}</div>`:""}
@@ -65,6 +68,14 @@ function render(){
 document.addEventListener("click",async e=>{
   const img=e.target.closest(".thumbs img"); if(img){ document.getElementById("big").src=img.src; document.getElementById("dlg").showModal(); return; }
   if(e.target.id==="dlg"){ e.target.close(); return; }
+  const del=e.target.closest(".del");
+  if(del){ const l=leads.find(x=>x.id===del.dataset.del); if(!l) return;
+    if(!confirm(`Remove the request from ${l.data.shop||"this shop"}?`)) return;
+    leads=leads.filter(x=>x!==l); del.closest("article").remove();
+    document.getElementById("sub").textContent=`${leads.length} request${leads.length===1?"":"s"}. Newest first. Tap the status to mark contacted.`;
+    if(!leads.length) render();
+    await fetch(`${SB_URL}/rest/v1/fleet_records?on_conflict=kind,id`,{method:"POST",headers:{...H,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify([{kind:"shop_lead",id:l.id,data:l.data,deleted:true,updated_at:new Date().toISOString()}])});
+    return; }
   const b=e.target.closest(".pill"); if(!b) return;
   const l=leads.find(x=>x.id===b.dataset.id); if(!l) return;
   l.data.status=l.data.status==="contacted"?"new":"contacted"; render();
