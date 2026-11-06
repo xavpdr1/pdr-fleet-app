@@ -206,6 +206,20 @@ async function cloudPlate(canvas){
 }
 function plateNote(d){return 'Read '+d.plate+(d.state?' ('+d.state+')':'')+'. Please check it.'+(d.alternates&&d.alternates.length?' Could also be '+d.alternates.join(', ')+'.':'');}
 
+/* ---------- cloud VIN reader (Plate Recognizer OCR via /api/vin) ---------- */
+let cloudVinOff=false;
+async function cloudVin(canvas){
+  if(cloudVinOff)return null;
+  try{
+    const r=await fetch('/api/vin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:toJpeg(canvas,1600)})});
+    const d=await r.json().catch(()=>({}));
+    if([503,404,402].includes(r.status)||d.error==='token rejected'){cloudVinOff=true;return null;}
+    if(!r.ok||!d.ok||!d.vin)return null;
+    return d;
+  }catch(e){return null;}
+}
+function vinNote(d){return d.valid?'':'Read '+d.vin+', but it may be off by a character. Please check it.';}
+
 /* ---------- photo flow ---------- */
 let target='';
 function pickFile(which){target=which;$('file').value='';$('file').click();}
@@ -235,7 +249,7 @@ function grabGuide(targetH){
 function grabFull(){const v=$('video');const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);return c;}
 async function openCam(which){
   if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){pickFile(which);return;}
-  cam={stream:null,which,running:true,last:'',hits:0,tick:0,busy:false};
+  cam={stream:null,which,running:true,last:'',hits:0,tick:0,busy:false,started:Date.now(),vinCloud:0,vinCloudBusy:false};
   $('cvTitle').textContent=which==='vin'?'Line up the VIN barcode or VIN inside the box':'Line up the license plate inside the box';
   $('cvRead').textContent='Starting camera…';$('guide').classList.remove('hit');
   $('cv').classList.remove('hidden');layoutGuide();
@@ -274,6 +288,10 @@ async function camLoop(){
           for(const raw of await readBarcodes(c)){v=vinFromText(raw,false);if(v)break;}
           if(!v){for(const raw of await readBarcodes(grabFull())){v=vinFromText(raw,false);if(v)break;}}
           if(v&&cam.running){$('cvRead').textContent=v;if(vinCheckOk(v)||stable(v)){acceptCam(v);break;}}
+          else if(!cloudVinOff&&!cam.vinCloudBusy&&cam.vinCloud<3&&Date.now()-cam.started>4000&&Date.now()-(cam.lastVinCloud||0)>6000){
+            cam.vinCloudBusy=true;cam.vinCloud++;cam.lastVinCloud=Date.now();$('cvRead').textContent='No barcode yet. Reading the VIN online…';
+            const snap=grabFull();cloudVin(snap).then(d=>{cam.vinCloudBusy=false;cam.lastVinCloud=Date.now();if(d&&cam.running&&cam.which==='vin'){$('cvRead').textContent=d.vin;acceptCam(d.vin,vinNote(d),'warn');}});
+          }
           else if(cam.tick%3===0&&cam.running){const d=await ocr(grayCopy(grabGuide(90)),'ABCDEFGHJKLMNPRSTUVWXYZ0123456789',7);const t=vinFromText(d.text,true);if(t&&cam.running){$('cvRead').textContent=t;if(vinCheckOk(t)&&stable(t)){acceptCam(t);break;}}}
         }else{
           if(!cloudOff&&Date.now()-(cam.lastCloud||0)>2500){
@@ -297,6 +315,7 @@ $('cvSnap').addEventListener('click',async()=>{
   try{
     if(which==='vin'){
       let v='';for(const c of [grabGuide(0),grabFull()]){for(const raw of await readBarcodes(c)){v=vinFromText(raw,false);if(v)break;}if(v)break;}
+      if(!v&&!cloudVinOff){$('cvRead').textContent='Reading the VIN online…';const cd=await cloudVin(grabFull());if(cd){acceptCam(cd.vin,vinNote(cd),'warn');cam.busy=false;return;}}
       if(!v){for(const th of [90,130]){const d=await ocr(grayCopy(grabGuide(th)),'ABCDEFGHJKLMNPRSTUVWXYZ0123456789',7);v=vinFromText(d.text,true);if(v&&vinCheckOk(v))break;}}
       if(v){acceptCam(v,vinCheckOk(v)?'':'Read '+v+', but it may be off by a character. Please check it.','warn');}
       else $('cvRead').textContent='No VIN found. Move closer and hold still.';
@@ -318,6 +337,7 @@ $('file').addEventListener('change',async()=>{
     if(which==='vin'){
       hint('vin','Looking for the VIN barcode…');
       let v='';for(const raw of await readBarcodes(canvas)){v=vinFromText(raw,false);if(v)break;}
+      if(!v&&!cloudVinOff){hint('vin','No barcode found. Reading the VIN online… (can take up to 30 s)');const cd=await cloudVin(canvas);if(cd){$('vin').value=cd.vin;onVin();if(!cd.valid)hint('vin',vinNote(cd),'warn');return;}}
       if(!v){hint('vin','No barcode found. Reading the VIN text… (first time can take ~15 s)');const d=await ocr(grayCopy(canvas),'ABCDEFGHJKLMNPRSTUVWXYZ0123456789',11);v=vinFromText(d.text,true);}
       if(v){$('vin').value=v;onVin();if(!vinCheckOk(v))hint('vin','Read '+v+', but it may be off by a character. Please check it.','warn');}
       else hint('vin','Couldn\'t read a VIN. Try closer, straight on, no glare, or type it.','bad');
