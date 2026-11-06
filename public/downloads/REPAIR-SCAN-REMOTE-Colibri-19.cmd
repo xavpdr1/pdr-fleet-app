@@ -7,7 +7,7 @@ if %errorlevel% neq 0 (
   exit /b
 )
 echo.
-echo Phone scan remote REPAIR version 1.7 - keeps your PIN and taught spots
+echo Phone scan remote REPAIR version 1.8 - keeps your PIN and taught spots
 echo Restarting the phone scan remote for Colibri 19 on this PC (%COMPUTERNAME%).
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$t=[IO.File]::ReadAllText('%~f0'); $i=$t.LastIndexOf('#PS1-START'); $s=$t.Substring($t.IndexOf([char]10,$i)+1); $p=Join-Path $env:TEMP 'colibri-scan-remote.ps1'; [IO.File]::WriteAllText($p,$s); & powershell -NoProfile -ExecutionPolicy Bypass -File $p -Install -Repair -Unit 'Colibri 19'"
@@ -22,7 +22,7 @@ exit /b
 #   Find test: powershell -ExecutionPolicy Bypass -File colibri-scan-remote.ps1 -FindTest   (finds Automatic Start, does NOT press it)
 param([switch]$Install, [switch]$Uninstall, [string]$Unit, [string]$Pin, [switch]$FindTest, [switch]$Repair)
 
-$Version  = "1.7"
+$Version  = "1.8"
 $SB_URL   = "https://jedolnkjmlrruipkgqyd.supabase.co"
 $SB_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y"
 $Home_    = Join-Path $env:ProgramData "ColibriScanRemote"
@@ -73,6 +73,8 @@ public static class CsrNative {
   [DllImport("user32.dll")] public static extern int ReleaseDC(IntPtr h, IntPtr dc);
   [DllImport("gdi32.dll")] public static extern uint GetPixel(IntPtr dc, int x, int y);
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h, int x, int y, int w, int hh, bool repaint);
+  [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr h);
   public static List<IntPtr> TopWindows() {
     var l = new List<IntPtr>();
     EnumWindows((h, p) => { if (IsWindowVisible(h)) l.Add(h); return true; }, IntPtr.Zero);
@@ -194,6 +196,77 @@ function Get-ButtonColor([int]$x, [int]$y) {
   return @{ kind = $kind; rgb = "$r,$g,$b" }
 }
 
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
+using System; using System.Drawing; using System.Drawing.Imaging; using System.Runtime.InteropServices;
+public static class CsrVision {
+  // Finds the lowest wide blue (Automatic Start) or red (Cancel Scan) bar in the lower 3/4 of the image.
+  // Returns {x, y, w, h, kind} with kind 1 = blue, 2 = red; or null.
+  public static int[] FindButton(Bitmap bmp) {
+    int W = bmp.Width, H = bmp.Height;
+    var d = bmp.LockBits(new Rectangle(0, 0, W, H), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+    int st = d.Stride; byte[] px = new byte[st * H]; Marshal.Copy(d.Scan0, px, 0, px.Length); bmp.UnlockBits(d);
+    int[] best = null; int bestY = -1;
+    for (int kind = 1; kind <= 2; kind++) {
+      int[] cnt = new int[H], mn = new int[H], mx = new int[H];
+      for (int y = H / 4; y < H; y++) {
+        int c = 0, a = W, z = -1, o = y * st;
+        for (int x = 0; x < W; x++) {
+          int b = px[o + x * 4], g = px[o + x * 4 + 1], r = px[o + x * 4 + 2];
+          bool hit = kind == 1 ? (b > 110 && b - r > 70 && g > 40 && g < 130 && r < 80) : (r > 160 && r - g > 90 && r - b > 90);
+          if (hit) { c++; if (x < a) a = x; if (x > z) z = x; }
+        }
+        cnt[y] = c; mn[y] = a; mx[y] = z;
+      }
+      int thr = Math.Max(40, (int)(W * 0.10)), y0 = -1;
+      for (int y = H / 4; y <= H; y++) {
+        bool on = y < H && cnt[y] >= thr && cnt[y] < W * 0.85;
+        if (on && y0 < 0) y0 = y;
+        if (!on && y0 >= 0) {
+          int hh = y - y0;
+          if (hh >= 12 && hh <= 160) {
+            int a = W, z = 0; for (int k = y0; k < y; k++) { if (mn[k] < a) a = mn[k]; if (mx[k] > z) z = mx[k]; }
+            int ww = z - a;
+            if (ww >= 60 && ww < W * 0.8 && y0 > bestY) { best = new int[] { a, y0, ww, hh, kind }; bestY = y0; }
+          }
+          y0 = -1;
+        }
+      }
+    }
+    return best;
+  }
+}
+"@
+
+function Grab-Window($w) {
+  Add-Type -AssemblyName System.Drawing
+  $bmp = New-Object Drawing.Bitmap ([int]$w.W), ([int]$w.H)
+  $g = [Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen([int]$w.L, [int]$w.T, 0, 0, $bmp.Size); $g.Dispose()
+  return $bmp
+}
+
+# Where the Start/Cancel button is right now (screen coordinates) and whether it is blue (ready) or red (scanning).
+function Find-StartButton($w) {
+  $bmp = Grab-Window $w
+  try { $r = [CsrVision]::FindButton($bmp) } finally { $bmp.Dispose() }
+  if (-not $r) { return $null }
+  return @{ x = [int]($w.L + $r[0] + $r[2] / 2); y = [int]($w.T + $r[1] + $r[3] / 2); kind = $(if ($r[4] -eq 2) { "red" } else { "blue" }) }
+}
+
+# Put the Colibri window back to the size it had when the spots were taught.
+function Restore-TaughtSize($w, $b) {
+  if (-not ($b -and $b.w -and $b.h)) { return $w }
+  if ([math]::Abs($w.W - $b.w) -le [math]::Max(8, $b.w * 0.02) -and [math]::Abs($w.H - $b.h) -le [math]::Max(8, $b.h * 0.02)) { return $w }
+  try {
+    Add-Type -AssemblyName System.Windows.Forms
+    $wa = [System.Windows.Forms.Screen]::FromHandle($w.hwnd).WorkingArea
+    if ($b.w -ge $wa.Width * 0.9 -and $b.h -ge $wa.Height * 0.85) { [CsrNative]::ShowWindow($w.hwnd, 3) | Out-Null }
+    else { if ([CsrNative]::IsZoomed($w.hwnd)) { [CsrNative]::ShowWindow($w.hwnd, 9) | Out-Null; Start-Sleep -Milliseconds 300 }; [CsrNative]::MoveWindow($w.hwnd, $w.L, $w.T, [int]$b.w, [int]$b.h, $true) | Out-Null }
+    Start-Sleep -Milliseconds 900
+    Write-Log ("window resized from {0}x{1} to the taught {2}x{3}" -f $w.W, $w.H, $b.w, $b.h)
+  } catch { Write-Log "resize failed: $($_.Exception.Message)" }
+  return (Get-WinInfo $w.hwnd)
+}
+
 # On a failure, save a small picture of the Colibri window so the problem can be seen remotely.
 function Save-Shot($w, [string]$unit, [string]$why) {
   try {
@@ -219,12 +292,12 @@ function Press-Cancel($cfg) {
   if (-not $w) { return "The Colibri window ($($cfg.button.proc)) isn't open on the PC." }
   Bring-ToFront $w.hwnd
   $w = Get-WinInfo $w.hwnd
-  $x = [int]($w.L + $cfg.button.fx * $w.W); $y = [int]($w.T + $cfg.button.fy * $w.H)
-  $col = Get-ButtonColor $x $y
-  if ($col.kind -eq "blue") { return "No scan is running on the PC." }
-  if ($col.kind -ne "red") { return "Couldn't tell whether a scan is running (button color $($col.rgb)). Nothing pressed." }
-  Click-At $x $y
-  return "ok"
+  $sb = Find-StartButton $w
+  if (-not $sb) { Save-Shot $w $cfg.unit "cancel: button not found"; return "Couldn't see the Cancel Scan button on the PC screen." }
+  if ($sb.kind -eq "blue") { return "No scan is running on the PC." }
+  Click-At $sb.x $sb.y
+  for ($i = 0; $i -lt 10; $i++) { Start-Sleep -Milliseconds 500; $now = Find-StartButton $w; if (-not $now -or $now.kind -ne "red") { return "ok" } }
+  return "Pressed Cancel Scan, but the scan still looks like it's running."
 }
 
 function Press-NewScan($cfg, $vals) {
@@ -233,11 +306,12 @@ function Press-NewScan($cfg, $vals) {
   if (-not $w) { return "The Colibri window ($($cfg.button.proc)) isn't open on the PC." }
   Bring-ToFront $w.hwnd
   $w = Get-WinInfo $w.hwnd
+  $w = Restore-TaughtSize $w $cfg.button
+  Bring-ToFront $w.hwnd
   $at = { param($p) @([int]($w.L + $p.fx * $w.W), [int]($w.T + $p.fy * $w.H)) }
   $note = ""
-  $bxy = & $at $cfg.button
-  $col = Get-ButtonColor $bxy[0] $bxy[1]
-  if ($col.kind -eq "red") { return "A scan is already running on the PC. Press Cancel first." }
+  $sb = Find-StartButton $w
+  if ($sb -and $sb.kind -eq "red") { return "A scan is already running on the PC. Press Cancel first." }
   $any = $false; foreach ($f in $FieldList) { if ((Clean-Value $vals.($f.key)) -ne "") { $any = $true } }
   if ($any) {
     Add-Type -AssemblyName System.Windows.Forms
@@ -256,19 +330,24 @@ function Press-NewScan($cfg, $vals) {
     [System.Windows.Forms.SendKeys]::SendWait("{TAB}"); Start-Sleep -Milliseconds 500
     if ($notTaught.Count) { $note = " (not filled, box not taught: " + ($notTaught -join ", ") + ")" }
   }
+  # find the button on screen (it can be briefly hidden or disabled while Colibri checks the plate)
+  $sb = $null
+  for ($i = 0; $i -lt 12; $i++) { $sb = Find-StartButton $w; if ($sb) { break }; Start-Sleep -Milliseconds 500 }
+  if (-not $sb) { Save-Shot $w $cfg.unit "button not found before press"; return "Couldn't see the Automatic Start button on the PC screen." }
+  if ($sb.kind -eq "red") { return ("ok" + $note) }
   # press, then confirm the scan really started (button turns red); press once more if it's still blue
   for ($try = 1; $try -le 2; $try++) {
     Bring-ToFront $w.hwnd
-    Click-At $bxy[0] $bxy[1]
-    for ($i = 0; $i -lt 20; $i++) {
-      Start-Sleep -Milliseconds 400
-      $now = Get-ButtonColor $bxy[0] $bxy[1]
-      if ($now.kind -eq "red") { return ("ok" + $note + $(if ($try -gt 1) { " (needed a second press)" } else { "" })) }
+    Click-At $sb.x $sb.y
+    for ($i = 0; $i -lt 16; $i++) {
+      Start-Sleep -Milliseconds 500
+      $now = Find-StartButton $w
+      if ($now -and $now.kind -eq "red") { return ("ok" + $note + $(if ($try -gt 1) { " (needed a second press)" } else { "" })) }
     }
-    if ($now.kind -ne "blue") { break }   # not blue and not red: don't press blindly again
+    if ($now) { $sb = $now } else { break }
   }
   Save-Shot $w $cfg.unit "start did not take"
-  return "Pressed Automatic Start, but the scan didn't start (button color $($col.rgb) before, $($now.rgb) after)."
+  return "Pressed Automatic Start, but the scan didn't start."
 }
 
 # Starts at logon AND every 5 minutes, so a closed or crashed listener comes back on its own.
