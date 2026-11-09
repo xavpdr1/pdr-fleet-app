@@ -389,7 +389,7 @@ async function loadUnits(){
   const sel=$('unit');
   try{const r=await fetch(SB_URL+'/rest/v1/colibri_units?select=number&order=number.asc',{headers:H});const list=(await r.json()).map(x=>x.number).filter(Boolean);
     sel.innerHTML='<option value="">Choose…</option>'+list.map(n=>`<option>${n.replace(/</g,'&lt;')}</option>`).join('');
-    const last=store.get('scanUnit');if(last&&list.includes(last))sel.value=last;}catch(e){sel.innerHTML='<option value="">Couldn\'t load units</option>';}
+    const q=new URLSearchParams(location.search).get('unit');const want=q&&list.find(n=>n.toLowerCase().replace(/\s+/g,'')===q.toLowerCase().replace(/\s+/g,'')||n.toLowerCase().replace(/^colibri\s*/,'')===q.toLowerCase().replace(/^colibri\s*/,''));const last=store.get('scanUnit');if(want)sel.value=want;else if(last&&list.includes(last))sel.value=last;}catch(e){sel.innerHTML='<option value="">Couldn\'t load units</option>';}
   const p=store.get('scanPin');if(p)$('pin').value=p;
   try{const d=JSON.parse(store.get('scanDraft')||'{}');FIELDS.forEach(k=>{if(d[k])$(k).value=d[k];});}catch(e){}
   checkReady();
