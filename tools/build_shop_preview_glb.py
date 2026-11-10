@@ -27,14 +27,15 @@ OUT = {"colibri": "public/colibri.glb", "colibri_xl": "public/colibri-xl.glb"}
 
 
 LABEL = "16FT-18FT"
-LABEL_W = 3.0                  # max label width on the floor, m
+LABEL_FILL = 0.85              # label length as a share of the end zone length
 
 
 def text_mesh(text, width):
     """Flat bold text lying on the floor, centred on the origin.
 
-    Letters read left to right along +X with their tops pointing to -Z, so they are
-    upright for someone at the near (+Z) end looking toward the scanner.
+    Runs lengthwise along the lane: reading left to right toward the scanner (-Z) with
+    letter tops pointing to -X, so it is upright seen from the +X side of the lane
+    (the side the 3D view opens on).
     """
     from functools import reduce
     from matplotlib.font_manager import FontProperties
@@ -51,8 +52,8 @@ def text_mesh(text, width):
     geoms = getattr(shape, "geoms", [shape])
     parts = [trimesh.creation.extrude_polygon(g, THICK) for g in geoms]
     m = trimesh.util.concatenate(parts)
-    # (u right, v up, w extrude) -> (x = u, y = w, z = -v)
-    m.apply_transform(np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, -1, 0, 0], [0, 0, 0, 1]], float))
+    # (u right, v up, w extrude) -> (x = -v, y = w, z = -u)
+    m.apply_transform(np.array([[0, -1, 0, 0], [0, 0, 1, 0], [-1, 0, 0, 0], [0, 0, 0, 1]], float))
     return m
 
 
@@ -93,13 +94,11 @@ def main():
             b.visual = trimesh.visual.TextureVisuals(material=material(LANE))
             scene.add_geometry(b, node_name=sname, geom_name=sname)
 
-        # floor label in the middle of each end zone, readable when facing the scanner
-        label = text_mesh(LABEL, width=min(LABEL_W, 0.85 * width_m))
-        for lname, (z, flip) in {"label_near_end": (-CLEAR_M / 2, False),
-                                 "label_far_end": (-lane_len + CLEAR_M / 2, True)}.items():
+        # lengthwise floor label in the middle of each end zone
+        label = text_mesh(LABEL, width=LABEL_FILL * CLEAR_M)
+        for lname, z in {"label_near_end": -CLEAR_M / 2,
+                         "label_far_end": -lane_len + CLEAR_M / 2}.items():
             t = label.copy()
-            if flip:
-                t.apply_transform(trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0]))
             t.apply_translation([0, 0, z])
             t.visual = trimesh.visual.TextureVisuals(material=material(LANE))
             scene.add_geometry(t, node_name=lname, geom_name=lname)
