@@ -31,14 +31,14 @@ OUT = {("colibri", False): "public/colibri.glb", ("colibri_xl", False): "public/
 
 LABEL = "16FT-18FT"
 LABEL_FILL = 0.85              # label length as a share of the end zone length
+LABEL_DEPTH = 0.08             # thickness of the standing letters, m
 
 
 def text_mesh(text, width):
-    """Flat bold text lying on the floor, centred on the origin.
+    """Bold 3D letters standing upright on the floor, centred on the lane.
 
-    Runs lengthwise along the lane: reading left to right toward the scanner (-Z) with
-    letter tops pointing to -X, so it is upright seen from the +X side of the lane
-    (the side the 3D view opens on).
+    Runs lengthwise along the lane, reading left to right toward the scanner (-Z) when
+    seen from the +X side of the lane (the side the 3D view opens on).
     """
     from functools import reduce
     from matplotlib.font_manager import FontProperties
@@ -53,10 +53,11 @@ def text_mesh(text, width):
     from shapely import affinity
     shape = affinity.scale(affinity.translate(shape, -(x0 + x1) / 2, -(y0 + y1) / 2), k, k, origin=(0, 0))
     geoms = getattr(shape, "geoms", [shape])
-    parts = [trimesh.creation.extrude_polygon(g, THICK) for g in geoms]
+    parts = [trimesh.creation.extrude_polygon(g, LABEL_DEPTH) for g in geoms]
     m = trimesh.util.concatenate(parts)
-    # (u right, v up, w extrude) -> (x = -v, y = w, z = -u)
-    m.apply_transform(np.array([[0, -1, 0, 0], [0, 0, 1, 0], [-1, 0, 0, 0], [0, 0, 0, 1]], float))
+    h = (y1 - y0) * k
+    # (u right, v up, w extrude) -> (x = w, y = v, z = -u), standing on the floor, centred on x = 0
+    m.apply_transform(np.array([[0, 0, 1, -LABEL_DEPTH / 2], [0, 1, 0, h / 2], [-1, 0, 0, 0], [0, 0, 0, 1]], float))
     return m
 
 
@@ -100,7 +101,7 @@ def main():
             b.visual = trimesh.visual.TextureVisuals(material=material(LANE))
             scene.add_geometry(b, node_name=sname, geom_name=sname)
 
-        # lengthwise floor label in the middle of each end zone
+        # standing lengthwise label in the middle of each end zone
         label = text_mesh(LABEL, width=LABEL_FILL * CLEAR_M)
         for lname, z in {"label_near_end": -CLEAR_M / 2,
                          "label_far_end": -lane_len + CLEAR_M / 2}.items():
