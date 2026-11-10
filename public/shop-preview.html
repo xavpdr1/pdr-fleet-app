@@ -85,7 +85,7 @@ footer{font-size:13px;color:var(--muted);text-align:center}
       <label style="display:flex;gap:8px;align-items:center;font-weight:500">Turn <input type="range" id="fpRot" min="0" max="179" value="0"></label>
       <a id="svLink" class="btn ghost" href="#" target="_blank" rel="noopener" hidden>Open Street View</a>
     </div>
-    <p class="hint">Tap the map to move the blue outline. It shows the arch plus the drive-through lane, to scale.</p>
+    <p class="hint">Tap the map to move the blue outline. It shows the scanner plus the drive-through lane (17 ft clear at each end), to scale.</p>
   </section>
 
   <section class="step" aria-labelledby="s2">
@@ -105,7 +105,7 @@ footer{font-size:13px;color:var(--muted);text-align:center}
       </model-viewer>
     </div>
     <div class="dims" id="dims"></div>
-    <p class="hint">Sizes are approximate. In camera view the arch appears just in front of where you point, at full size, so you may need to step back or look up to see all of it. The blue outline on the floor is the lane a vehicle drives through during a scan.</p>
+    <p class="hint">In camera view the arch appears just in front of where you point, at full size, so you may need to step back or look up to see all of it. The blue outline on the floor is the lane a vehicle drives through during a scan, with 17 ft of open space at each end of the scanner.</p>
   </section>
 
   <section class="step" aria-labelledby="s3">
@@ -137,11 +137,14 @@ footer{font-size:13px;color:var(--muted);text-align:center}
 <script>
 const SB_URL='https://jedolnkjmlrruipkgqyd.supabase.co', SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y';
 const $=id=>document.getElementById(id);
-// Approximate outer sizes in meters (estimates until confirmed); lane = drive-through length shown on the floor
-const MODELS={ xl:{name:"Colibri XL",src:"/colibri-xl.glb",w:4.2,h:3.3,d:1.0,lane:7.0}, std:{name:"Colibri",src:"/colibri.glb",w:3.6,h:2.9,d:0.9,lane:7.0} };
+// Outer sizes in meters, measured from the Fusion models (d = scanner length front to back, camera wings included).
+// The lane shown on the floor/map leaves CLEAR_M of open space at each end of the scanner.
+const CLEAR_M=17*0.3048;
+const MODELS={ xl:{name:"Colibri XL",src:"/colibri-xl.glb",w:4.053,h:3.113,d:2.234}, std:{name:"Colibri",src:"/colibri.glb",w:3.296,h:2.826,d:2.234} };
+for(const m of Object.values(MODELS)) m.lane=m.d+2*CLEAR_M;
 let model="xl", place=null;
 const ft=m=>{ const i=Math.round(m*39.3701); return `${Math.floor(i/12)}′ ${i%12}″`; };
-function showDims(){ const m=MODELS[model]; $("dims").innerHTML=[["Width",m.w],["Height",m.h],["Arch depth",m.d],["Lane length",m.lane]].map(([k,v])=>`<div class="dim"><b>${ft(v)}</b><span>${k} · ${v.toFixed(1)} m</span></div>`).join(""); }
+function showDims(){ const m=MODELS[model]; $("dims").innerHTML=[["Width",m.w],["Height",m.h],["Scanner length",m.d],["Clear space each end",CLEAR_M],["Total lane",m.lane]].map(([k,v])=>`<div class="dim"><b>${ft(v)}</b><span>${k} · ${v.toFixed(1)} m</span></div>`).join(""); }
 document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>{ model=b.dataset.m; document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-pressed",x===b)); $("mv").src=MODELS[model].src; $("mv").alt=`3D model of the ${MODELS[model].name} scanner arch with its drive-through lane`; showDims(); drawFootprint(); }));
 showDims();
 
