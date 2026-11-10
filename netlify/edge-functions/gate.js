@@ -14,8 +14,8 @@ const PUBLIC = [
   /^\/shop-preview(\.html)?$/,
   /^\/colibri-logo\.jpg$/,
   // every scanner model the customer page can show: Colibri / XL, optional sun cover, optional vehicle
-  // (.glb for the 3D view, .usdz for the animated iPhone camera view)
-  /^\/colibri(-xl)?(-cover)?(-suv|-truck)?\.(glb|usdz)$/,
+  // (.glb for the 3D view, .usdz for the animated iPhone camera view, -only = scanner alone)
+  /^\/colibri(-xl)?(-cover)?(-suv|-truck|-only)?\.(glb|usdz)$/,
   /^\/favicon-32\.png$/,
   /^\/apple-touch-icon\.png$/,
   /^\/icon-\d+\.png$/,

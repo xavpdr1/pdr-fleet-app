@@ -46,6 +46,11 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,.btn:focus-visib
 .tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .tabs button{font:600 14px var(--f-body);background:transparent;color:var(--fg);border:0;padding:8px 14px;cursor:pointer}
 .tabs button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.tabs button:disabled{opacity:.4;cursor:not-allowed}
+.placeTips{margin:4px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.placeTips h3{margin:0 0 6px;font:700 15px var(--f-body)}
+.placeTips ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px;color:var(--muted)}
+.placeTips b{color:var(--fg)}
 .mvLoading{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:var(--surface,#fff);color:var(--fg);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font:600 13px var(--f-body);pointer-events:none}
 @media (max-width:600px){
   .tabs{display:flex;width:100%}
@@ -109,6 +114,10 @@ footer{font-size:13px;color:var(--muted);text-align:center}
         <button type="button" data-v="suv" aria-pressed="false">Sedan / SUV</button>
         <button type="button" data-v="truck" aria-pressed="false">Full-size SUV / truck</button>
       </div>
+      <div class="tabs" role="group" aria-label="Show">
+        <button type="button" data-s="lane" aria-pressed="true">Scanner + lane</button>
+        <button type="button" data-s="only" aria-pressed="false">Scanner only</button>
+      </div>
     </div>
     <div style="position:relative">
       <model-viewer id="mv" src="/colibri-xl.glb" alt="3D model of the Colibri XL scanner arch with its drive-through lane"
@@ -118,8 +127,18 @@ footer{font-size:13px;color:var(--muted);text-align:center}
       </model-viewer>
       <div class="mvLoading" id="mvLoading" hidden>Loading…</div>
     </div>
-    <p class="hint" id="arHint">On a phone, tap “View in your shop”, stand back about 25 ft from where it should go, and point at open floor. It needs real open space (shop floor, bay or lot): newer iPhones hide it behind nearby walls.</p>
     <div class="dims" id="dims"></div>
+    <div class="placeTips" id="arHint">
+      <h3>Placing it with your camera</h3>
+      <ul>
+        <li><b>Start:</b> tap “View in your shop”, stand back 25–30 ft, point at the open floor where the scanner should stand and move the phone slowly side to side until it appears.</li>
+        <li><b>Move it:</b> put one finger on the scanner or the blue lane and drag slowly.</li>
+        <li><b>Turn it:</b> twist with two fingers. It turns around the scanner, so you can line the lane up with a bay door.</li>
+        <li><b>Lost it?</b> Double-tap to bring it back in front of you.</li>
+        <li><b>Tip:</b> choose “Scanner only” first to find the spot, then switch back to “Scanner + lane” to check the clear space.</li>
+        <li>It stays at real size (pinching won’t shrink it) and needs open space: newer iPhones hide it behind nearby walls.</li>
+      </ul>
+    </div>
     <p class="hint">In camera view the arch appears just in front of where you point, at full size, so you may need to step back or look up to see all of it. The blue outline on the floor is the lane a vehicle drives through during a scan, with 17 ft of open space at each end of the scanner.</p>
   </section>
 
@@ -161,24 +180,30 @@ const MODELS={
   std:{name:"Colibri",src:"/colibri.glb",w:3.296,h:2.606,d:0.986, cover:{src:"/colibri-cover.glb",w:3.304,h:2.632,d:2.500}} };
 // Display vehicles, sized like the US best-sellers in each class (2025): Toyota RAV4 and Ford F-150 SuperCrew 5.5 ft box.
 const VEHICLES={ suv:{name:"mid-size SUV (Toyota RAV4 size)",l:4.595,w:1.854,h:1.702}, truck:{name:"full-size pickup (Ford F-150 SuperCrew size)",l:5.893,w:2.029,h:1.958} };
-let model="xl", sunCover=false, vehicle="", place=null;
-function cur(){ const b=MODELS[model], m=sunCover?{...b,...b.cover,name:b.name+" with sun cover"}:{...b}; m.lane=m.d+2*CLEAR_M; if(vehicle) m.src=m.src.replace(".glb",`-${vehicle}.glb`); return m; }
+let model="xl", sunCover=false, vehicle="", scannerOnly=false, place=null;
+// m.veh is the vehicle actually shown ("Scanner only" shows no lane and no vehicle)
+function cur(){ const b=MODELS[model], m=sunCover?{...b,...b.cover,name:b.name+" with sun cover"}:{...b}; m.lane=m.d+2*CLEAR_M; m.veh=scannerOnly?"":vehicle;
+  if(scannerOnly) m.src=m.src.replace(".glb","-only.glb"); else if(vehicle) m.src=m.src.replace(".glb",`-${vehicle}.glb`); return m; }
 function keepViewerInSight(){ const r=$("mv").getBoundingClientRect(), vh=window.innerHeight; if(r.top<0||r.top>vh*0.45) $("mv").scrollIntoView({behavior:"smooth",block:"center"}); }
-$("mv").addEventListener("load",()=>{ $("mvLoading").hidden=true; if(vehicle){ try{ $("mv").currentTime=0; $("mv").play({repetitions:Infinity}); }catch(e){} } warmOtherModels(); });
+$("mv").addEventListener("load",()=>{ $("mvLoading").hidden=true; if(cur().veh){ try{ $("mv").currentTime=0; $("mv").play({repetitions:Infinity}); }catch(e){} } warmOtherModels(); });
 // fetch the other versions of the current scanner once, so switching options is instant (files are ~50-80 KB each)
 const warmed=new Set();
-function warmOtherModels(){ const b=MODELS[model]; const bases=[b.src,b.cover.src]; const go=()=>bases.forEach(base=>["",`-suv`,`-truck`].forEach(v=>{ const u=base.replace(".glb",v+".glb"); if(!warmed.has(u)){ warmed.add(u); fetch(u).catch(()=>warmed.delete(u)); } })); ("requestIdleCallback" in window)?requestIdleCallback(go,{timeout:3000}):setTimeout(go,1500); }
+function warmOtherModels(){ const b=MODELS[model]; const bases=[b.src,b.cover.src]; const go=()=>bases.forEach(base=>["",`-suv`,`-truck`,`-only`].forEach(v=>{ const u=base.replace(".glb",v+".glb"); if(!warmed.has(u)){ warmed.add(u); fetch(u).catch(()=>warmed.delete(u)); } })); ("requestIdleCallback" in window)?requestIdleCallback(go,{timeout:3000}):setTimeout(go,1500); }
 $("mv").addEventListener("error",()=>{ $("mvLoading").hidden=false; $("mvLoading").textContent="Couldn’t load the 3D model, tap the option again"; });
 function showModel(){ const m=cur(); if($("mv").src.split("/").pop()!==m.src.split("/").pop()){ clearTimeout(showModel.t); showModel.t=setTimeout(()=>{ if(!$("mv").loaded||$("mv").src.split("/").pop()!==cur().src.split("/").pop()){ $("mvLoading").textContent="Loading…"; $("mvLoading").hidden=false; } },400); } $("mv").src=m.src;
   // iPhone camera view: model-viewer's on-the-fly conversion drops the animation, so hand Quick Look a ready-made animated USDZ
-  if(vehicle) $("mv").setAttribute("ios-src",m.src.replace(".glb",".usdz")); else $("mv").removeAttribute("ios-src"); $("mv").alt=`3D model of the ${m.name} scanner arch with its drive-through lane`+(vehicle?`, with a ${VEHICLES[vehicle].name} parked under it`:""); showDims(); drawFootprint(); }
+  if(m.veh) $("mv").setAttribute("ios-src",m.src.replace(".glb",".usdz")); else $("mv").removeAttribute("ios-src");
+  $("mv").alt=`3D model of the ${m.name} scanner arch`+(scannerOnly?"":" with its drive-through lane")+(m.veh?`, with a ${VEHICLES[m.veh].name} driving through`:"");
+  vehBtns.forEach(x=>x.disabled=scannerOnly); showDims(); drawFootprint(); }
 const ft=m=>{ const i=Math.round(m*39.3701); return `${Math.floor(i/12)}′ ${i%12}″`; };
-function showDims(){ const m=cur(); $("dims").innerHTML=[["Width",m.w],["Height",m.h],[sunCover?"Length with cover":"Scanner length",m.d],["Clear space each end",CLEAR_M],["Total lane",m.lane]].concat(vehicle?[["Vehicle length",VEHICLES[vehicle].l],["Vehicle height",VEHICLES[vehicle].h]]:[]).map(([k,v])=>`<div class="dim"><b>${ft(v)}</b><span>${k} · ${v.toFixed(1)} m</span></div>`).join(""); }
+function showDims(){ const m=cur(); $("dims").innerHTML=[["Width",m.w],["Height",m.h],[sunCover?"Length with cover":"Scanner length",m.d]].concat(scannerOnly?[]:[["Clear space each end",CLEAR_M],["Total lane",m.lane]]).concat(m.veh?[["Vehicle length",VEHICLES[m.veh].l],["Vehicle height",VEHICLES[m.veh].h]]:[]).map(([k,v])=>`<div class="dim"><b>${ft(v)}</b><span>${k} · ${v.toFixed(1)} m</span></div>`).join(""); }
 const modelBtns=document.querySelectorAll('[aria-label="Scanner model"] button'), coverBtns=document.querySelectorAll('[aria-label="Sun cover"] button');
 modelBtns.forEach(b=>b.addEventListener("click",()=>{ model=b.dataset.m; modelBtns.forEach(x=>x.setAttribute("aria-pressed",x===b)); showModel(); keepViewerInSight(); }));
 coverBtns.forEach(b=>b.addEventListener("click",()=>{ sunCover=b.dataset.c==="1"; coverBtns.forEach(x=>x.setAttribute("aria-pressed",x===b)); showModel(); keepViewerInSight(); }));
 const vehBtns=document.querySelectorAll('[aria-label="Vehicle"] button');
 vehBtns.forEach(b=>b.addEventListener("click",()=>{ vehicle=b.dataset.v; vehBtns.forEach(x=>x.setAttribute("aria-pressed",x===b)); showModel(); keepViewerInSight(); }));
+const showBtns=document.querySelectorAll('[aria-label="Show"] button');
+showBtns.forEach(b=>b.addEventListener("click",()=>{ scannerOnly=b.dataset.s==="only"; showBtns.forEach(x=>x.setAttribute("aria-pressed",x===b)); showModel(); keepViewerInSight(); }));
 showDims();
 
 // ---- map (Esri aerial imagery, OpenStreetMap address search) ----

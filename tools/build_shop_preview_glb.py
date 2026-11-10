@@ -6,8 +6,12 @@ Adds the blue drive-through lane outline on the floor: CLEAR_FT of open space at
 end of the scanner, measured from its outermost front/back faces (the sun cover's ends
 when the cover is on).
 
-glTF frame (what model-viewer expects): metres, Y up, the lane runs along -Z from the
-origin, so in AR the scanner appears ahead of where the phone is pointed.
+glTF frame (what model-viewer expects): metres, Y up, the lane runs along Z and the origin
+is the centre of the scanner on the floor, so in the camera view the scanner lands where the
+phone points and turning it pivots on the scanner. The 16FT-18FT signs stand on both sides
+of the lane, which keeps the whole model centred on the scanner.
+
+"-only" files are the scanner alone (no lane, signs or vehicle), for placing it first.
 
 Run from the repo root:  python3 tools/build_shop_preview_glb.py
 """
@@ -110,11 +114,14 @@ def material(col):
 
 def main():
     jobs = [(name, cover, veh, out if veh is None else out.replace(".glb", f"-{veh}.glb"))
-            for (name, cover), out in OUT.items() for veh in (None, "suv", "truck")]
+            for (name, cover), out in OUT.items() for veh in (None, "suv", "truck", "only")]
     for name, cover, veh, out in jobs:
         p = cg.MODELS[name]
         parts = cg.build(p, cover=cover)
         allv = np.vstack([m.vertices for m, _ in parts.values()])
+        only = veh == "only"
+        if only:
+            veh = None
         # display vehicle parked under the centre of the scanner, nose toward the far end
         if veh:
             for vname, (m, col) in vh.build(veh).items():
@@ -144,6 +151,13 @@ def main():
             travel = start_c - end_c
 
         hw = width_m / 2
+        if only:          # scanner alone: centre it on the origin and stop here
+            for g in scene.geometry.values():
+                g.apply_translation([0, 0, lane_len / 2])
+            scene.export(out)
+            e = scene.bounds[1] - scene.bounds[0]
+            print(f"{out}: scanner only, width {e[0]:.3f} m, height {e[1]:.3f} m, length {e[2]:.3f} m")
+            continue
         strips = {
             "lane_left": ([-hw, -hw + STRIP], [-lane_len, 0]),
             "lane_right": ([hw - STRIP, hw], [-lane_len, 0]),
@@ -158,15 +172,23 @@ def main():
             b.visual = trimesh.visual.TextureVisuals(material=material(LANE))
             scene.add_geometry(b, node_name=sname, geom_name=sname)
 
-        # standing lengthwise label beside the lane (outside its +X edge) in the middle of each end zone
+        # standing lengthwise signs just outside both lane edges, in the middle of each end zone;
+        # the -X side copy is turned round so it reads correctly from that side
         label = text_mesh(LABEL, width=LABEL_FILL * CLEAR_M)
+        flip = trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0])
         for lname, z in {"label_near_end": -CLEAR_M / 2,
                          "label_far_end": -lane_len + CLEAR_M / 2}.items():
-            t = label.copy()
-            t.apply_translation([hw + LABEL_GAP, 0, z])
-            t.visual = trimesh.visual.TextureVisuals(material=material(LANE))
-            scene.add_geometry(t, node_name=lname, geom_name=lname)
+            for side, sfx in ((1, ""), (-1, "_other_side")):
+                t = label.copy()
+                if side < 0:
+                    t.apply_transform(flip)
+                t.apply_translation([side * (hw + LABEL_GAP), 0, z])
+                t.visual = trimesh.visual.TextureVisuals(material=material(LANE))
+                scene.add_geometry(t, node_name=lname + sfx, geom_name=lname + sfx)
 
+        # origin at the scanner centre (the lane was built from 0 to -lane_len)
+        for g in scene.geometry.values():
+            g.apply_translation([0, 0, lane_len / 2])
         scene.export(out)
         if veh:
             add_drive_animation(out, travel)
