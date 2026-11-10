@@ -19,6 +19,7 @@ import trimesh
 
 sys.path.insert(0, os.path.dirname(__file__))
 import colibri_geometry as cg  # noqa: E402
+import vehicles as vh  # noqa: E402
 
 CLEAR_FT = 17
 CLEAR_M = CLEAR_FT * 0.3048
@@ -67,10 +68,16 @@ def material(col):
 
 
 def main():
-    for (name, cover), out in OUT.items():
+    jobs = [(name, cover, veh, out if veh is None else out.replace(".glb", f"-{veh}.glb"))
+            for (name, cover), out in OUT.items() for veh in (None, "suv", "truck")]
+    for name, cover, veh, out in jobs:
         p = cg.MODELS[name]
         parts = cg.build(p, cover=cover)
         allv = np.vstack([m.vertices for m, _ in parts.values()])
+        # display vehicle parked under the centre of the scanner, nose toward the far end
+        if veh:
+            for vname, (m, col) in vh.build(veh).items():
+                parts[f"vehicle_{vname}"] = (m, col)
         depth_mm = allv[:, 0].max() - allv[:, 0].min()
         width_m = (allv[:, 1].max() - allv[:, 1].min()) / 1000
         lane_len = depth_mm / 1000 + 2 * CLEAR_M

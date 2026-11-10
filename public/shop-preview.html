@@ -99,6 +99,11 @@ footer{font-size:13px;color:var(--muted);text-align:center}
         <button type="button" data-c="0" aria-pressed="true">No sun cover</button>
         <button type="button" data-c="1" aria-pressed="false">With sun cover</button>
       </div>
+      <div class="tabs" role="group" aria-label="Vehicle">
+        <button type="button" data-v="" aria-pressed="true">No vehicle</button>
+        <button type="button" data-v="suv" aria-pressed="false">Sedan / SUV</button>
+        <button type="button" data-v="truck" aria-pressed="false">Full-size SUV / truck</button>
+      </div>
       <span class="hint" id="arHint">On a phone, tap “View in your shop”, stand back about 25 ft from where it should go, and point at open floor. It needs real open space (shop floor, bay or lot): newer iPhones hide it behind nearby walls.</span>
     </div>
     <div style="position:relative">
@@ -148,14 +153,18 @@ const CLEAR_M=17*0.3048;
 const MODELS={
   xl:{name:"Colibri XL",src:"/colibri-xl.glb",w:4.053,h:2.893,d:2.234, cover:{src:"/colibri-xl-cover.glb",w:4.060,h:2.914,d:2.500}},
   std:{name:"Colibri",src:"/colibri.glb",w:3.296,h:2.606,d:0.986, cover:{src:"/colibri-cover.glb",w:3.304,h:2.632,d:2.500}} };
-let model="xl", sunCover=false, place=null;
-function cur(){ const b=MODELS[model], m=sunCover?{...b,...b.cover,name:b.name+" with sun cover"}:{...b}; m.lane=m.d+2*CLEAR_M; return m; }
-function showModel(){ const m=cur(); $("mv").src=m.src; $("mv").alt=`3D model of the ${m.name} scanner arch with its drive-through lane`; showDims(); drawFootprint(); }
+// Display vehicles, sized like the US best-sellers in each class (2025): Toyota RAV4 and Ford F-150 SuperCrew 5.5 ft box.
+const VEHICLES={ suv:{name:"mid-size SUV (Toyota RAV4 size)",l:4.595,w:1.854,h:1.702}, truck:{name:"full-size pickup (Ford F-150 SuperCrew size)",l:5.893,w:2.029,h:1.958} };
+let model="xl", sunCover=false, vehicle="", place=null;
+function cur(){ const b=MODELS[model], m=sunCover?{...b,...b.cover,name:b.name+" with sun cover"}:{...b}; m.lane=m.d+2*CLEAR_M; if(vehicle) m.src=m.src.replace(".glb",`-${vehicle}.glb`); return m; }
+function showModel(){ const m=cur(); $("mv").src=m.src; $("mv").alt=`3D model of the ${m.name} scanner arch with its drive-through lane`+(vehicle?`, with a ${VEHICLES[vehicle].name} parked under it`:""); showDims(); drawFootprint(); }
 const ft=m=>{ const i=Math.round(m*39.3701); return `${Math.floor(i/12)}′ ${i%12}″`; };
-function showDims(){ const m=cur(); $("dims").innerHTML=[["Width",m.w],["Height",m.h],[sunCover?"Length with cover":"Scanner length",m.d],["Clear space each end",CLEAR_M],["Total lane",m.lane]].map(([k,v])=>`<div class="dim"><b>${ft(v)}</b><span>${k} · ${v.toFixed(1)} m</span></div>`).join(""); }
+function showDims(){ const m=cur(); $("dims").innerHTML=[["Width",m.w],["Height",m.h],[sunCover?"Length with cover":"Scanner length",m.d],["Clear space each end",CLEAR_M],["Total lane",m.lane]].concat(vehicle?[["Vehicle length",VEHICLES[vehicle].l],["Vehicle height",VEHICLES[vehicle].h]]:[]).map(([k,v])=>`<div class="dim"><b>${ft(v)}</b><span>${k} · ${v.toFixed(1)} m</span></div>`).join(""); }
 const modelBtns=document.querySelectorAll('[aria-label="Scanner model"] button'), coverBtns=document.querySelectorAll('[aria-label="Sun cover"] button');
 modelBtns.forEach(b=>b.addEventListener("click",()=>{ model=b.dataset.m; modelBtns.forEach(x=>x.setAttribute("aria-pressed",x===b)); showModel(); }));
 coverBtns.forEach(b=>b.addEventListener("click",()=>{ sunCover=b.dataset.c==="1"; coverBtns.forEach(x=>x.setAttribute("aria-pressed",x===b)); showModel(); }));
+const vehBtns=document.querySelectorAll('[aria-label="Vehicle"] button');
+vehBtns.forEach(b=>b.addEventListener("click",()=>{ vehicle=b.dataset.v; vehBtns.forEach(x=>x.setAttribute("aria-pressed",x===b)); showModel(); }));
 showDims();
 
 // ---- map (Esri aerial imagery, OpenStreetMap address search) ----
