@@ -87,6 +87,8 @@ def main():
             "lane_right": ([hw - STRIP, hw], [-lane_len, 0]),
             "lane_far_end": ([-hw, hw], [-lane_len, -lane_len + STRIP]),
             "lane_near_end": ([-hw, hw], [-STRIP, 0]),
+            # centre marker line down the whole lane (through the scanner)
+            "lane_centre": ([-STRIP / 2, STRIP / 2], [-lane_len, 0]),
         }
         for sname, ((x0, x1), (z0, z1)) in strips.items():
             b = trimesh.creation.box(extents=[x1 - x0, THICK, z1 - z0])
@@ -94,12 +96,13 @@ def main():
             b.visual = trimesh.visual.TextureVisuals(material=material(LANE))
             scene.add_geometry(b, node_name=sname, geom_name=sname)
 
-        # lengthwise floor label in the middle of each end zone
+        # lengthwise floor label in the middle of each end zone, set beside the centre
+        # line on the +X side (halfway between the centre line and the lane edge)
         label = text_mesh(LABEL, width=LABEL_FILL * CLEAR_M)
         for lname, z in {"label_near_end": -CLEAR_M / 2,
                          "label_far_end": -lane_len + CLEAR_M / 2}.items():
             t = label.copy()
-            t.apply_translation([0, 0, z])
+            t.apply_translation([hw / 2, 0, z])
             t.visual = trimesh.visual.TextureVisuals(material=material(LANE))
             scene.add_geometry(t, node_name=lname, geom_name=lname)
 
