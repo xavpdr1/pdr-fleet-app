@@ -13,7 +13,8 @@ const MAX_AGE = 60 * 60 * 24 * 180; // stay signed in on a phone for 180 days
 const PUBLIC = [
   /^\/shop-preview(\.html)?$/,
   /^\/colibri-logo\.jpg$/,
-  /^\/colibri(-xl)?\.glb$/,
+  // every scanner model the customer page can show: Colibri / XL, optional sun cover, optional vehicle
+  /^\/colibri(-xl)?(-cover)?(-suv|-truck)?\.glb$/,
   /^\/favicon-32\.png$/,
   /^\/apple-touch-icon\.png$/,
   /^\/icon-\d+\.png$/,
