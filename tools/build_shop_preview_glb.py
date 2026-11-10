@@ -33,6 +33,9 @@ OUT = {("colibri", False): "public/colibri.glb", ("colibri_xl", False): "public/
 LABEL = "16FT-18FT"
 LABEL_FILL = 0.85              # label length as a share of the end zone length
 LABEL_DEPTH = 0.08             # thickness of the standing letters, m
+LABEL_GAP = 0.3                # labels stand this far outside the lane edge, clear of the vehicle
+DRIVE_SPEED = 1.2              # display vehicle speed through the scanner, m/s
+DRIVE_PAUSE = 1.5              # pause at each end of the drive, s
 
 
 def text_mesh(text, width):
@@ -60,6 +63,44 @@ def text_mesh(text, width):
     # (u right, v up, w extrude) -> (x = w, y = v, z = -u), standing on the floor, centred on x = 0
     m.apply_transform(np.array([[0, 0, 1, -LABEL_DEPTH / 2], [0, 1, 0, h / 2], [-1, 0, 0, 0], [0, 0, 0, 1]], float))
     return m
+
+
+def add_drive_animation(path, travel):
+    """Group the vehicle_* nodes under one 'vehicle' node and loop it through the scanner.
+
+    Keyframes: pause at the start, drive `travel` metres toward -Z at DRIVE_SPEED,
+    pause, then the loop restarts at the start position. model-viewer plays it with autoplay.
+    """
+    import struct
+    from pygltflib import (GLTF2, Accessor, Animation, AnimationChannel, AnimationChannelTarget,
+                           AnimationSampler, BufferView, Node)
+    g = GLTF2().load(path)
+    scene = g.scenes[g.scene or 0]
+    veh_idx = [i for i in scene.nodes if (g.nodes[i].name or "").startswith("vehicle_")]
+    g.nodes.append(Node(name="vehicle", children=veh_idx, translation=[0.0, 0.0, 0.0]))
+    parent = len(g.nodes) - 1
+    scene.nodes = [i for i in scene.nodes if i not in veh_idx] + [parent]
+
+    drive = travel / DRIVE_SPEED
+    times = [0.0, DRIVE_PAUSE, DRIVE_PAUSE + drive, 2 * DRIVE_PAUSE + drive]
+    moves = [(0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, -travel), (0.0, 0.0, -travel)]
+    blob = bytearray(g.binary_blob())
+    def add(data, count, typ, mn=None, mx=None):
+        while len(blob) % 4:
+            blob.append(0)
+        off = len(blob)
+        blob.extend(data)
+        g.bufferViews.append(BufferView(buffer=0, byteOffset=off, byteLength=len(data)))
+        g.accessors.append(Accessor(bufferView=len(g.bufferViews) - 1, componentType=5126,
+                                    count=count, type=typ, min=mn, max=mx))
+        return len(g.accessors) - 1
+    t_acc = add(struct.pack(f"<{len(times)}f", *times), len(times), "SCALAR", [times[0]], [times[-1]])
+    m_acc = add(struct.pack(f"<{3 * len(moves)}f", *[c for m in moves for c in m]), len(moves), "VEC3")
+    g.animations.append(Animation(name="drive_through", samplers=[AnimationSampler(input=t_acc, output=m_acc, interpolation="LINEAR")],
+                                  channels=[AnimationChannel(sampler=0, target=AnimationChannelTarget(node=parent, path="translation"))]))
+    g.buffers[0].byteLength = len(blob)
+    g.set_binary_blob(bytes(blob))
+    g.save_binary(path)
 
 
 def material(col):
@@ -93,6 +134,15 @@ def main():
             g.visual = trimesh.visual.TextureVisuals(material=material(col))
             scene.add_geometry(g, node_name=pname, geom_name=pname)
 
+        if veh:   # start position: nose at the scanner entrance, kept inside the lane
+            car_l, zc, depth = vh.VEHICLES[veh]["L"] / 1000, -lane_len / 2, depth_mm / 1000
+            start_c = min(zc + depth / 2 + car_l / 2, -car_l / 2 - 0.05)
+            end_c = max(zc - depth / 2 - car_l / 2, -lane_len + car_l / 2 + 0.05)
+            for gname, g in scene.geometry.items():
+                if gname.startswith("vehicle_"):
+                    g.apply_translation([0, 0, start_c - zc])
+            travel = start_c - end_c
+
         hw = width_m / 2
         strips = {
             "lane_left": ([-hw, -hw + STRIP], [-lane_len, 0]),
@@ -108,16 +158,18 @@ def main():
             b.visual = trimesh.visual.TextureVisuals(material=material(LANE))
             scene.add_geometry(b, node_name=sname, geom_name=sname)
 
-        # standing lengthwise label in the middle of each end zone
+        # standing lengthwise label beside the lane (outside its +X edge) in the middle of each end zone
         label = text_mesh(LABEL, width=LABEL_FILL * CLEAR_M)
         for lname, z in {"label_near_end": -CLEAR_M / 2,
                          "label_far_end": -lane_len + CLEAR_M / 2}.items():
             t = label.copy()
-            t.apply_translation([0, 0, z])
+            t.apply_translation([hw + LABEL_GAP, 0, z])
             t.visual = trimesh.visual.TextureVisuals(material=material(LANE))
             scene.add_geometry(t, node_name=lname, geom_name=lname)
 
         scene.export(out)
+        if veh:
+            add_drive_animation(out, travel)
         e = scene.bounds[1] - scene.bounds[0]
         print(f"{out}: width {e[0]:.3f} m, height {e[1]:.3f} m, "
               f"lane {lane_len:.3f} m (scanner {depth_mm / 1000:.3f} m + {CLEAR_FT} ft each end)")
