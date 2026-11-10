@@ -15,13 +15,19 @@ DARK = [43, 45, 48, 255]      # arch shell
 TRIM = [185, 180, 154, 255]   # light edge trim on the arch faces
 WING = [30, 31, 34, 255]      # camera wing modules
 POD = [70, 72, 76, 255]       # small side sockets
+COVER = [206, 209, 212, 255]  # sun cover fabric (plain light grey; customer wraps vary)
 
 MODELS = {
     "colibri": dict(
         W=1632, H=2606, t=96, rx=1060, rz=1180, D=986, top=2826, side=1648,
+        # sun cover (Test copy of the Colibri assembly): 2500 mm long tunnel over the arch,
+        # outer half-width ~1647, top 2632, hem ~69 mm above the floor
+        cover=dict(L=2500, CW=1652, CH=2632, bottom=69),
         wings=[]),  # the standard Colibri has no side panels
     "colibri_xl": dict(
         W=1993, H=2893, t=96, rx=1018, rz=1159, D=990, top=3112, side=2026,
+        # sun cover halves G00-000-117/118: 2500 mm long, 2874 mm from hem to top
+        cover=dict(L=2500, CW=2030, CH=2914, bottom=40),
         wings=[
             (409, 1117, 1766, 2002, 30, 1515), (409, 1117, -2002, -1767, 30, 1515),
             (-1117, -450, 1859, 1993, 30, 1515), (-1117, -450, -1993, -1858, 30, 1515),
@@ -58,7 +64,16 @@ def cuboid(x0, x1, y0, y1, z0, z1):
     return m
 
 
-def build(p):
+def cover_mesh(p, ct=8):
+    """Sun cover: thin fabric tunnel following the arch just outside it."""
+    c = p["cover"]
+    off = c["CW"] - p["W"]
+    prof = arch_profile(c["CW"], c["CH"], ct, p["rx"] + off, p["rz"] + off)
+    prof = prof.difference(box(-c["CW"] - 1, -1, c["CW"] + 1, c["bottom"]))
+    return extrude_x(prof, -c["L"] / 2, c["L"] / 2)
+
+
+def build(p, cover=False):
     ring = arch_profile(p["W"], p["H"], p["t"], p["rx"], p["rz"])
     h, trim = p["D"] / 2, 25
     parts = {
@@ -73,6 +88,8 @@ def build(p):
     for i, s in enumerate((1, -1)):
         y0, y1 = sorted((s * (p["W"] - 5), s * p["side"]))
         parts[f"side_socket_{i + 1}"] = (cuboid(-80, 80, y0, y1, 900, 1100), POD)
+    if cover:
+        parts["sun_cover"] = (cover_mesh(p), COVER)
     return parts
 
 

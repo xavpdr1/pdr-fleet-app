@@ -95,6 +95,10 @@ footer{font-size:13px;color:var(--muted);text-align:center}
         <button type="button" data-m="xl" aria-pressed="true">Colibri XL</button>
         <button type="button" data-m="std" aria-pressed="false">Colibri</button>
       </div>
+      <div class="tabs" role="group" aria-label="Sun cover">
+        <button type="button" data-c="0" aria-pressed="true">No sun cover</button>
+        <button type="button" data-c="1" aria-pressed="false">With sun cover</button>
+      </div>
       <span class="hint" id="arHint">On a phone, tap “View in your shop”, stand back about 25 ft from where it should go, and point at open floor. It needs real open space (shop floor, bay or lot): newer iPhones hide it behind nearby walls.</span>
     </div>
     <div style="position:relative">
@@ -140,12 +144,18 @@ const $=id=>document.getElementById(id);
 // Outer sizes in meters, measured from the Fusion models (d = scanner length front to back; the XL includes its side panels).
 // The lane shown on the floor/map leaves CLEAR_M of open space at each end of the scanner.
 const CLEAR_M=17*0.3048;
-const MODELS={ xl:{name:"Colibri XL",src:"/colibri-xl.glb",w:4.053,h:2.893,d:2.234}, std:{name:"Colibri",src:"/colibri.glb",w:3.296,h:2.606,d:0.986} };
-for(const m of Object.values(MODELS)) m.lane=m.d+2*CLEAR_M;
-let model="xl", place=null;
+// cover = sizes with the sun cover on (2.5 m fabric tunnel over the arch); the 17 ft is then measured from the cover's ends.
+const MODELS={
+  xl:{name:"Colibri XL",src:"/colibri-xl.glb",w:4.053,h:2.893,d:2.234, cover:{src:"/colibri-xl-cover.glb",w:4.060,h:2.914,d:2.500}},
+  std:{name:"Colibri",src:"/colibri.glb",w:3.296,h:2.606,d:0.986, cover:{src:"/colibri-cover.glb",w:3.304,h:2.632,d:2.500}} };
+let model="xl", sunCover=false, place=null;
+function cur(){ const b=MODELS[model], m=sunCover?{...b,...b.cover,name:b.name+" with sun cover"}:{...b}; m.lane=m.d+2*CLEAR_M; return m; }
+function showModel(){ const m=cur(); $("mv").src=m.src; $("mv").alt=`3D model of the ${m.name} scanner arch with its drive-through lane`; showDims(); drawFootprint(); }
 const ft=m=>{ const i=Math.round(m*39.3701); return `${Math.floor(i/12)}′ ${i%12}″`; };
-function showDims(){ const m=MODELS[model]; $("dims").innerHTML=[["Width",m.w],["Height",m.h],["Scanner length",m.d],["Clear space each end",CLEAR_M],["Total lane",m.lane]].map(([k,v])=>`<div class="dim"><b>${ft(v)}</b><span>${k} · ${v.toFixed(1)} m</span></div>`).join(""); }
-document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>{ model=b.dataset.m; document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-pressed",x===b)); $("mv").src=MODELS[model].src; $("mv").alt=`3D model of the ${MODELS[model].name} scanner arch with its drive-through lane`; showDims(); drawFootprint(); }));
+function showDims(){ const m=cur(); $("dims").innerHTML=[["Width",m.w],["Height",m.h],[sunCover?"Length with cover":"Scanner length",m.d],["Clear space each end",CLEAR_M],["Total lane",m.lane]].map(([k,v])=>`<div class="dim"><b>${ft(v)}</b><span>${k} · ${v.toFixed(1)} m</span></div>`).join(""); }
+const modelBtns=document.querySelectorAll('[aria-label="Scanner model"] button'), coverBtns=document.querySelectorAll('[aria-label="Sun cover"] button');
+modelBtns.forEach(b=>b.addEventListener("click",()=>{ model=b.dataset.m; modelBtns.forEach(x=>x.setAttribute("aria-pressed",x===b)); showModel(); }));
+coverBtns.forEach(b=>b.addEventListener("click",()=>{ sunCover=b.dataset.c==="1"; coverBtns.forEach(x=>x.setAttribute("aria-pressed",x===b)); showModel(); }));
 showDims();
 
 // ---- map (Esri aerial imagery, OpenStreetMap address search) ----
@@ -156,7 +166,7 @@ let marker=null, fp=null, center=null;
 function drawFootprint(){
   if(fp){ map.removeLayer(fp); fp=null; }
   if(!center||!$("fpOn").checked) return;
-  const m=MODELS[model], a=(+$("fpRot").value)*Math.PI/180, lat=center.lat*Math.PI/180;
+  const m=cur(), a=(+$("fpRot").value)*Math.PI/180, lat=center.lat*Math.PI/180;
   const mLat=1/111320, mLng=1/(111320*Math.cos(lat));
   const pts=[[-m.w/2,-m.lane/2],[m.w/2,-m.lane/2],[m.w/2,m.lane/2],[-m.w/2,m.lane/2]].map(([x,y])=>{ const rx=x*Math.cos(a)-y*Math.sin(a), ry=x*Math.sin(a)+y*Math.cos(a); return [center.lat+ry*mLat, center.lng+rx*mLng]; });
   const ax=[[-m.w/2,-m.d/2],[m.w/2,-m.d/2],[m.w/2,m.d/2],[-m.w/2,m.d/2]].map(([x,y])=>{ const rx=x*Math.cos(a)-y*Math.sin(a), ry=x*Math.sin(a)+y*Math.cos(a); return [center.lat+ry*mLat, center.lng+rx*mLng]; });
@@ -200,7 +210,7 @@ $("leadForm").addEventListener("submit",async e=>{
   const at=new Date().toISOString();
   try{
     for(let i=0;i<photos.length;i++) await put([{kind:"shop_lead_img",id:`${id}|${i}`,data:{lead:id,i,img:photos[i]},deleted:false,updated_at:at}]);
-    await put([{kind:"shop_lead",id,data:{name,shop,email,phone:$("fPhone").value.trim(),notes:$("fNotes").value.trim(),address:$("addr").value.trim(),place,model:MODELS[model].name,footprint:center?{lat:center.lat,lng:center.lng,rot:+$("fpRot").value}:null,photos:photos.length,at,status:"new"},deleted:false,updated_at:at}]);
+    await put([{kind:"shop_lead",id,data:{name,shop,email,phone:$("fPhone").value.trim(),notes:$("fNotes").value.trim(),address:$("addr").value.trim(),place,model:cur().name,footprint:center?{lat:center.lat,lng:center.lng,rot:+$("fpRot").value}:null,photos:photos.length,at,status:"new"},deleted:false,updated_at:at}]);
     msg.className="msg ok"; msg.textContent="Sent. Thanks! PDR-Team will reach out about fitting a Colibri at your shop.";
     photos=[]; renderThumbs(); $("leadForm").reset();
   }catch(err){ msg.className="msg err"; msg.textContent="That didn't go through. Check your connection and try again."; }

@@ -1,8 +1,10 @@
-"""Build public/colibri.glb and public/colibri-xl.glb for shop-preview.html.
+"""Build the shop-preview.html models: public/colibri.glb, public/colibri-xl.glb and the
+sun-cover versions public/colibri-cover.glb, public/colibri-xl-cover.glb.
 
 Arch geometry comes from colibri_geometry.py (dimensions measured from the Fusion models).
 Adds the blue drive-through lane outline on the floor: CLEAR_FT of open space at each
-end of the scanner, measured from the scanner's outermost front/back faces.
+end of the scanner, measured from its outermost front/back faces (the sun cover's ends
+when the cover is on).
 
 glTF frame (what model-viewer expects): metres, Y up, the lane runs along -Z from the
 origin, so in AR the scanner appears ahead of where the phone is pointed.
@@ -23,7 +25,8 @@ CLEAR_M = CLEAR_FT * 0.3048
 LANE = [46, 117, 181, 255]     # same blue as the previous models
 STRIP = 0.12                   # lane line width, m
 THICK = 0.012                  # lane line height, m
-OUT = {"colibri": "public/colibri.glb", "colibri_xl": "public/colibri-xl.glb"}
+OUT = {("colibri", False): "public/colibri.glb", ("colibri_xl", False): "public/colibri-xl.glb",
+       ("colibri", True): "public/colibri-cover.glb", ("colibri_xl", True): "public/colibri-xl-cover.glb"}
 
 
 LABEL = "16FT-18FT"
@@ -63,8 +66,9 @@ def material(col):
 
 
 def main():
-    for name, p in cg.MODELS.items():
-        parts = cg.build(p)
+    for (name, cover), out in OUT.items():
+        p = cg.MODELS[name]
+        parts = cg.build(p, cover=cover)
         allv = np.vstack([m.vertices for m, _ in parts.values()])
         depth_mm = allv[:, 0].max() - allv[:, 0].min()
         width_m = (allv[:, 1].max() - allv[:, 1].min()) / 1000
@@ -105,9 +109,9 @@ def main():
             t.visual = trimesh.visual.TextureVisuals(material=material(LANE))
             scene.add_geometry(t, node_name=lname, geom_name=lname)
 
-        scene.export(OUT[name])
+        scene.export(out)
         e = scene.bounds[1] - scene.bounds[0]
-        print(f"{OUT[name]}: width {e[0]:.3f} m, height {e[1]:.3f} m, "
+        print(f"{out}: width {e[0]:.3f} m, height {e[1]:.3f} m, "
               f"lane {lane_len:.3f} m (scanner {depth_mm / 1000:.3f} m + {CLEAR_FT} ft each end)")
 
 
