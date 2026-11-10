@@ -14,7 +14,8 @@ const PUBLIC = [
   /^\/shop-preview(\.html)?$/,
   /^\/colibri-logo\.jpg$/,
   // every scanner model the customer page can show: Colibri / XL, optional sun cover, optional vehicle
-  /^\/colibri(-xl)?(-cover)?(-suv|-truck)?\.glb$/,
+  // (.glb for the 3D view, .usdz for the animated iPhone camera view)
+  /^\/colibri(-xl)?(-cover)?(-suv|-truck)?\.(glb|usdz)$/,
   /^\/favicon-32\.png$/,
   /^\/apple-touch-icon\.png$/,
   /^\/icon-\d+\.png$/,
@@ -102,6 +103,7 @@ export default async (req, context) => {
   if (PUBLIC.some((r) => r.test(path))) {
     const res = await context.next();
     res.headers.set("x-pdr-gate", "public");
+    if (path.endsWith(".usdz")) res.headers.set("content-type", "model/vnd.usdz+zip"); // iPhone AR Quick Look needs this type
     return res;
   }
 
