@@ -137,10 +137,10 @@ footer{font-size:13px;color:var(--muted);text-align:center}
 <script>
 const SB_URL='https://jedolnkjmlrruipkgqyd.supabase.co', SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZG9sbmtqbWxycnVpcGtncXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODk1ODQsImV4cCI6MjEwNjM2NTU4NH0.h3W7vimHuA_KPGmOjGN8HhM24k9apRta44l9D8xtF-Y';
 const $=id=>document.getElementById(id);
-// Outer sizes in meters, measured from the Fusion models (d = scanner length front to back, camera wings included).
+// Outer sizes in meters, measured from the Fusion models (d = scanner length front to back; the XL includes its side panels).
 // The lane shown on the floor/map leaves CLEAR_M of open space at each end of the scanner.
 const CLEAR_M=17*0.3048;
-const MODELS={ xl:{name:"Colibri XL",src:"/colibri-xl.glb",w:4.053,h:3.113,d:2.234}, std:{name:"Colibri",src:"/colibri.glb",w:3.296,h:2.826,d:2.234} };
+const MODELS={ xl:{name:"Colibri XL",src:"/colibri-xl.glb",w:4.053,h:2.893,d:2.234}, std:{name:"Colibri",src:"/colibri.glb",w:3.296,h:2.606,d:0.986} };
 for(const m of Object.values(MODELS)) m.lane=m.d+2*CLEAR_M;
 let model="xl", place=null;
 const ft=m=>{ const i=Math.round(m*39.3701); return `${Math.floor(i/12)}′ ${i%12}″`; };

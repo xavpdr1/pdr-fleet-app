@@ -14,15 +14,12 @@ from shapely.ops import unary_union
 DARK = [43, 45, 48, 255]      # arch shell
 TRIM = [185, 180, 154, 255]   # light edge trim on the arch faces
 WING = [30, 31, 34, 255]      # camera wing modules
-POD = [70, 72, 76, 255]       # roof-mounted units
+POD = [70, 72, 76, 255]       # small side sockets
 
 MODELS = {
     "colibri": dict(
         W=1632, H=2606, t=96, rx=1060, rz=1180, D=986, top=2826, side=1648,
-        wings=[  # x0, x1, y0, y1, z0, z1
-            (409, 1117, 1360, 1632, 32, 1517), (409, 1117, -1624, -1388, 32, 1517),
-            (-1117, -450, 1497, 1632, 32, 1517), (-1117, -450, -1615, -1479, 32, 1517),
-        ]),
+        wings=[]),  # the standard Colibri has no side panels
     "colibri_xl": dict(
         W=1993, H=2893, t=96, rx=1018, rz=1159, D=990, top=3112, side=2026,
         wings=[
@@ -69,12 +66,9 @@ def build(p):
         "arch_trim_front": (extrude_x(ring, h - trim, h), TRIM),
         "arch_trim_back": (extrude_x(ring, -h, -h + trim), TRIM),
     }
-    for i, w in enumerate(p["wings"]):
+    for i, w in enumerate(p["wings"]):  # side panels (XL only), x0, x1, y0, y1, z0, z1
         parts[f"wing_{i + 1}"] = (cuboid(*w), WING)
-    # roof units (cameras / electronics) bring the top to the measured overall height
-    H, top = p["H"], p["top"]
-    for i, y in enumerate((-0.45 * p["W"], 0, 0.45 * p["W"])):
-        parts[f"roof_unit_{i + 1}"] = (cuboid(-160, 160, y - 120, y + 120, H - 5, top), POD)
+    # no roof-mounted boxes: the units in the Fusion assembly aren't on the real scanners
     # side sockets/handles bring the width to the measured overall width
     for i, s in enumerate((1, -1)):
         y0, y1 = sorted((s * (p["W"] - 5), s * p["side"]))
